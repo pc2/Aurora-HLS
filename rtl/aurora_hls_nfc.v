@@ -1,0 +1,124 @@
+/*
+ * Copyright 2023-2024 Gerrit Pape (papeg@mail.upb.de)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+`default_nettype none
+`timescale 1ns/1ps
+
+module aurora_hls_nfc (
+    input wire  rst_n,
+    input wire  clk,
+    input wire  fifo_rx_prog_full,
+    input wire  fifo_rx_prog_empty,
+    input wire  s_axi_nfc_tready,
+    output reg  s_axi_nfc_tvalid,
+    output reg [0:15] s_axi_nfc_tdata,
+    input wire  rx_tvalid
+);
+
+localparam empty = 3'b000;
+localparam empty_transmit = 3'b001;
+localparam empty_triggered = 3'b010;
+localparam full = 3'b011;
+localparam full_transmit = 3'b100;
+localparam full_triggered = 3'b101;
+localparam idle = 3'b110;
+localparam reset = 3'b111;
+
+reg [2:0] current_state, next_state;
+
+// default big endian
+reg [0:15] nfc_xoff = 16'hffff;
+reg [0:15] nfc_xon = 16'h0000;
+
+always @ (posedge clk) begin
+    case(current_state)
+    reset: begin
+        s_axi_nfc_tvalid <= 1'b0;
+        s_axi_nfc_tdata <= 1'h0000;
+        if (fifo_rx_prog_empty) begin
+            next_state = empty;
+        end
+        else if (fifo_rx_prog_full) begin
+            next_state = full;
+        end
+        else begin
+            next_state = idle;
+        end
+    end
+    empty_triggered: begin
+        s_axi_nfc_tdata <= nfc_xon;
+        s_axi_nfc_tvalid <= 1'b1;
+        next_state = empty_transmit;
+    end
+    empty_transmit: begin
+        if (s_axi_nfc_tready) begin
+            s_axi_nfc_tvalid <= 1'b0;
+            next_state = empty;
+        end
+    end
+    empty: begin
+        if (!fifo_rx_prog_empty) begin
+            next_state = idle;
+        end
+    end
+    full_triggered: begin
+        s_axi_nfc_tdata <= nfc_xoff;
+        s_axi_nfc_tvalid <= 1'b1;
+        next_state = full_transmit;
+    end
+    full_transmit: begin
+        if (s_axi_nfc_tready) begin
+            s_axi_nfc_tvalid <= 1'b0;
+            next_state = full;
+        end
+    end
+    full: begin
+        if (!fifo_rx_prog_full) begin
+            next_state = idle;
+        end
+    end
+    idle: begin
+        if (fifo_rx_prog_empty) begin
+            next_state = empty_triggered;
+        end
+        else if (fifo_rx_prog_full) begin
+            next_state = full_triggered;
+        end
+    end
+    endcase
+
+    if (!rst_n) begin
+        current_state <= reset;
+    end else begin
+        current_state <= next_state;
+    end
+end
+
+`ifdef PROBE_NFC
+ila_nfc ila_nfc_0 (
+    .clk(clk),
+    .probe0(rst_n),
+    .probe1(fifo_rx_prog_full),
+    .probe2(fifo_rx_prog_empty),
+    .probe3(s_axi_nfc_tready),
+    .probe4(s_axi_nfc_tvalid),
+    .probe5(s_axi_nfc_tdata),
+    .probe6(current_state),
+    .probe7(next_state),
+    .probe8(rx_tvalid)
+);
+`endif
+
+endmodule
