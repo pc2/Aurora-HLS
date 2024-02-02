@@ -54,7 +54,7 @@ static const uint32_t FIFO_RX_ALMOST_EMPTY = 0x00000020;
 static const uint32_t FIFO_RX_PROG_FULL    = 0x00000040;
 static const uint32_t FIFO_RX_ALMOST_FULL  = 0x00000080;
 static const char *fifo_status_name[8] = {
-    "FIFO tx prog empty"
+    "FIFO tx prog empty",
     "FIFO tx almost empty",
     "FIFO tx prog full",
     "FIFO tx almost full",
