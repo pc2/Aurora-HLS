@@ -80,7 +80,7 @@ static const char *rx_eq_mode_names[4] = {
 class Aurora
 {
 public:
-    Aurora(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid)
+    Aurora(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid) : instance(instance)
     {
         char name[100];
         snprintf(name, 100, "aurora_hls_%u:{aurora_hls_%u}", instance, instance);
