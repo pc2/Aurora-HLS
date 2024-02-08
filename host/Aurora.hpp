@@ -190,7 +190,7 @@ public:
                 break;
             } else {
                 timeout_finish = get_wtime();
-                if (((timeout_start - timeout_finish) * 1000) > timeout_ms) {
+                if (((timeout_finish - timeout_start) * 1000) > timeout_ms) {
                     print_core_status("startup timeout");
                     return 1;
                 }
