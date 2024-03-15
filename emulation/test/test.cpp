@@ -142,6 +142,40 @@ TEST_F(AuroraEmuTest, SwitchConnectInRing) {
     EXPECT_EQ(out1.read().data, ap_uint<512>(345686));
 }
 
+TEST_F(AuroraEmuTest, SwitchConcurrentTransfers) {
+    // set depth of streams to hold all data
+    hlslib::Stream<data_stream_t, 200> in1("in1"), out1("out1"), in2("in2"),
+        out2("out2"), in3("in3"), out3("out3"), in4("in4"), out4("out4");
+    AuroraEmuSwitch s("127.0.0.1", 20000);
+    AuroraEmuCore a1("127.0.0.1", 20000, "a1", "a2", in1, out1);
+    AuroraEmuCore a2("127.0.0.1", 20000, "a2", "a1", in2, out2);
+    AuroraEmuCore a3("127.0.0.1", 20000, "a3", "a4", in3, out3);
+    AuroraEmuCore a4("127.0.0.1", 20000, "a4", "a3", in4, out4);
+    std::cout << "Write stuff" << std::endl;
+    std::cout << "Send " << std::endl;
+    std::thread t1([&in1]() {
+        data_stream_t data;
+        data.data = ap_uint<512>(345686);
+        for (int i = 0; i < 200; i++) {
+            in1.write(data);
+        }
+    });
+    std::thread t2([&in3]() {
+        data_stream_t data;
+        data.data = ap_uint<512>(117799);
+        for (int i = 0; i < 200; i++) {
+            in3.write(data);
+        }
+    });
+    t1.join();
+    t2.join();
+    std::cout << "Check " << std::endl;
+    for (int i = 0; i < 100; i++) {
+        EXPECT_EQ(out2.read().data, ap_uint<512>(345686));
+        EXPECT_EQ(out4.read().data, ap_uint<512>(117799));
+    }
+}
+
 TEST_F(AuroraEmuTest, ConnectTwo) {
     hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
         out2("out2");
