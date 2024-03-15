@@ -26,12 +26,12 @@ int main() {
     hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
         out2("out2");
     // Create an aurora switch
-    auto s = AuroraEmuSwitch("127.0.0.1", 20000);
+    AuroraEmuSwitch s("127.0.0.1", 20000);
     // create emulated aurora cores
     // connect cores to switch and set own identifier and identifier of
     // remote core
-    auto a1 = AuroraEmuCore("127.0.0.1", 20000, "a1", "a2", in1, out1);
-    auto a2 = AuroraEmuCore("127.0.0.1", 20000, "a2", "a1", in2, out2);
+    AuroraEmuCore a1("127.0.0.1", 20000, "a1", "a2", in1, out1);
+    AuroraEmuCore a2("127.0.0.1", 20000, "a2", "a1", in2, out2);
 
     // create some input data
     float data_in[64];

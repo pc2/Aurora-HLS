@@ -32,19 +32,19 @@ struct AuroraEmuTest : public ::testing::Test {
 
 TEST_F(AuroraEmuTest, ConstructorNamedPipes) {
     hlslib::Stream<data_stream_t> in, out;
-    auto e = AuroraEmu("hans", in, out);
+    AuroraEmu e("hans", in, out);
     EXPECT_EQ(e.get_address(), "ipc://hans");
 }
 
 TEST_F(AuroraEmuTest, ConstructorTCP) {
     hlslib::Stream<data_stream_t> in, out;
-    auto e = AuroraEmu("127.0.0.1", 20003, in, out);
+    AuroraEmu e("127.0.0.1", 20003, in, out);
     EXPECT_EQ(e.get_address(), "tcp://127.0.0.1:20003");
 }
 
 TEST_F(AuroraEmuTest, ConnectLoopback) {
     hlslib::Stream<data_stream_t> in, out;
-    auto e = AuroraEmu("hans", in, out);
+    AuroraEmu e("hans", in, out);
     e.connect(e);
 
     data_stream_t data;
@@ -55,7 +55,7 @@ TEST_F(AuroraEmuTest, ConnectLoopback) {
 }
 
 TEST_F(AuroraEmuTest, ConstructorSwitch) {
-    auto s = AuroraEmuSwitch("127.0.0.1", 20000);
+    AuroraEmuSwitch s("127.0.0.1", 20000);
     zmq::context_t ctx(1);
     zmq::socket_t to_switch(ctx, zmq::socket_type::push);
     zmq::socket_t from_switch(ctx, zmq::socket_type::sub);
@@ -84,9 +84,9 @@ TEST_F(AuroraEmuTest, ConstructorSwitch) {
 
 TEST_F(AuroraEmuTest, ConnectSwitchLoopback) {
     hlslib::Stream<data_stream_t> in, out;
-    auto s = AuroraEmuSwitch("127.0.0.1", 20000);
+    AuroraEmuSwitch s("127.0.0.1", 20000);
     std::cout << "Start core" << std::endl;
-    auto e = AuroraEmuCore("127.0.0.1", 20000, "hans", "hans", in, out);
+    AuroraEmuCore e("127.0.0.1", 20000, "hans", "hans", in, out);
     data_stream_t data;
     data.data = ap_uint<512>(7);
     std::cout << "write data" << std::endl;
@@ -99,9 +99,9 @@ TEST_F(AuroraEmuTest, ConnectSwitchLoopback) {
 TEST_F(AuroraEmuTest, SwitchConnectTwo) {
     hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
         out2("out2");
-    auto s = AuroraEmuSwitch("127.0.0.1", 20000);
-    auto a1 = AuroraEmuCore("127.0.0.1", 20000, "hans", "franz", in1, out1);
-    auto a2 = AuroraEmuCore("127.0.0.1", 20000, "franz", "hans", in2, out2);
+    AuroraEmuSwitch s("127.0.0.1", 20000);
+    AuroraEmuCore a1("127.0.0.1", 20000, "hans", "franz", in1, out1);
+    AuroraEmuCore a2("127.0.0.1", 20000, "franz", "hans", in2, out2);
     std::cout << "Write stuff" << std::endl;
     for (int i = 0; i < 100; i += 10) {
         std::cout << "Send " << i << std::endl;
@@ -122,8 +122,8 @@ TEST_F(AuroraEmuTest, SwitchConnectTwo) {
 TEST_F(AuroraEmuTest, ConnectTwo) {
     hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
         out2("out2");
-    auto a1 = AuroraEmu("20000", in1, out1);
-    auto a2 = AuroraEmu("20001", in2, out2);
+    AuroraEmu a1("20000", in1, out1);
+    AuroraEmu a2("20001", in2, out2);
     a1.connect(a2);
     std::cout << "Write stuff" << std::endl;
     for (int i = 0; i < 100; i += 10) {
