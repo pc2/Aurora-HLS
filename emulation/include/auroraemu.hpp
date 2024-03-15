@@ -27,7 +27,7 @@ const int RECV_POLL_INTERVAL = 100;
 
 class AuroraEmu {
    private:
-    // ZMQ sockets used to exchange data between Aurroa cores
+    // ZMQ sockets used to exchange data between Aurora cores
     zmq::context_t ctx;
     zmq::socket_t sock_out;
     zmq::socket_t sock_in;
@@ -53,7 +53,7 @@ class AuroraEmu {
         kill_listener.connect("inproc://kill_" + id);
         kill_listener.set(zmq::sockopt::subscribe, "");
         zmq::message_t msg;
-        // listen to kill singals and data comming in
+        // listen to kill singals and data coming in
         zmq::pollitem_t items[] = {{sock_in, 0, ZMQ_POLLIN, 0},
                                    {kill_listener, 0, ZMQ_POLLIN, 0}};
         while (true) {
@@ -156,12 +156,12 @@ class AuroraEmu {
 
 class AuroraEmuSwitch {
    private:
-    // ZMQ sockets used to exchange data between Aurroa cores
+    // ZMQ sockets used to exchange data between Aurora cores
     zmq::context_t ctx;
     zmq::socket_t distributor;
-    zmq::socket_t incomming;
+    zmq::socket_t incoming;
 
-    // ZMQ socket used to terminate send and recv threads
+    // ZMQ socket used to terminate the switch thread
     zmq::socket_t kill_socket;
 
     // send and recv threads used to pass data to and from user kernels
@@ -175,17 +175,17 @@ class AuroraEmuSwitch {
         kill_listener.connect(kill_id);
         kill_listener.set(zmq::sockopt::subscribe, "");
         zmq::message_t msg;
-        // listen to kill singals and data comming in
-        zmq::pollitem_t items[] = {{incomming, 0, ZMQ_POLLIN, 0},
+        // listen to kill signals and data coming in
+        zmq::pollitem_t items[] = {{incoming, 0, ZMQ_POLLIN, 0},
                                    {kill_listener, 0, ZMQ_POLLIN, 0}};
         while (true) {
             zmq::poll(&items[0], 2);
             if (items[0].revents & ZMQ_POLLIN) {
                 // forward topic
-                auto result = incomming.recv(msg, zmq::recv_flags::none);
+                auto result = incoming.recv(msg, zmq::recv_flags::none);
                 distributor.send(msg, zmq::send_flags::sndmore);
                 // forward content
-                result = incomming.recv(msg, zmq::recv_flags::none);
+                result = incoming.recv(msg, zmq::recv_flags::none);
                 distributor.send(msg, zmq::send_flags::none);
             }
             if (items[1].revents & ZMQ_POLLIN) {
@@ -204,12 +204,12 @@ class AuroraEmuSwitch {
      */
     AuroraEmuSwitch(std::string host_address, int port)
         : ctx(1),
-          incomming(ctx, zmq::socket_type::pull),
+          incoming(ctx, zmq::socket_type::pull),
           distributor(ctx, zmq::socket_type::pub),
           kill_socket(ctx, zmq::socket_type::pub),
           kill_id("inproc://kill_" + host_address + "_" +
                   std::to_string(port)) {
-        incomming.bind("tcp://" + host_address + ":" + std::to_string(port));
+        incoming.bind("tcp://" + host_address + ":" + std::to_string(port));
         distributor.bind("tcp://" + host_address + ":" +
                          std::to_string(port + 1));
         kill_socket.bind(kill_id);
@@ -229,7 +229,7 @@ class AuroraEmuSwitch {
 
 class AuroraEmuCore {
    private:
-    // ZMQ sockets used to exchange data between Aurroa cores
+    // ZMQ sockets used to exchange data between Aurora cores
     zmq::context_t ctx;
     zmq::socket_t to_switch;
     zmq::socket_t from_switch;
@@ -255,7 +255,7 @@ class AuroraEmuCore {
         kill_listener.connect("inproc://kill_" + id);
         kill_listener.set(zmq::sockopt::subscribe, "");
         zmq::message_t msg;
-        // listen to kill singals and data comming in
+        // listen to kill signals and data coming in
         zmq::pollitem_t items[] = {{from_switch, 0, ZMQ_POLLIN, 0},
                                    {kill_listener, 0, ZMQ_POLLIN, 0}};
         while (true) {
