@@ -119,6 +119,29 @@ TEST_F(AuroraEmuTest, SwitchConnectTwo) {
     EXPECT_TRUE(out2.empty());
 }
 
+TEST_F(AuroraEmuTest, SwitchConnectInRing) {
+    hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
+        out2("out2"), in3("in3"), out3("out3"), in4("in4"), out4("out4");
+    AuroraEmuSwitch s("127.0.0.1", 20000);
+    AuroraEmuCore a1("127.0.0.1", 20000, "a1", "a2", in1, out1);
+    AuroraEmuCore a2("127.0.0.1", 20000, "a2", "a3", in2, out2);
+    AuroraEmuCore a3("127.0.0.1", 20000, "a3", "a4", in3, out3);
+    AuroraEmuCore a4("127.0.0.1", 20000, "a4", "a1", in4, out4);
+    std::cout << "Write stuff" << std::endl;
+    std::cout << "Send " << std::endl;
+    data_stream_t data;
+    data.data = ap_uint<512>(345686);
+    in1.write(data);
+    std::cout << "Forward " << std::endl;
+    in2.write(out2.read());
+    std::cout << "Forward " << std::endl;
+    in3.write(out3.read());
+    std::cout << "Forward " << std::endl;
+    in4.write(out4.read());
+    std::cout << "Check " << std::endl;
+    EXPECT_EQ(out1.read().data, ap_uint<512>(345686));
+}
+
 TEST_F(AuroraEmuTest, ConnectTwo) {
     hlslib::Stream<data_stream_t> in1("in1"), out1("out1"), in2("in2"),
         out2("out2");
