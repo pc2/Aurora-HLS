@@ -170,7 +170,7 @@ TEST_F(AuroraEmuTest, SwitchConcurrentTransfers) {
     t1.join();
     t2.join();
     std::cout << "Check " << std::endl;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 200; i++) {
         EXPECT_EQ(out2.read().data, ap_uint<512>(345686));
         EXPECT_EQ(out4.read().data, ap_uint<512>(117799));
     }
