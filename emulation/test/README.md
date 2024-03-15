@@ -4,15 +4,8 @@ Unit tests to check the functionality of the Aurora emulator.
 
 ## Build
 
-The following dependencies have to be installed:
+Next to the Aurora emu dependencies, the following dependencies will be built automatically:
 
-- Vitis HLS (for the AXI stream and ap_int header files)
-- ZMQ
-- CMake > 3.11
-
-The following dependencies are downloaded automatically:
-
-- hlslib
 - google_test
 
 

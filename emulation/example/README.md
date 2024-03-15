@@ -11,11 +11,7 @@ This example code consists of two HLS kernels:
 
 ## Build
 
-The following dependencies have to be installed:
-
-- Vitis HLS (for the AXI stream and ap_int header files)
-- ZMQ
-- CMake > 3.11
+The Aurora Emu dependencies have to be installed.
 
 To build with cmake:
 

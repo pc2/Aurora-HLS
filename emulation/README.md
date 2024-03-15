@@ -7,7 +7,6 @@ This is a simple Aurora emulator based on ZMQ that allows emulation of desings u
 
 The following dependencies have to be installed:
 
-- Vitis HLS (for the AXI stream and ap_int header files)
 - ZMQ
 - CMake > 3.11
 
@@ -15,6 +14,10 @@ The following dependencies are downloaded automatically:
 
 - hlslib
 - cppzmq
+
+optional dependencies:
+
+- Vitis HLS (for the AXI stream and ap_int header files. Header-only repo will be used otherwise)
 
 ## How To
 

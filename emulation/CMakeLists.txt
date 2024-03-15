@@ -32,7 +32,6 @@ FetchContent_GetProperties(extern_hlslib)
 if(NOT extern_hlslib_POPULATED)
   message(STATUS "Fetching mandatory build dependency hlslib")
   FetchContent_Populate(extern_hlslib)
-  set(extern_hlslib_SOURCE_DIR ${extern_hlslib_SOURCE_DIR})
     add_subdirectory(
     ${extern_hlslib_SOURCE_DIR} 
     ${extern_hlslib_BINARY_DIR} 
@@ -50,7 +49,23 @@ FetchContent_GetProperties(extern_hlslib)
 if(NOT extern_cppzmq_POPULATED)
   message(STATUS "Fetching mandatory build dependency cppzmq")
   FetchContent_Populate(extern_cppzmq)
-  set(extern_cpp_zmq_SOURCE_DIR ${extern_cppzmq_SOURCE_DIR})
+endif()
+
+
+if (NOT Vitis_FOUND)
+FetchContent_Declare(
+  extern_hlsheaders
+
+  # unfortunately they do not use releases, so the latest commit was used
+  GIT_REPOSITORY      https://github.com/quetric/hls_sim_headers.git
+  GIT_TAG             main)
+
+FetchContent_GetProperties(extern_hlsheaders)
+if(NOT extern_hlsheaders_POPULATED)
+  message(STATUS "Fetching mandatory build dependency HLS headers")
+  FetchContent_Populate(extern_hlsheaders)
+  set(extern_hlsheaders_SOURCE_DIR ${extern_hlsheaders_SOURCE_DIR}/include)
+endif()
 endif()
 
 ## use this to globally use C++11 with in our project
@@ -59,6 +74,6 @@ set(CMAKE_CXX_STANDARD 11)
 add_library(auroraemu INTERFACE)
 
 ## add the include directory to our compile directives
-target_include_directories(auroraemu INTERFACE ${extern_cppzmq_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(auroraemu INTERFACE ${extern_hlsheaders_SOURCE_DIR} ${extern_cppzmq_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ## at the 0mq library to our link directive
 target_link_libraries(auroraemu INTERFACE zmq hlslib)
