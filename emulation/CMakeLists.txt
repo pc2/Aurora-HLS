@@ -14,7 +14,7 @@
 #  limitations under the License.
 # 
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
-project(AuroraEmuLib)
+project(AuroraEmuLib VERSION 0.1)
 
 include(FetchContent)
 
