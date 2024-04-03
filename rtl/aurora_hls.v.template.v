@@ -417,8 +417,8 @@ aurora_hls_nfc aurora_hls_nfc_0 (
 );
 
 `ifdef USE_FRAMING
-wire frames_received_u;
-wire frames_with_errors_u;
+wire [31:0] frames_received_u;
+wire [31:0] frames_with_errors_u;
 
 aurora_hls_crc_counter aurora_hls_crc_counter_0 (
     .clk(user_clk),
