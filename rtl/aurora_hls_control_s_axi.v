@@ -1,6 +1,7 @@
 //
-// Copyright 2022 Xilinx, Inc.
+// Copyright 2021-2022 Xilinx, Inc.
 //           2023-2024 Gerrit Pape (papeg@mail.upb.de)
+//           2023-2024 Paderborn Center for Parallel Computing
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -73,6 +74,12 @@ localparam
     ADDR_FRAMES_WITH_ERRORS = 12'h024,
 `endif
     
+    // registers write state machine
+    WRIDLE          = 2'd0,
+    WRDATA          = 2'd1,
+    WRRESP          = 2'd2,
+    WRRESET         = 2'd3,
+    
     // registers read state machine
     RDIDLE          = 2'd0,
     RDDATA          = 2'd1,
@@ -80,14 +87,73 @@ localparam
 
 //------------------------Signal Declaration----------------------
     // axi operation
+    reg  [1:0]      wstate;
+    reg  [1:0]      wnext;
+    reg  [11:0]     waddr;
+    wire [31:0]     wmask;
+    wire            aw_hs;
+    wire            w_hs;
     reg  [1:0]      rstate;
     reg  [1:0]      rnext;
     reg  [31:0]     rdata;
     wire            ar_hs;
     wire [11:0]     raddr;
-    
 
 //------------------------AXI protocol control------------------    
+    //------------------------AXI write fsm------------------
+    assign AWREADY = (wstate == WRIDLE);
+    assign WREADY  = (wstate == WRDATA);
+    assign BRESP   = 2'b00;  // OKAY
+    assign BVALID  = (wstate == WRRESP);
+    assign wmask   = { {8{WSTRB[3]}}, {8{WSTRB[2]}}, {8{WSTRB[1]}}, {8{WSTRB[0]}} };
+    assign aw_hs   = AWVALID & AWREADY;
+    assign w_hs    = WVALID & WREADY;
+
+    // wstate
+    always @(posedge ACLK) begin
+        if (!ARESETn)
+            wstate <= WRRESET;
+        else
+            wstate <= wnext;
+    end
+    
+    // wnext
+    always @(*) begin
+        case (wstate)
+            WRIDLE:
+                if (AWVALID)
+                    wnext = WRDATA;
+                else
+                    wnext = WRIDLE;
+            WRDATA:
+                if (WVALID)
+                    wnext = WRRESP;
+                else
+                    wnext = WRDATA;
+            WRRESP:
+                if (BREADY)
+                    wnext = WRIDLE;
+                else
+                    wnext = WRRESP;
+            default:
+                wnext = WRIDLE;
+        endcase
+    end
+    
+    // waddr
+    always @(posedge ACLK) begin
+        if (aw_hs)
+            waddr <= AWADDR;
+    end
+
+    // wdata
+    always @(posedge ACLK) begin
+        if (w_hs) begin
+            case (waddr)
+            endcase
+        end
+    end
+    
     //------------------------AXI read fsm-------------------
     assign ARREADY = (rstate == RDIDLE);
     assign RDATA   = rdata;
@@ -149,11 +215,5 @@ localparam
             endcase
         end
     end
-
-    // axi write channel tie-off
-    assign AWREADY = 1'b1;
-    assign WREADY  = 1'b1;
-    assign BRESP   = 2'b00;
-    assign BVALID  = 1'b0;
 
 endmodule
