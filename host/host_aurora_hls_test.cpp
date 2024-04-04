@@ -486,5 +486,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    printf("Total frames received: %d\n", aurora.get_frames_received());
+    printf("Frames with errors: %d\n", aurora.get_frames_with_errors());
+
     MPI_Finalize();
 }
