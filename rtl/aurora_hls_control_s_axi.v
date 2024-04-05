@@ -43,11 +43,12 @@ module aurora_hls_control_s_axi (
     input wire  [12:0]  aurora_status,
     input wire  [7:0]   fifo_status,
     input wire  [21:0]  configuration,
-    input wire  [31:0]  fifo_thresholds
+    input wire  [31:0]  fifo_thresholds,
 `ifdef USE_FRAMING
-,   input wire  [31:0]  frames_received,
-    input wire  [31:0]  frames_with_errors
+    input wire  [31:0]  frames_received,
+    input wire  [31:0]  frames_with_errors,
 `endif
+    output reg          sw_reset
 );
 
 //------------------------Address Info-------------------
@@ -62,6 +63,7 @@ module aurora_hls_control_s_axi (
 // only with framing enabled:
 // 0x20 : Frames received
 // 0x24 : Frames with errors
+// 0x28 : Software-controlled reset (LSB, active high)
 
 //------------------------Parameter----------------------
 localparam
@@ -73,6 +75,7 @@ localparam
     ADDR_FRAMES_RECEIVED = 12'h020,
     ADDR_FRAMES_WITH_ERRORS = 12'h024,
 `endif
+    ADDR_SW_RESET       = 12'h028,
     
     // registers write state machine
     WRIDLE          = 2'd0,
@@ -148,8 +151,14 @@ localparam
 
     // wdata
     always @(posedge ACLK) begin
-        if (w_hs) begin
+        if (!ARESETn) begin
+            sw_reset <= 1'b0;
+        end else if (w_hs) begin
             case (waddr)
+                ADDR_SW_RESET: begin
+                    if (WSTRB[0])
+                        sw_reset <= WDATA[0];
+                end
             endcase
         end
     end
