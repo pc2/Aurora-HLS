@@ -208,13 +208,13 @@ public:
         local_core_status[0] = check_core_status(3000);
 
         int core_status[world_size];
-        MPI_Gather(local_core_status, 2, MPI_INT, core_status, 2, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Gather(local_core_status, 1, MPI_INT, core_status, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if (world_rank == 0) {
             int errors = 0;       
-            for (int i = 0; i < 2 * world_size; i++) {
+            for (int i = 0; i < world_size; i++) {
                 if (core_status[i] > 0) {
-                    std::cout << "problem with core " << i % 2 << " on rank " << i / 2 << std::endl;
+                    std::cout << "problem with core " << i % 2 << " on rank " << i << std::endl;
                     errors += 1;
                 }
             }
@@ -313,3 +313,35 @@ private:
 
 };
 
+class AuroraDuo
+{
+    AuroraDuo(xrt::device &device, xrt::uuid &xclbin_uuid)
+        : core_0(Aurora(0, device, xclbin_uuid)), core_1(Aurora(1, device, xclbin_uuid)) {}
+
+    void check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
+    {
+        int local_core_status[2];
+
+        // barrier so timeout is working for all configurations 
+        MPI_Barrier(MPI_COMM_WORLD);
+        local_core_status[0] = core_0.check_core_status(3000);
+        local_core_status[1] = core_1.check_core_status(3000);
+
+        int core_status[2 * world_size];
+        MPI_Gather(local_core_status, 2, MPI_INT, core_status, 2, MPI_INT, 0, MPI_COMM_WORLD);
+
+        if (world_rank == 0) {
+            int errors = 0;       
+            for (int i = 0; i < 2 * world_size; i++) {
+                if (core_status[i] > 0) {
+                    std::cout << "problem with core " << i % 2 << " on rank " << i / 2 << std::endl;
+                    errors += 1;
+                }
+            }
+            if (errors) {
+                MPI_Abort(MPI_COMM_WORLD, errors);
+            }
+        }
+    }
+    Aurora core_0, core_1;
+};
