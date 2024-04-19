@@ -393,7 +393,11 @@ int main(int argc, char *argv[])
     Aurora aurora;
     if (!emulation) {
         aurora = Aurora(instance, device, xclbin_uuid);
-        aurora.check_core_status_global(config.timeout_ms, world_rank, world_size);
+        int errors = aurora.check_core_status_global(config.timeout_ms, world_rank, world_size);
+        if (errors)
+        {
+            MPI_Abort(MPI_COMM_WORLD, errors);
+        }
         if (!aurora.has_framing()) {
             config.frame_size = 0; 
         }

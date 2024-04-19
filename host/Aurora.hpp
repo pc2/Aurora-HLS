@@ -199,7 +199,7 @@ public:
         return 0;
     }
 
-    void check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
+    int check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
     {
         int local_core_status[1];
 
@@ -210,18 +210,17 @@ public:
         int core_status[world_size];
         MPI_Gather(local_core_status, 1, MPI_INT, core_status, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+        int errors = 0;       
         if (world_rank == 0) {
-            int errors = 0;       
             for (int i = 0; i < world_size; i++) {
                 if (core_status[i] > 0) {
                     std::cout << "problem with core " << i % 2 << " on rank " << i << std::endl;
                     errors += 1;
                 }
             }
-            if (errors) {
-                MPI_Abort(MPI_COMM_WORLD, errors);
-            }
         }
+        MPI_Bcast(&errors, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        return errors;
     }
 
     uint32_t get_fifo_status()
@@ -315,10 +314,11 @@ private:
 
 class AuroraDuo
 {
+public:
     AuroraDuo(xrt::device &device, xrt::uuid &xclbin_uuid)
         : core_0(Aurora(0, device, xclbin_uuid)), core_1(Aurora(1, device, xclbin_uuid)) {}
 
-    void check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
+    int check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
     {
         int local_core_status[2];
 
@@ -330,18 +330,17 @@ class AuroraDuo
         int core_status[2 * world_size];
         MPI_Gather(local_core_status, 2, MPI_INT, core_status, 2, MPI_INT, 0, MPI_COMM_WORLD);
 
+        int errors = 0;       
         if (world_rank == 0) {
-            int errors = 0;       
             for (int i = 0; i < 2 * world_size; i++) {
                 if (core_status[i] > 0) {
                     std::cout << "problem with core " << i % 2 << " on rank " << i / 2 << std::endl;
                     errors += 1;
                 }
             }
-            if (errors) {
-                MPI_Abort(MPI_COMM_WORLD, errors);
-            }
         }
+        MPI_Bcast(&errors, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        return errors;
     }
     Aurora core_0, core_1;
 };
