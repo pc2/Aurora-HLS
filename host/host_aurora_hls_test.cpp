@@ -412,7 +412,10 @@ int main(int argc, char *argv[])
 
             std::this_thread::sleep_for(std::chrono::seconds(10));
             aurora.print_fifo_status();
-            std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
+            if (aurora.has_framing())
+            {
+                std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
+            }
         }
         MPI_Barrier(MPI_COMM_WORLD);        
 
@@ -486,8 +489,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Total frames received: %d\n", aurora.get_frames_received());
-    printf("Frames with errors: %d\n", aurora.get_frames_with_errors());
+    if (aurora.has_framing())
+    {
+        std::cout << "Total frames received: " << aurora.get_frames_received() << std::endl;
+        std::cout << "Frames with errors: " << aurora.get_frames_with_errors() << std::endl;
+    }
 
     MPI_Finalize();
 }
