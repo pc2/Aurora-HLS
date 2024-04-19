@@ -180,7 +180,10 @@ LDFLAGS += $(LDFLAGS) -lxrt_coreutil
 host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp
 	$(CXX) -o host_aurora_hls_test $< $(CXXFLAGS) $(LDFLAGS)
 
-host: host_aurora_hls_test
+host_check_channel: ./host/host_check_channel.cpp ./host/Aurora.hpp
+	$(CXX) -o host_check_channel $< $(CXXFLAGS) $(LDFLAGS)
+
+host: host_aurora_hls_test host_check_channel
 
 # verilog testbenches
 xsim.dir/work/aurora_hls_nfc.sdb: ./rtl/aurora_hls_nfc.v

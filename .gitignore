@@ -4,6 +4,7 @@
 *.out
 venv
 host_aurora_hls_test
+host_check_channel
 ip_creation*
 aurora_hls_0_project*
 aurora_hls_1_project*
