@@ -14,19 +14,14 @@
  * limitations under the License.
  */
 
+#include "Aurora.hpp"
 #include "experimental/xrt_kernel.h"
 #include "experimental/xrt_ip.h"
-#include <iostream>
-#include <iomanip>
 #include <fstream>
-#include <bitset>
-#include <cmath>
 #include <unistd.h>
 #include <vector>
 #include <thread>
-#include <omp.h>
 #include <mpi.h>
-#include "Aurora.hpp"
 
 class Configuration
 {
@@ -352,6 +347,31 @@ void wait_for_enter()
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
+void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank, int world_size)
+{
+    bool local_core_ok;
+
+    // barrier so timeout is working for all configurations 
+    MPI_Barrier(MPI_COMM_WORLD);
+    local_core_ok = aurora.core_status_ok(3000);
+
+    bool core_ok[world_size];
+    MPI_Gather(&local_core_ok, 1, MPI_CXX_BOOL, core_ok, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+
+    if (world_rank == 0) {
+        int errors = 0;       
+        for (int i = 0; i < world_size; i++) {
+            if (!core_ok[i]) {
+                std::cout << "problem with core " << i % 2 << " on rank " << i << std::endl;
+                errors += 1;
+            }
+        }
+        if (errors) {
+            MPI_Abort(MPI_COMM_WORLD, errors);
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
@@ -393,7 +413,7 @@ int main(int argc, char *argv[])
     Aurora aurora;
     if (!emulation) {
         aurora = Aurora(instance, device, xclbin_uuid);
-        aurora.check_core_status_global(config.timeout_ms, world_rank, world_size);
+        check_core_status_global(aurora, config.timeout_ms, world_rank, world_size);
         if (!aurora.has_framing()) {
             config.frame_size = 0; 
         }
@@ -433,7 +453,7 @@ int main(int argc, char *argv[])
 
         if (dump.timeout()) {
             if (!emulation) {
-                aurora.print_core_status("dump timeout");
+                aurora.print_core_status();
             }
             rx_success = false;
         } else {

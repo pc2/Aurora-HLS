@@ -18,16 +18,8 @@
 
 #include "experimental/xrt_kernel.h"
 #include "experimental/xrt_ip.h"
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <bitset>
 #include <cmath>
-#include <unistd.h>
-#include <vector>
-#include <thread>
-#include <omp.h>
-#include <mpi.h>
+#include <bitset>
 
 double get_wtime()
 {
@@ -35,6 +27,14 @@ double get_wtime()
     clock_gettime(CLOCK_REALTIME, &time);                                                                            
     return time.tv_sec + (double)time.tv_nsec / 1e9;
 }
+
+// control s axi addresses
+static const uint32_t CORE_STATUS_ADDRESS        = 0x00000010;
+static const uint32_t FIFO_STATUS_ADDRESS        = 0x00000014;
+static const uint32_t CONFIGURATION_ADDRESS      = 0x00000018;
+static const uint32_t FIFO_THRESHOLDS_ADDRESS    = 0x0000001c;
+static const uint32_t FRAMES_RECEIVED_ADDRESS    = 0x00000020;
+static const uint32_t FRAMES_WITH_ERRORS_ADDRESS = 0x00000024;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD        = 0x0000000f;
@@ -44,6 +44,16 @@ static const uint32_t MMCM_NOT_LOCKED_OUT = 0x00000200;
 static const uint32_t HARD_ERR            = 0x00000400;
 static const uint32_t SOFT_ERR            = 0x00000800;
 static const uint32_t CHANNEL_UP          = 0x00001000;
+
+static const uint32_t CORE_STATUS_OK
+    = GT_POWERGOOD
+    & LINE_UP
+    & GT_PLL_LOCK
+    & ~MMCM_NOT_LOCKED_OUT
+    & ~HARD_ERR
+    & ~SOFT_ERR
+    & CHANNEL_UP;
+
 // masks for fifo status bits
 static const uint32_t FIFO_TX_PROG_EMPTY   = 0x00000001;
 static const uint32_t FIFO_TX_ALMOST_EMPTY = 0x00000002;
@@ -63,6 +73,7 @@ static const char *fifo_status_name[8] = {
     "FIFO rx prog full",
     "FIFO rx almost full",
 };
+
 // masks for configuration bits
 static const uint32_t HAS_TKEEP         = 0x000001;
 static const uint32_t HAS_TLAST         = 0x000002;
@@ -80,14 +91,10 @@ static const char *rx_eq_mode_names[4] = {
 class Aurora
 {
 public:
-    Aurora(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid) : instance(instance)
+    Aurora(xrt::ip ip) : ip(ip)
     {
-        char name[100];
-        snprintf(name, 100, "aurora_hls_%u:{aurora_hls_%u}", instance, instance);
-        ip = xrt::ip(device, xclbin_uuid, name);
-
         // read constant configuration information
-        uint32_t configuration = ip.read_register(0x18);
+        uint32_t configuration = ip.read_register(CONFIGURATION_ADDRESS);
 
         has_tkeep = (configuration & HAS_TKEEP);
         has_tlast = (configuration & HAS_TLAST) >> 1;
@@ -96,12 +103,25 @@ public:
         rx_eq_mode = (configuration & RX_EQ_MODE_BINARY) >> 15; 
         ins_loss_nyq = (configuration & INS_LOSS_NYQ) >> 17;
 
-        uint32_t fifo_thresholds = ip.read_register(0x1c);
+        uint32_t fifo_thresholds = ip.read_register(FIFO_THRESHOLDS_ADDRESS);
 
         fifo_prog_full_threshold = (fifo_thresholds & 0xffff0000) >> 16;
         fifo_prog_empty_threshold = (fifo_thresholds & 0x0000ffff);
     }
 
+    Aurora(std::string name, xrt::device &device, xrt::uuid &xclbin_uuid)
+        : Aurora(xrt::ip(device, xclbin_uuid, name)) {}
+
+    std::string create_name_from_instance(uint32_t instance)
+    {
+        char name[100];
+        snprintf(name, 100, "aurora_hls_%u:{aurora_hls_%u}", instance, instance);
+        return std::string(name);
+    }
+
+    Aurora(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid)
+        : Aurora(create_name_from_instance(instance), device, xclbin_uuid) {}
+ 
     Aurora() {}
 
     bool has_framing()
@@ -129,7 +149,7 @@ public:
 
     uint32_t get_core_status()
     {
-        return ip.read_register(0x10);
+        return ip.read_register(CORE_STATUS_ADDRESS);
     }
 
     uint8_t gt_powergood()
@@ -167,66 +187,53 @@ public:
         return (get_core_status() & CHANNEL_UP);
     }
 
-    void print_core_status(const std::string &message)
+    void print_core_status()
     {
-        std::cout << message << std::endl;
-        std::cout << "Aurora core " << instance << " status: "; 
         uint32_t reg_read_data = get_core_status();
-        if (reg_read_data == 0x11ff) {
-            std::cout << "all good" << std::endl;
-        } else {
-            std::cout << std::bitset<13>(reg_read_data) << std::endl; 
-            std::cout << "[12]channel_up [11]soft_err [10]hard_err [9]mmcm_not_locked_out [8]gt_pll_lock [7:4]line_up [3:0]gt_powergood" <<std:: endl;
+        std::cout << "GT Power good: " << std::bitset<4>(reg_read_data & GT_POWERGOOD) << std::endl;
+        std::cout << "Lines up: " << std::bitset<4>((reg_read_data & LINE_UP) >> 4) << std::endl;
+        if (reg_read_data & GT_PLL_LOCK)
+        {
+            std::cout << "GT PLL Lock" << std::endl;
+        }
+        if (reg_read_data & MMCM_NOT_LOCKED_OUT)
+        {
+            std::cout << "MMCM not locked out" << std::endl;
+        }
+        if (reg_read_data & HARD_ERR)
+        {
+            std::cout << "Hard error detected" << std::endl;
+        }
+        if (reg_read_data & SOFT_ERR)
+        {
+            std::cout << "Soft error detected" << std::endl;
+        }
+        if (reg_read_data & CHANNEL_UP)
+        {
+            std::cout << "Channel up" << std::endl;
         }
     }
 
-    int check_core_status(size_t timeout_ms)
+    bool core_status_ok(size_t timeout_ms)
     {
         double timeout_start, timeout_finish;
         timeout_start = get_wtime();
         while (1) {
             uint32_t reg_read_data = get_core_status();
-            if (reg_read_data == 0x11ff) {
-                break;
+            if (reg_read_data == CORE_STATUS_OK) {
+                return true;
             } else {
                 timeout_finish = get_wtime();
                 if (((timeout_finish - timeout_start) * 1000) > timeout_ms) {
-                    print_core_status("startup timeout");
-                    return 1;
+                    return false;
                 }
-            }
-        }
-        return 0;
-    }
-
-    void check_core_status_global(size_t timeout_ms, int world_rank, int world_size)
-    {
-        int local_core_status[1];
-
-        // barrier so timeout is working for all configurations 
-        MPI_Barrier(MPI_COMM_WORLD);
-        local_core_status[0] = check_core_status(3000);
-
-        int core_status[world_size];
-        MPI_Gather(local_core_status, 2, MPI_INT, core_status, 2, MPI_INT, 0, MPI_COMM_WORLD);
-
-        if (world_rank == 0) {
-            int errors = 0;       
-            for (int i = 0; i < 2 * world_size; i++) {
-                if (core_status[i] > 0) {
-                    std::cout << "problem with core " << i % 2 << " on rank " << i / 2 << std::endl;
-                    errors += 1;
-                }
-            }
-            if (errors) {
-                MPI_Abort(MPI_COMM_WORLD, errors);
             }
         }
     }
 
     uint32_t get_fifo_status()
     {
-        return ip.read_register(0x14);
+        return ip.read_register(FIFO_STATUS_ADDRESS);
     }
 
     bool fifo_tx_is_prog_empty()
@@ -282,7 +289,7 @@ public:
     uint32_t get_frames_received()
     {
         if (has_tlast) {
-            return ip.read_register(0x20);
+            return ip.read_register(FRAMES_RECEIVED_ADDRESS);
         } else {
             return -1;
         }
@@ -291,7 +298,7 @@ public:
     uint32_t get_frames_with_errors()
     {
         if (has_tlast) {
-            return ip.read_register(0x24);
+            return ip.read_register(FRAMES_WITH_ERRORS_ADDRESS);
         } else {
             return -1;
         }
@@ -308,8 +315,5 @@ public:
 
 private:
     xrt::ip ip;
-    uint32_t instance;
-    // masks for core status bits
-
 };
 
