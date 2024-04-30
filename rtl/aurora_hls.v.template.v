@@ -161,6 +161,14 @@ wire            sw_reset;
 wire            ap_rst_n_core;
 assign ap_rst_n_core = ap_rst_n && !sw_reset;
 
+// optionally drain tx data source during sw_reset
+wire            tx_axis_tready_raw;
+`ifdef DRAIN_AXI_ON_RESET
+    assign tx_axis_tready = tx_axis_tready_raw || sw_reset;
+`else
+    assign tx_axis_tready = tx_axis_tready_raw;
+`endif
+
 aurora_hls_reset aurora_hls_reset_0 (
     .init_clk(init_clk),
     .ap_rst_n_i(ap_rst_n_i),
@@ -387,7 +395,7 @@ aurora_hls_io aurora_hls_io_0 (
 `endif
     .tx_axis_tdata(tx_axis_tdata),
     .tx_axis_tvalid(tx_axis_tvalid),
-    .tx_axis_tready(tx_axis_tready),
+    .tx_axis_tready(tx_axis_tready_raw),
 `ifdef USE_FRAMING
     .tx_axis_tlast(tx_axis_tlast),
     .tx_axis_tkeep(tx_axis_tkeep),
