@@ -386,10 +386,6 @@ int main(int argc, char *argv[])
         wait_for_enter();
     }
 
-    // create kernel objects
-    IssueKernel issue(instance, device, xclbin_uuid, config);
-    DumpKernel dump(instance, device, xclbin_uuid, config);
-    
     Aurora aurora;
     if (!emulation) {
         aurora = Aurora(instance, device, xclbin_uuid);
@@ -398,6 +394,10 @@ int main(int argc, char *argv[])
             config.frame_size = 0; 
         }
     }
+
+    // create kernel objects
+    IssueKernel issue(instance, device, xclbin_uuid, config);
+    DumpKernel dump(instance, device, xclbin_uuid, config);
 
     double local_transmission_times[config.repetitions];
     for (uint32_t r = 0; r < config.repetitions; r++) {
