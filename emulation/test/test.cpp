@@ -199,6 +199,41 @@ TEST_F(AuroraEmuTest, ConnectTwo) {
     EXPECT_TRUE(out2.empty());
 }
 
+TEST_F(AuroraEmuTest, SwitchDefaultConstructor) {
+    AuroraEmuSwitch s;
+    EXPECT_NO_THROW(s.listen("127.0.0.1", 20000));
+}
+
+TEST_F(AuroraEmuTest, SwitchDefaultConstructorThrows) {
+    AuroraEmuSwitch s;
+    EXPECT_NO_THROW(s.listen("127.0.0.1", 20000));
+    EXPECT_THROW(s.listen("127.0.0.1", 20000), std::runtime_error);
+}
+
+TEST_F(AuroraEmuTest, SwitchDefaultConstructorSend) {
+    // set depth of streams to hold all data
+    hlslib::Stream<data_stream_t, 200> in1("in1"), out1("out1"), in2("in2"),
+        out2("out2");
+    AuroraEmuSwitch s;
+    s.listen("127.0.0.1", 20000);
+    AuroraEmuCore a1("127.0.0.1", 20000, "a1", "a2", in1, out1);
+    AuroraEmuCore a2("127.0.0.1", 20000, "a2", "a1", in2, out2);
+    std::cout << "Write stuff" << std::endl;
+    std::cout << "Send " << std::endl;
+    std::thread t1([&in1]() {
+        data_stream_t data;
+        data.data = ap_uint<512>(345686);
+        for (int i = 0; i < 200; i++) {
+            in1.write(data);
+        }
+    });
+    t1.join();
+    std::cout << "Check " << std::endl;
+    for (int i = 0; i < 200; i++) {
+        EXPECT_EQ(out2.read().data, ap_uint<512>(345686));
+    }
+}
+
 int main(int argc, char *argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
 

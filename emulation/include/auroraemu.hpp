@@ -163,6 +163,7 @@ class AuroraEmuSwitch {
 
     // ZMQ socket used to terminate the switch thread
     zmq::socket_t kill_socket;
+    zmq::socket_t kill_listener;
 
     // send and recv threads used to pass data to and from user kernels
     std::thread switch_thread;
@@ -171,9 +172,6 @@ class AuroraEmuSwitch {
     std::string kill_id;
 
     void forward_data() {
-        zmq::socket_t kill_listener(ctx, zmq::socket_type::sub);
-        kill_listener.connect(kill_id);
-        kill_listener.set(zmq::sockopt::subscribe, "");
         zmq::message_t msg;
         // listen to kill signals and data coming in
         zmq::pollitem_t items[] = {{incoming, 0, ZMQ_POLLIN, 0},
@@ -196,32 +194,53 @@ class AuroraEmuSwitch {
 
    public:
     /**
-     * Construct and connect a new aurora switch
+     * Construct and connect a new aurora switch and do not start thread
+     * to listen for incoming connections. Thread has to be started with
+     * additional call to listen()
+     *
+     */
+    AuroraEmuSwitch()
+        : ctx(1),
+          incoming(ctx, zmq::socket_type::pull),
+          distributor(ctx, zmq::socket_type::pub),
+          kill_socket(ctx, zmq::socket_type::pub),
+          kill_listener(ctx, zmq::socket_type::sub),
+          kill_id("") {}
+
+    /**
+     * Construct and connect a new aurora switch and start thread
+     * to listen for new connections
      *
      * host_address: IP address or name of the host machine
      * port: Port of the aurora switch. port and port+1 will be used to
      *      establish the switch functionality.
      */
-    AuroraEmuSwitch(std::string host_address, int port)
-        : ctx(1),
-          incoming(ctx, zmq::socket_type::pull),
-          distributor(ctx, zmq::socket_type::pub),
-          kill_socket(ctx, zmq::socket_type::pub),
-          kill_id("inproc://kill_" + host_address + "_" +
-                  std::to_string(port)) {
-        incoming.bind("tcp://" + host_address + ":" + std::to_string(port));
-        distributor.bind("tcp://" + host_address + ":" +
-                         std::to_string(port + 1));
-        kill_socket.bind(kill_id);
-        switch_thread = std::thread(&AuroraEmuSwitch::forward_data, this);
+    AuroraEmuSwitch(std::string host_address, int port) : AuroraEmuSwitch() {
+        this->listen(host_address, port);
+    }
+
+    void listen(std::string host_address, int port) {
+        if (!switch_thread.joinable()) {
+            kill_id =
+                "inproc://kill_" + host_address + "_" + std::to_string(port);
+            incoming.bind("tcp://" + host_address + ":" + std::to_string(port));
+            distributor.bind("tcp://" + host_address + ":" +
+                             std::to_string(port + 1));
+            kill_socket.bind(kill_id);
+            kill_listener.connect(kill_id);
+            kill_listener.set(zmq::sockopt::subscribe, "");
+            switch_thread = std::thread(&AuroraEmuSwitch::forward_data, this);
+        } else {
+            throw std::runtime_error("Switch already running!");
+        }
     }
 
     ~AuroraEmuSwitch() {
         // send kill signal to all threads
         // and wait for them to join
-        zmq::message_t t(0);
-        kill_socket.send(t, zmq::send_flags::none);
         if (switch_thread.joinable()) {
+            zmq::message_t t(0);
+            kill_socket.send(t, zmq::send_flags::none);
             switch_thread.join();
         }
     }
