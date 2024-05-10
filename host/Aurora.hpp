@@ -45,14 +45,7 @@ static const uint32_t HARD_ERR            = 0x00000400;
 static const uint32_t SOFT_ERR            = 0x00000800;
 static const uint32_t CHANNEL_UP          = 0x00001000;
 
-static const uint32_t CORE_STATUS_OK
-    = GT_POWERGOOD
-    & LINE_UP
-    & GT_PLL_LOCK
-    & ~MMCM_NOT_LOCKED_OUT
-    & ~HARD_ERR
-    & ~SOFT_ERR
-    & CHANNEL_UP;
+static const uint32_t CORE_STATUS_OK = GT_POWERGOOD | LINE_UP | GT_PLL_LOCK | CHANNEL_UP;
 
 // masks for fifo status bits
 static const uint32_t FIFO_TX_PROG_EMPTY   = 0x00000001;
