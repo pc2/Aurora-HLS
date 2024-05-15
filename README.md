@@ -82,14 +82,14 @@ Create the class. The first parameter is the instance used, either 0 or 1 depend
   Aurora aurora(0, device, xclbin_uuid); 
 ```
 
-This assumes the naming convention used in the example link script. You can also pass the xrt::ip object direclty.
+This assumes the naming convention used in the example link script, to create the xrt::ip object of the aurora core. You can also pass the xrt::ip object directly.
 
 
 ```
   Aurora aurora(ip);
 ```
 
-The status can be checked with the following function, which waits for the given timeout in ms if the status is ok, which means that the channel is up and alive all other status bits are in the wanted state. If there is an error, you can use a function to print the complete aurora core status.
+The status can be checked with the following function, which returns true if the status is ok, which means that the channel is up and alive all other status bits are in the wanted state. As the creation of the link can take some time in the beginning, a timeout in milliseconds is given, after which the function returns false, if the status is not ok. If the status is not ok and you want to see the reason, you can use a function to print the complete aurora core status.
 
 ```
   if (aurora.core_status_ok(3000)) {
@@ -104,11 +104,12 @@ There are also functions for checking the configuration and more status signals.
 
 ```
 if (aurora.has_framing()) {
-  // dont forget to set the last and keep bit
+    // dont forget to set the last and keep bit
 }
 
-if (aurora.get_frames_with_errors()) {
-  // some bits have flipped during transmission
+uint32_t frames_with_errors = aurora.get_frames_with_errors();
+if (frames_with_errors > 0) {
+    // some bits have flipped during transmission
 }
 
 // get a print of the configuration of the core
@@ -150,17 +151,18 @@ It is also possible to build a design for software emulation. But this skips the
 
 The host application offers the following parameters
 ```
--m megabytes Specify the amount of data to be transmitted in megabytes.
--b bytes     Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
--p path      Path to the bitstream file. Default is "aurora_hls_test_hw.xclbin"
--r repetitions Number of repetitions of the test.
--i iterations Number of iterations of the test inside the kernel
--f frame_size The size of the frame in framing mode. The size is measured in multiples of the datawidth
--n test_nfc   Enables the NFC test
--a use_ack    Enables the acknowledgement between every iteration in the kernel
--t timeout_ms The timeout used for waiting on a channel and on finish for the HLS kernels
--w wait       Wait for enter after loading the xclbin
--s semaphore  Lock the results file with atomic rename before writing to it
+-m megabytes        Specify the amount of data to be transmitted in megabytes.
+-b bytes            Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
+-p path             Path to the bitstream file. Default is "aurora_hls_test_hw.xclbin"
+-r repetitions      Number of repetitions of the test.
+-i iterations       Number of iterations of the test inside the kernel
+-f frame_size       The size of the frame in framing mode. The size is measured in multiples of the datawidth
+-n test_nfc         Enables the NFC test
+-a use_ack          Enables the acknowledgement between every iteration in the kernel
+-t timeout_ms       The timeout used for waiting on a channel and on finish for the HLS kernels
+-o device_id_offset Offset for selecting the FPGA device id
+-w wait             Wait for enter after loading the xclbin
+-s semaphore        Lock the results file with atomic rename before writing to it
 
 ```
 
@@ -171,6 +173,8 @@ The -w flag is needed for using chipscope on this design. After loading the bits
 There are two more special test cases. The first one is testing the flowcontrol by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
 
 When scaling this test to multiple nodes, the -s flag can used to guarantee that only one job is writing to results file at once. Beware that the file must exist, otherwise the application will wait forever on it.
+
+By default, the first two ranks will choose the device with index 0, going up with the next ranks. This can be changed with specifying an offset, for this selection procedure. This is useful, for example, when only one specific device needs to be tested.
 
 ### Latency test
 
