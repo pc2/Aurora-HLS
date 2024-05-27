@@ -33,6 +33,7 @@ TARGET := hw
 INS_LOSS_NYQ := 8
 RX_EQ_MODE := LPM
 USE_FRAMING := 0
+DRAIN_AXI_ON_RESET := 1
 
 FIFO_WIDTH := 64
 RX_FIFO_DEPTH := 512
@@ -135,6 +136,9 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 	fi
 	if [ $(PROBE_CRC_COUNTER) = 1 ]; then \
 		echo "\`define PROBE_CRC_COUNTER" >> $@; \
+	fi
+	if [ $(DRAIN_AXI_ON_RESET) = 1 ]; then \
+		echo "\`define DRAIN_AXI_ON_RESET" >> $@; \
 	fi
 	echo "\`define HAS_TKEEP $(HAS_TKEEP)" >> $@
 	echo "\`define HAS_TLAST $(HAS_TKEEP)" >> $@

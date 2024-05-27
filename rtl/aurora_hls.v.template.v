@@ -156,6 +156,19 @@ wire             pma_init_i;
 wire            ap_rst_n_i;
 wire            ap_rst_n_u;
 
+// software-controllable reset
+wire            sw_reset;
+wire            ap_rst_n_core;
+assign ap_rst_n_core = ap_rst_n && !sw_reset;
+
+// optionally drain tx data source during sw_reset
+wire            tx_axis_tready_raw;
+`ifdef DRAIN_AXI_ON_RESET
+    assign tx_axis_tready = tx_axis_tready_raw || sw_reset;
+`else
+    assign tx_axis_tready = tx_axis_tready_raw;
+`endif
+
 aurora_hls_reset aurora_hls_reset_0 (
     .init_clk(init_clk),
     .ap_rst_n_i(ap_rst_n_i),
@@ -164,13 +177,13 @@ aurora_hls_reset aurora_hls_reset_0 (
 );
 
 xpm_cdc_async_rst reset_sync_0 (
-    .src_arst   (ap_rst_n),
+    .src_arst   (ap_rst_n_core),
     .dest_clk   (init_clk),
     .dest_arst  (ap_rst_n_i)
 );
 
 xpm_cdc_async_rst reset_sync_1 (
-    .src_arst   (ap_rst_n),
+    .src_arst   (ap_rst_n_core),
     .dest_clk   (user_clk),
     .dest_arst  (ap_rst_n_u)
 );
@@ -364,7 +377,7 @@ aurora_64b66b_0 aurora_64b66b_0_0 (
 
 aurora_hls_io aurora_hls_io_0 (
     .ap_clk(ap_clk),
-    .ap_rst_n(ap_rst_n),
+    .ap_rst_n(ap_rst_n_core),
     .user_clk(user_clk),
     .ap_rst_n_u(ap_rst_n_u),
     .rx_axis_tdata(rx_axis_tdata),
@@ -382,7 +395,7 @@ aurora_hls_io aurora_hls_io_0 (
 `endif
     .tx_axis_tdata(tx_axis_tdata),
     .tx_axis_tvalid(tx_axis_tvalid),
-    .tx_axis_tready(tx_axis_tready),
+    .tx_axis_tready(tx_axis_tready_raw),
 `ifdef USE_FRAMING
     .tx_axis_tlast(tx_axis_tlast),
     .tx_axis_tkeep(tx_axis_tkeep),
@@ -479,11 +492,12 @@ aurora_hls_control_s_axi axi_control_slave (
   .aurora_status    (aurora_status),
   .fifo_status      (fifo_status),
   .configuration    (configuration),
-  .fifo_thresholds  (fifo_thresholds)
+  .fifo_thresholds  (fifo_thresholds),
 `ifdef USE_FRAMING
-, .frames_received  (frames_received),
-  .frames_with_errors (frames_with_errors)
+  .frames_received  (frames_received),
+  .frames_with_errors (frames_with_errors),
 `endif
+  .sw_reset         (sw_reset)
 );
 
 endmodule
