@@ -35,6 +35,7 @@ static const uint32_t CONFIGURATION_ADDRESS      = 0x00000018;
 static const uint32_t FIFO_THRESHOLDS_ADDRESS    = 0x0000001c;
 static const uint32_t FRAMES_RECEIVED_ADDRESS    = 0x00000020;
 static const uint32_t FRAMES_WITH_ERRORS_ADDRESS = 0x00000024;
+static const uint32_t SW_RESET_ADDRESS           = 0x00000028;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD        = 0x0000000f;
@@ -295,6 +296,11 @@ public:
         } else {
             return -1;
         }
+    }
+
+    void set_reset(bool active)
+    {
+        ip.write_register(SW_RESET_ADDRESS, active);
     }
 
     bool has_tkeep;
