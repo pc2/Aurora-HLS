@@ -121,10 +121,13 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 ./rtl/aurora_hls_0.v: ./rtl/aurora_hls.v.template.v
 	cp ./rtl/aurora_hls.v.template.v ./rtl/aurora_hls_0.v
 	sed -i 's/@@@instance@@@/0/g' ./rtl/aurora_hls_0.v
+	sed -i '/`define ENABLE_TX/d' ./rtl/aurora_hls_0.v # disable TX
+
 
 ./rtl/aurora_hls_1.v: ./rtl/aurora_hls.v.template.v
 	cp ./rtl/aurora_hls.v.template.v ./rtl/aurora_hls_1.v
 	sed -i 's/@@@instance@@@/1/g' ./rtl/aurora_hls_1.v
+	sed -i '/`define ENABLE_RX/d' ./rtl/aurora_hls_1.v # disable RX
 
 ./rtl/aurora_hls_define.v:
 	echo "" > $@
@@ -152,12 +155,12 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 aurora_hls_0.xo: $(RTL_SRC_0) ./tcl/pack_kernel.tcl
 	rm -rf aurora_hls_0_project
 	mkdir aurora_hls_0_project
-	cd aurora_hls_0_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 0
+	cd aurora_hls_0_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 0 disable_tx
 
 aurora_hls_1.xo: $(RTL_SRC_1) ./tcl/pack_kernel.tcl
 	rm -rf aurora_hls_1_project
 	mkdir aurora_hls_1_project
-	cd aurora_hls_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1
+	cd aurora_hls_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1 disable_rx
 
 # build example bitstream
 dump_$(TARGET).xo: ./hls/dump.cpp

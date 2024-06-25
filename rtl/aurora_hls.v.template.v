@@ -16,26 +16,33 @@
 `default_nettype none
 `include "aurora_hls_define.v"
 
+`define ENABLE_RX
+`define ENABLE_TX
+
 module aurora_hls_@@@instance@@@ (
 // Platform axi/axis ports
     input wire           ap_clk,
     input wire           ap_rst_n,
 
 // TX/RX AXIS interface
+`ifdef ENABLE_RX
     output wire [511:0]  rx_axis_tdata,
     output wire          rx_axis_tvalid,
     input wire           rx_axis_tready,
-`ifdef USE_FRAMING
+  `ifdef USE_FRAMING
     output wire          rx_axis_tlast,
     output wire [63:0]   rx_axis_tkeep,
+  `endif
 `endif
 
+`ifdef ENABLE_TX
     input wire  [511:0]  tx_axis_tdata,
     input wire           tx_axis_tvalid,
     output wire          tx_axis_tready,
-`ifdef USE_FRAMING
+  `ifdef USE_FRAMING
     input wire           tx_axis_tlast,
     input wire  [63:0]   tx_axis_tkeep,
+  `endif
 `endif
 
   // AXI4-Lite slave interface
@@ -380,26 +387,43 @@ aurora_hls_io aurora_hls_io_0 (
     .ap_rst_n(ap_rst_n_core),
     .user_clk(user_clk),
     .ap_rst_n_u(ap_rst_n_u),
+
+`ifdef ENABLE_RX
     .rx_axis_tdata(rx_axis_tdata),
     .rx_axis_tvalid(rx_axis_tvalid),
     .rx_axis_tready(rx_axis_tready),
-`ifdef USE_FRAMING
+  `ifdef USE_FRAMING
     .rx_axis_tlast(rx_axis_tlast),
     .rx_axis_tkeep(rx_axis_tkeep),
+  `endif
+`else
+    .rx_axis_tready(0),
 `endif
+
     .m_axi_rx_tdata_u(m_axi_rx_tdata_u),
     .m_axi_rx_tvalid_u(m_axi_rx_tvalid_u),
 `ifdef USE_FRAMING
     .m_axi_rx_tlast_u(m_axi_rx_tlast_u),
     .m_axi_rx_tkeep_u(m_axi_rx_tkeep_u),
 `endif
+
+`ifdef ENABLE_TX
     .tx_axis_tdata(tx_axis_tdata),
     .tx_axis_tvalid(tx_axis_tvalid),
     .tx_axis_tready(tx_axis_tready_raw),
-`ifdef USE_FRAMING
+  `ifdef USE_FRAMING
     .tx_axis_tlast(tx_axis_tlast),
     .tx_axis_tkeep(tx_axis_tkeep),
+  `endif
+`else
+    .tx_axis_tdata(0),
+    .tx_axis_tvalid(0),
+  `ifdef USE_FRAMING
+    .tx_axis_tlast(0),
+    .tx_axis_tkeep(0),
+  `endif
 `endif
+
     .s_axi_tx_tdata_u(s_axi_tx_tdata_u),
     .s_axi_tx_tvalid_u(s_axi_tx_tvalid_u),
     .s_axi_tx_tready_u(s_axi_tx_tready_u),

@@ -18,11 +18,24 @@
 
 ##################################### Step 1: create vivado project and add design sources
 
-# use argument 1 as instance
+# parse arguments
+set arglen [llength $argv]
+set part [lindex $argv 0]
 set instance [lindex $argv 1]
+set enable_rx 1
+set enable_tx 1
+if {$arglen > 2} {
+       set disableflag [lindex $argv 2]
+       if {$disableflag == "disable_rx"} {
+              set enable_rx 0
+       }
+       if {$disableflag == "disable_tx"} {
+              set enable_tx 0
+       }
+}
 
 # create ip project with part name in command line argvs
-create_project aurora_hls_${instance} ./aurora_hls_${instance} -part [lindex $argv 0]
+create_project aurora_hls_${instance} ./aurora_hls_${instance} -part ${part}
 
 # add design sources into project
 add_files -norecurse -fileset sources_1 \
@@ -64,13 +77,21 @@ ipx::remove_bus_interface init_clk [ipx::current_core]
 
 # associate AXI/AXIS interface with clock
 ipx::associate_bus_interfaces -busif s_axi_control  -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif rx_axis        -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif tx_axis        -clock ap_clk [ipx::current_core]
+if {$enable_rx} {
+       ipx::associate_bus_interfaces -busif rx_axis        -clock ap_clk [ipx::current_core]
+}
+if {$enable_tx} {
+       ipx::associate_bus_interfaces -busif tx_axis        -clock ap_clk [ipx::current_core]
+}
 
 # associate axis and reset signal with clock
-ipx::associate_bus_interfaces -busif rx_axis -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif tx_axis -clock ap_clk [ipx::current_core]
 ipx::associate_bus_interfaces -clock ap_clk -reset ap_rst_n [ipx::current_core]
+if {$enable_rx} {
+       ipx::associate_bus_interfaces -busif rx_axis -clock ap_clk [ipx::current_core]
+}
+if {$enable_tx} {
+       ipx::associate_bus_interfaces -busif tx_axis -clock ap_clk [ipx::current_core]
+}
 
 # create GT data port
 ipx::add_bus_interface gt_port [ipx::current_core]
