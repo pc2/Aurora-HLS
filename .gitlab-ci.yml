@@ -1,0 +1,115 @@
+stages:
+  - testbench
+  - build
+  - emulation
+
+variables:
+  SCHEDULER_PARAMETERS: "-A hpc-prf-cifi -p normal -t 00:30:00 -n 4 --mem 16g"
+
+default:
+  id_tokens:
+    CI_JOB_JWT:
+      aud: https://git.uni-paderborn.de
+  tags:
+    - slurm
+  before_script:
+    - source env.sh
+
+tb:nfc:
+  stage: testbench
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: never
+  script:
+    - make run_nfc_tb
+
+tb:crc:
+  stage: testbench
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: never
+  script:
+    - make run_crc_counter_tb
+
+tb:config:
+  stage: testbench
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: never
+  script:
+    - make run_configuration_tb
+
+build:host:
+  stage: build
+  script:
+    - make host
+  artifacts:
+    paths:
+      - ./host_aurora_hls_test
+
+build:emulation_xclbin:
+  stage: build
+  script:
+    - make xclbin TARGET=sw_emu
+  artifacts:
+    paths:
+      - ./aurora_hls_test_sw_emu.xclbin
+
+build:hlslib_test:
+  stage: build
+  script:
+    - cd emulation/test
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+  only:
+    changes:
+      - emulation/**
+      - .gitlab-ci.yml
+  artifacts:
+    paths:
+      - emulation/test/build/aurora_emu_test
+
+build:hlslib_example:
+  stage: build
+  script:
+    - cd emulation/example
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+  only:
+    changes:
+      - emulation/**
+      - .gitlab-ci.yml
+  artifacts:
+    paths:
+      - emulation/test/build/aurora_emu_example
+
+emu:xrt:
+  stage: emulation
+  dependencies:
+    - build:host
+    - build:emulation_xclbin
+  needs: ["build:emulation_xclbin", "build:host"]
+  script:
+    - ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -b 256 -i 20 -f 1
+
+emu:hlslib_test:
+  stage: emulation
+  dependencies:
+    - build:hlslib_test
+  needs: ["build:hlslib_test"]
+  script:
+    - cd emulation/test/build
+    - ./aurora_emu_test
+
+emu:hlslib_example:
+  stage: emulation
+  dependencies:
+    - build:hlslib_example
+  needs: ["build:hlslib_example"]
+  script:
+    - cd emulation/example/build
+    - ./aurora_emu_example

@@ -201,7 +201,7 @@ nfc_tb: xsim.dir/nfc_tb/xsimk
 run_nfc_tb: nfc_tb
 	xsim -g --tclbatch tcl/run_nfc_tb.tcl nfc_tb
 
-xsim.dir/work/aurora_hls_configuration.sdb: ./rtl/aurora_hls_configuration.v
+xsim.dir/work/aurora_hls_configuration.sdb: ./rtl/aurora_hls_configuration.v ./rtl/aurora_hls_define.v
 	xvlog ./rtl/aurora_hls_configuration.v
 
 xsim.dir/work/aurora_hls_configuration_tb.sdb: ./rtl/aurora_hls_configuration_tb.v
