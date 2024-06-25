@@ -85,7 +85,7 @@ build:hlslib_example:
       - .gitlab-ci.yml
   artifacts:
     paths:
-      - emulation/test/build/aurora_emu_example
+      - emulation/example/build/aurora_emu_example
 
 emu:xrt:
   stage: emulation
