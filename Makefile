@@ -48,6 +48,8 @@ else
 	HAS_TLAST := 0
 endif
 
+XCLBIN_NAME := aurora_hls_test_$(TARGET).xclbin
+
 PROBE_NFC := 1
 
 PROBE_CRC_COUNTER := 1
@@ -172,7 +174,7 @@ aurora_hls_test_hw.xclbin: aurora issue_$(TARGET).xo dump_$(TARGET).xo aurora_hl
 aurora_hls_test_sw_emu.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_hls_test_$(TARGET).cfg
 	v++ $(LINKFLAGS) --temp_dir _x_aurora_hls_$(TARGET) --config aurora_hls_test_$(TARGET).cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
 
-xclbin: aurora_hls_test_hw.xclbin
+xclbin: $(XCLBIN_NAME)
 
 # host build for example
 CXXFLAGS += -std=c++17 -Wall -g
