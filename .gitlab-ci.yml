@@ -94,7 +94,7 @@ emu:xrt:
     - build:emulation_xclbin
   needs: ["build:emulation_xclbin", "build:host"]
   script:
-    - ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -b 256 -i 20 -f 1
+    - env XCL_EMULATION_MODE=sw_emu ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -b 256 -i 20 -f 1
 
 emu:hlslib_test:
   stage: emulation
