@@ -3,6 +3,7 @@
 .Xil
 *.out
 venv
+.vscode
 host_aurora_hls_test
 ip_creation*
 aurora_hls_0_project*
