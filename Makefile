@@ -40,6 +40,10 @@ RX_FIFO_DEPTH := 512
 RX_FIFO_PROG_FULL := 384
 RX_FIFO_PROG_EMPTY := 128
 
+TX_FIFO_DEPTH := 128
+TX_FIFO_PROG_FULL := 96
+TX_FIFO_PROG_EMPTY := 32
+
 ifeq ($(USE_FRAMING), 1)
 	HAS_TKEEP := 1
 	HAS_TLAST := 1
@@ -68,7 +72,7 @@ PROBE_CRC_COUNTER := 1
 ./ip_creation/axis_data_fifo_tx/axis_data_fifo_tx.xci: ./tcl/create_fifo_ip.tcl
 	mkdir -p ip_creation
 	rm -rf ip_creation/axis_data_fifo_tx
-	vivado -mode batch -source $^ -tclargs $(PART) tx $(FIFO_WIDTH) 128 96 32 $(HAS_TKEEP) $(HAS_TLAST)
+	vivado -mode batch -source $^ -tclargs $(PART) tx $(FIFO_WIDTH) $(TX_FIFO_DEPTH) $(TX_FIFO_PROG_FULL) $(TX_FIFO_PROG_EMPTY) $(HAS_TKEEP) $(HAS_TLAST)
 
 ./ip_creation/axis_dwidth_converter_rx/axis_dwidth_converter_rx.xci: ./tcl/create_axis_dwidth_converter_ip.tcl
 	mkdir -p ip_creation
