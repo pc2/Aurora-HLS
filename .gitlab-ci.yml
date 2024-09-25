@@ -3,11 +3,16 @@ stages:
   - build
   - emulation
   - synth
+  - run
 
 variables:
   ACCOUNT: "hpc-prf-cifi"
   SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 4 --mem 16g"
   SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
+  RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 00:30:00 -N 1 -n 6 --fpgalink=n00:acl0:ch0-n00:acl0:ch1 --fpgalink=n00:acl1:ch0-n00:acl1:ch1 --fpgalink=n00:acl2:ch0-n00:acl2:ch1"
+  RUN_SCHEDULER_PARAMETERS_2_14: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.14"
+  RUN_SCHEDULER_PARAMETERS_2_15: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.15"
+  RUN_SCHEDULER_PARAMETERS_2_16: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.16"
 
 default:
   id_tokens:
@@ -63,9 +68,27 @@ tb:configuration:
       - configuration_tb.vcd
       - configuration_tb.wdb
 
-build:host:
+build:host:2.15:
   stage: build
   script:
+    - make host
+  artifacts:
+    paths:
+      - ./host_aurora_hls_test
+
+build:host:2.14:
+  stage: build
+  script:
+    - ml fpga/xilinx/xrt/2.14
+    - make host
+  artifacts:
+    paths:
+      - ./host_aurora_hls_test
+
+build:host:2.16:
+  stage: build
+  script:
+    - ml fpga/xilinx/xrt/2.16
     - make host
   artifacts:
     paths:
@@ -114,9 +137,9 @@ build:hlslib_example:
 emu:xrt:
   stage: emulation
   dependencies:
-    - build:host
+    - build:host:2.15
     - build:emulation_xclbin
-  needs: ["build:emulation_xclbin", "build:host"]
+  needs: ["build:emulation_xclbin", "build:host:2.15"]
   script:
     - env XCL_EMULATION_MODE=sw_emu ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -b 256 -i 20 -f 1
 
@@ -222,3 +245,98 @@ synth:framing:2.16:
     paths:
       - aurora_hls_test_hw.xclbin
   needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+run:streaming:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.15
+    - synth:streaming:2.15
+  needs: ["build:host:2.15", "synth:streaming:2.15"]
+
+run:framing:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    ml fpga/xilinx/xrt/2.15
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.15
+    - synth:framing:2.15
+  needs: ["build:host:2.15", "synth:framing:2.15"]
+
+run:streaming:2.14:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+  script:
+    ml fpga/xilinx/xrt/2.14
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.14
+    - synth:streaming:2.14
+  needs: ["build:host:2.14", "synth:streaming:2.14"]
+
+run:framing:2.14:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+  script:
+    ml fpga/xilinx/xrt/2.14
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.14
+    - synth:framing:2.14
+  needs: ["build:host:2.14", "synth:framing:2.14"]
+
+run:streaming:2.16:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+  script:
+    ml fpga/xilinx/xrt/2.16
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.16
+    - synth:streaming:2.16
+  needs: ["build:host:2.16", "synth:streaming:2.16"]
+
+run:framing:2.16:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+  script:
+    ml fpga/xilinx/xrt/2.16
+    ./scripts/reset.sh
+    ./host_aurora_hls_test
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.16
+    - synth:framing:2.16
+  needs: ["build:host:2.16", "synth:framing:2.16"]
