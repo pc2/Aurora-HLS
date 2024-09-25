@@ -9,7 +9,8 @@ variables:
   ACCOUNT: "hpc-prf-cifi"
   SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 4 --mem 16g"
   SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
-  RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 00:30:00 -N 1 -n 6 --fpgalink=n00:acl0:ch0-n00:acl0:ch1 --fpgalink=n00:acl1:ch0-n00:acl1:ch1 --fpgalink=n00:acl2:ch0-n00:acl2:ch1"
+  RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 00:30:00 -N 1 -n 6"
+  LINK_CONFIG: "--fpgalink=n00:acl0:ch0-n00:acl0:ch1 --fpgalink=n00:acl1:ch0-n00:acl1:ch1 --fpgalink=n00:acl2:ch0-n00:acl2:ch1"
   RUN_SCHEDULER_PARAMETERS_2_14: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.14"
   RUN_SCHEDULER_PARAMETERS_2_15: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.15"
   RUN_SCHEDULER_PARAMETERS_2_16: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.16"
@@ -258,6 +259,7 @@ run:streaming:2.15:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -274,6 +276,7 @@ run:framing:2.15:
   script:
     - ml fpga/xilinx/xrt/2.15
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -290,6 +293,7 @@ run:streaming:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -306,6 +310,7 @@ run:framing:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -322,6 +327,7 @@ run:streaming:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -338,6 +344,7 @@ run:framing:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/reset.sh
+    - changeFPGAlinksXilinx $LINK_CONFIG
     - ./host_aurora_hls_test
   artifacts:
     paths:
@@ -346,3 +353,4 @@ run:framing:2.16:
     - build:host:2.16
     - synth:framing:2.16
   needs: ["build:host:2.16", "synth:framing:2.16"]
+
