@@ -172,8 +172,8 @@ synth:streaming:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    make xclbin USE_FRAMING=0
-    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+    - make xclbin USE_FRAMING=0
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
@@ -186,7 +186,7 @@ synth:framing:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    make xclbin USE_FRAMING=1
+    - make xclbin USE_FRAMING=1
   only:
     - web 
   artifacts:
@@ -199,9 +199,9 @@ synth:streaming:2.14:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    ml fpga/xilinx/xrt/2.14
-    make xclbin USE_FRAMING=0
-    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+    - ml fpga/xilinx/xrt/2.14
+    - make xclbin USE_FRAMING=0
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
@@ -214,8 +214,8 @@ synth:framing:2.14:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    ml fpga/xilinx/xrt/2.14
-    make xclbin USE_FRAMING=1
+    - ml fpga/xilinx/xrt/2.14
+    - make xclbin USE_FRAMING=1
   only:
     - web 
   artifacts:
@@ -228,9 +228,9 @@ synth:streaming:2.16:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    ml fpga/xilinx/xrt/2.16
-    make xclbin USE_FRAMING=0
-    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+    - ml fpga/xilinx/xrt/2.16
+    - make xclbin USE_FRAMING=0
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
@@ -243,8 +243,8 @@ synth:framing:2.16:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    ml fpga/xilinx/xrt/2.16
-    make xclbin USE_FRAMING=1
+    - ml fpga/xilinx/xrt/2.16
+    - make xclbin USE_FRAMING=1
   only:
     - web 
   artifacts:
@@ -257,8 +257,8 @@ run:streaming:2.15:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
   script:
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -272,9 +272,9 @@ run:framing:2.15:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
   script:
-    ml fpga/xilinx/xrt/2.15
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ml fpga/xilinx/xrt/2.15
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -288,9 +288,9 @@ run:streaming:2.14:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
   script:
-    ml fpga/xilinx/xrt/2.14
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ml fpga/xilinx/xrt/2.14
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -304,9 +304,9 @@ run:framing:2.14:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
   script:
-    ml fpga/xilinx/xrt/2.14
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ml fpga/xilinx/xrt/2.14
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -320,9 +320,9 @@ run:streaming:2.16:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
   script:
-    ml fpga/xilinx/xrt/2.16
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ml fpga/xilinx/xrt/2.16
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -336,9 +336,9 @@ run:framing:2.16:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
   script:
-    ml fpga/xilinx/xrt/2.16
-    ./scripts/reset.sh
-    ./host_aurora_hls_test
+    - ml fpga/xilinx/xrt/2.16
+    - ./scripts/reset.sh
+    - ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
