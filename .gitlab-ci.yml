@@ -17,27 +17,48 @@ default:
 
 tb:nfc:
   stage: testbench
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-      when: never
   script:
     - make run_nfc_tb
+  only:
+    changes:
+      - rtl/aurora_hls_nfc.v
+      - rtl/aurora_hls_nfc_tb.v
+      - tcl/run_nfc_tb.tcl
+      - .gitlab-ci.yml
+  artifacts:
+    paths:
+      - nfc_tb.vcd
+      - nfc_tb.wdb
 
-tb:crc:
+tb:crc_counter:
   stage: testbench
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-      when: never
   script:
     - make run_crc_counter_tb
+  only:
+    changes:
+      - rtl/aurora_hls_crc_counter.v
+      - rtl/aurora_hls_crc_counter_tb.v
+      - tcl/run_crc_counter_tb.tcl
+      - .gitlab-ci.yml
+  artifacts:
+    paths:
+      - crc_counter_tb.vcd
+      - crc_counter_tb.wdb
 
-tb:config:
+tb:configuration:
   stage: testbench
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-      when: never
   script:
     - make run_configuration_tb
+  only:
+    changes:
+      - rtl/aurora_hls_configuration.v
+      - rtl/aurora_hls_configuration_tb.v
+      - tcl/run_configuration_tb.tcl
+      - .gitlab-ci.yml
+  artifacts:
+    paths:
+      - configuration_tb.vcd
+      - configuration_tb.wdb
 
 build:host:
   stage: build
