@@ -24,7 +24,7 @@ aurora: aurora_hls_0.xo aurora_hls_1.xo
 CXX=mpicxx
 
 # change here to test different boards
-PART := xcu280-.vh2892-2L-e
+PART := xcu280-fsvh2892-2L-e
 PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
 
 TARGET := hw
