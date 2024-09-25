@@ -2,9 +2,12 @@ stages:
   - testbench
   - build
   - emulation
+  - synth
 
 variables:
-  SCHEDULER_PARAMETERS: "-A hpc-prf-cifi -p normal -t 00:30:00 -n 4 --mem 16g"
+  ACCOUNT: "hpc-prf-cifi"
+  SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 4 --mem 16g"
+  SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
 
 default:
   id_tokens:
@@ -134,3 +137,88 @@ emu:hlslib_example:
   script:
     - cd emulation/example/build
     - ./aurora_emu_example
+
+synth:streaming:2.15:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    make xclbin USE_FRAMING=0
+    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw_streaming.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+synth:framing:2.15:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    make xclbin USE_FRAMING=1
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+synth:streaming:2.14:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    ml fpga/xilinx/xrt/2.14
+    make xclbin USE_FRAMING=0
+    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw_streaming.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+synth:framing:2.14:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    ml fpga/xilinx/xrt/2.14
+    make xclbin USE_FRAMING=1
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+synth:streaming:2.16:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    ml fpga/xilinx/xrt/2.16
+    make xclbin USE_FRAMING=0
+    cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw_streaming.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+
+synth:framing:2.16:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    ml fpga/xilinx/xrt/2.16
+    make xclbin USE_FRAMING=1
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw.xclbin
+  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
