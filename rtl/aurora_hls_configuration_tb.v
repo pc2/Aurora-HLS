@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-`default_nettype none
 `timescale 1ns/1ps
+`default_nettype none
 
 module aurora_hls_configuration_tb();
     wire [21:0] configuration;
@@ -24,5 +24,13 @@ module aurora_hls_configuration_tb();
         .configuration(configuration),
         .fifo_thresholds(fifo_thresholds)
     );
+
+    initial begin
+        $dumpfile("configuration_tb.vcd");
+        $dumpvars(0, aurora_hls_configuration_tb);
+        $monitor("configuration = %b", configuration);
+        $monitor("fifo_thresholds = %b", fifo_thresholds);
+    end
+
 
 endmodule

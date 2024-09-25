@@ -33,46 +33,55 @@ module aurora_hls_crc_counter_tb();
         .frames_with_errors(frames_with_errors)
     );
 
-    always begin
+    initial begin
         clk = 1'b0;
-        #10;
-        clk = 1'b1;
-        #10;
+        forever #10 clk = ~clk;
     end
 
+    reg [3:0] errors;
+
     initial begin
-        crc_valid = 1'b0;
-        crc_pass_fail_n = 1'b0;
+        $dumpfile("crc_counter_tb.vcd");
+        $dumpvars(0, aurora_hls_crc_counter_tb);
+        $monitor("frames_received = %d", frames_received);
+        $monitor("frames_with_errors = %d", frames_with_errors);
+
+        errors = 4'h0;
+
         rst_n = 1'b0;
-        #20;
-        rst_n = 1'b1;
-        #80;
-        crc_valid = 1'b1;
-        crc_pass_fail_n = 1'b1;
-        #20
         crc_valid = 1'b0;
-        #20
-        crc_valid = 1'b1;
-        #20
-        crc_valid = 1'b0;
-        #20
-        crc_valid = 1'b1;
-        #20
-        crc_valid = 1'b0;
-        #20
-        crc_valid = 1'b1;
-        #20
-        crc_valid = 1'b0;
-        #20
-        crc_valid = 1'b1;
         crc_pass_fail_n = 1'b0;
-        #20
+        repeat (2) @(posedge clk);
+
+        if (frames_received != 0 || frames_with_errors != 0) begin
+            $error(1, "reset did not work at time %0t", $time);
+            errors <= errors + 1;
+        end
+
+        rst_n = 1'b1;
+        @(posedge clk);
+        crc_valid = 1'b1;
+        crc_pass_fail_n = 1'b1;
+        repeat (4) begin
+            @(posedge clk);
+            crc_valid = 1'b1;
+        end
+        crc_pass_fail_n = 1'b0;
+        @(posedge clk);
         crc_valid = 1'b0;
         crc_pass_fail_n = 1'b1;
-        #20
+        @(posedge clk);
         crc_valid = 1'b1;
-        #20
+        @(posedge clk);
         crc_valid = 1'b0;
+
+        if (frames_received != 6) begin
+            $error(1, "wrong frame counter");
+            errors = errors + 1;
+        end
+        if (frames_with_errors != 1) begin
+            $error(1, "wrong error counter");
+            errors = errors + 1;
+        end
     end
- 
 endmodule

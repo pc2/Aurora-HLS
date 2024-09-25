@@ -30,6 +30,7 @@ xsim.dir
 !eval/data.csv
 eval/.ipynb_checkpoints
 *.protoinst
+*.vcd
 *.wdb
 *.wcfg
 build
