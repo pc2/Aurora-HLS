@@ -46,7 +46,7 @@ always @ (posedge clk) begin
     case(current_state)
     reset: begin
         s_axi_nfc_tvalid <= 1'b0;
-        s_axi_nfc_tdata <= 1'h0000;
+        s_axi_nfc_tdata <= 16'h0000;
         if (fifo_rx_prog_empty) begin
             next_state = empty;
         end

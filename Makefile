@@ -24,7 +24,7 @@ aurora: aurora_hls_0.xo aurora_hls_1.xo
 CXX=mpicxx
 
 # change here to test different boards
-PART := xcu280-fsvh2892-2L-e
+PART := xcu280-.vh2892-2L-e
 PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
 
 TARGET := hw
@@ -193,6 +193,8 @@ host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp
 host: host_aurora_hls_test
 
 # verilog testbenches
+.PHONY: nfc_tb run_nfc_tb run_nfc_tb_gui
+
 xsim.dir/work/aurora_hls_nfc.sdb: ./rtl/aurora_hls_nfc.v
 	xvlog ./rtl/aurora_hls_nfc.v -d XSIM
 
@@ -205,7 +207,12 @@ xsim.dir/nfc_tb/xsimk: xsim.dir/work/aurora_hls_nfc.sdb xsim.dir/work/aurora_hls
 nfc_tb: xsim.dir/nfc_tb/xsimk
 
 run_nfc_tb: nfc_tb
-	xsim -g --tclbatch tcl/run_nfc_tb.tcl nfc_tb
+	xsim --tclbatch tcl/run_nfc_tb.tcl nfc_tb --wdb nfc_tb.wdb
+
+run_nfc_tb_gui: nfc_tb
+	xsim --gui nfc_tb
+
+.PHONY: configuration_tb run_configuration_tb run_configuration_tb_gui
 
 xsim.dir/work/aurora_hls_configuration.sdb: ./rtl/aurora_hls_configuration.v ./rtl/aurora_hls_define.v
 	xvlog ./rtl/aurora_hls_configuration.v
@@ -219,7 +226,12 @@ xsim.dir/configuration_tb/xsimk: xsim.dir/work/aurora_hls_configuration.sdb xsim
 configuration_tb: xsim.dir/configuration_tb/xsimk
 
 run_configuration_tb: configuration_tb
-	xsim -g --tclbatch tcl/run_configuration_tb.tcl configuration_tb
+	xsim --tclbatch tcl/run_configuration_tb.tcl configuration_tb --wdb configuration_tb.wdb
+
+run_configuration_tb_gui: configuration_tb
+	xsim --gui configuration_tb
+
+.PHONY: crc_counter_tb run_crc_counter_tb run_crc_counter_tb_gui
 
 xsim.dir/work/aurora_hls_crc_counter.sdb: ./rtl/aurora_hls_crc_counter.v
 	xvlog ./rtl/aurora_hls_crc_counter.v
@@ -233,7 +245,10 @@ xsim.dir/crc_counter_tb/xsimk: xsim.dir/work/aurora_hls_crc_counter.sdb xsim.dir
 crc_counter_tb: xsim.dir/crc_counter_tb/xsimk
 
 run_crc_counter_tb: crc_counter_tb
-	xsim -g --tclbatch tcl/run_crc_counter_tb.tcl crc_counter_tb
+	xsim --tclbatch tcl/run_crc_counter_tb.tcl crc_counter_tb --wdb crc_counter_tb.wdb
+
+run_crc_counter_tb_gui: crc_counter_tb
+	xsim --gui crc_counter_tb
 
 # run test
 test: host aurora_hls_test_sw_emu.xclbin

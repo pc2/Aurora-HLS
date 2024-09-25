@@ -22,6 +22,7 @@ module aurora_hls_nfc_tb();
     reg fifo_rx_prog_full;
     reg fifo_rx_prog_empty;
     reg s_axi_nfc_tready;
+    wire s_axi_nfc_tvalid;
     wire [15:0] s_axi_nfc_tdata;
 
     aurora_hls_nfc dut (
@@ -34,33 +35,59 @@ module aurora_hls_nfc_tb();
         .s_axi_nfc_tdata(s_axi_nfc_tdata)
     );
 
-    always begin
+    initial begin
         clk = 1'b0;
-        #10;
-        clk = 1'b1;
-        #10;
+        forever #10 clk = ~clk;
     end
 
+    reg [15:0] errors;
+
     initial begin
+        $dumpfile("nfc_tb.vcd");
+        $dumpvars(0, aurora_hls_nfc);
+        $monitor("s_axi_nfc_tvalid = %d", s_axi_nfc_tvalid);
+        $monitor("s_axi_nfc_tdata = %d", s_axi_nfc_tdata);
+
+        errors = 4'h0;
+
         fifo_rx_prog_full = 1'b0;
         fifo_rx_prog_empty = 1'b0;
         s_axi_nfc_tready = 1'b0;
         rst_n = 1'b0;
-        #20;
+        repeat (2) @(posedge clk);
+
+        if (s_axi_nfc_tvalid != 1'b0 || s_axi_nfc_tdata != 16'h0000) begin
+            $error(1, "reset did not work");
+            errors = errors + 1;
+        end
+
         rst_n = 1'b1;
-        #80;
+        repeat (4) @(posedge clk);
         fifo_rx_prog_empty = 1'b0;
         s_axi_nfc_tready = 1'b0;
         fifo_rx_prog_full = 1'b0;
-        #20;
+        @(posedge clk);
         fifo_rx_prog_full = 1'b1;
-        #100;
+        repeat (5) @(posedge clk);
+
+        if (s_axi_nfc_tvalid != 1'b1 || s_axi_nfc_tdata != 16'hffff) begin
+            $error(1, "no xoff signal");
+            errors = errors + 1;
+        end
+
         s_axi_nfc_tready = 1'b1;
-        #400;
+        repeat (20) @(posedge clk);
         fifo_rx_prog_full = 1'b0;
-        #100
+        repeat (5) @(posedge clk);
         fifo_rx_prog_empty = 1'b1;
-        #400
+        repeat (2) @(posedge clk);
+
+        if (s_axi_nfc_tvalid != 1'b1 || s_axi_nfc_tdata != 16'h0000) begin
+            $error(1, "no xon signal");
+            errors = errors + 1;
+        end
+
+        repeat (4) @(posedge clk);
         fifo_rx_prog_empty = 1'b0;
     end
  
