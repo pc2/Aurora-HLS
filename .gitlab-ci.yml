@@ -260,7 +260,7 @@ run:streaming:2.15:
   script:
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test -p aurora_hls_test_hw_streaming.xclbin
   artifacts:
     paths:
      - results.csv
@@ -277,7 +277,7 @@ run:framing:2.15:
     - ml fpga/xilinx/xrt/2.15
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -294,7 +294,7 @@ run:streaming:2.14:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test -p aurora_hls_test_hw_streaming.xclbin
   artifacts:
     paths:
      - results.csv
@@ -311,7 +311,7 @@ run:framing:2.14:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
@@ -328,7 +328,7 @@ run:streaming:2.16:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test -p aurora_hls_test_hw_streaming.xclbin
   artifacts:
     paths:
      - results.csv
@@ -345,7 +345,7 @@ run:framing:2.16:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/reset.sh
     - changeFPGAlinksXilinx $LINK_CONFIG
-    - ./host_aurora_hls_test
+    - srun -n 6 ./host_aurora_hls_test
   artifacts:
     paths:
      - results.csv
