@@ -6,7 +6,10 @@
 #SBATCH --tasks-per-node 6
 #SBATCH --mail-type=ALL
 
-source env.sh
+if ! command -v v++ &> /dev/null
+then
+    source env.sh
+fi
 
 srun -n 1 ./scripts/reset.sh
 
