@@ -163,7 +163,7 @@ emu:hlslib_example:
   stage: emulation
   dependencies:
     - build:hlslib_example
-  needs: ["build:hlslib_example"]
+  needs: ["build:hlslib_example", "emu:hlslib_test"]
   script:
     - cd emulation/example/build
     - ./aurora_emu_example
@@ -180,7 +180,7 @@ synth:streaming:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 synth:framing:2.15:
   stage: synth
@@ -193,7 +193,7 @@ synth:framing:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 synth:streaming:2.14:
   stage: synth
@@ -208,7 +208,7 @@ synth:streaming:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 synth:framing:2.14:
   stage: synth
@@ -222,7 +222,7 @@ synth:framing:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 synth:streaming:2.16:
   stage: synth
@@ -237,7 +237,7 @@ synth:streaming:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 synth:framing:2.16:
   stage: synth
@@ -251,7 +251,7 @@ synth:framing:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw.xclbin
-  needs: ["emu:xrt", "emu:hlslib_test", "emu:hlslib_example"]
+  needs: ["emu:hlslib_example"]
 
 run:streaming:2.15:
   stage: run
