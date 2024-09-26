@@ -259,7 +259,7 @@ run:streaming:2.15:
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
   script:
-    - ./scripts/run_N1.sh
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
@@ -293,7 +293,7 @@ run:streaming:2.14:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
@@ -327,7 +327,7 @@ run:streaming:2.16:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
   only:
     - web 
   artifacts:
