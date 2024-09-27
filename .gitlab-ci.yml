@@ -70,19 +70,19 @@ tb:configuration:
       - configuration_tb.vcd
       - configuration_tb.wdb
 
-build:host:2.15:
+build:host:2.14:
   stage: build
   script:
+    - ml fpga/xilinx/xrt/2.14
     - make host
   artifacts:
     paths:
       - ./host_aurora_hls_test
   needs: []
 
-build:host:2.14:
+build:host:2.15:
   stage: build
   script:
-    - ml fpga/xilinx/xrt/2.14
     - make host
   artifacts:
     paths:
@@ -169,33 +169,6 @@ emu:hlslib_example:
     - cd emulation/example/build
     - ./aurora_emu_example
 
-synth:streaming:2.15:
-  stage: synth
-  variables:
-    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
-  script:
-    - make xclbin USE_FRAMING=0
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
-  only:
-    - web 
-  artifacts:
-    paths:
-      - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:hlslib_example"]
-
-synth:framing:2.15:
-  stage: synth
-  variables:
-    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
-  script:
-    - make xclbin USE_FRAMING=1
-  only:
-    - web 
-  artifacts:
-    paths:
-      - aurora_hls_test_hw.xclbin
-  needs: ["emu:hlslib_example"]
-
 synth:streaming:2.14:
   stage: synth
   variables:
@@ -209,7 +182,7 @@ synth:streaming:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:hlslib_example"]
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:framing:2.14:
   stage: synth
@@ -223,7 +196,34 @@ synth:framing:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw.xclbin
-  needs: ["emu:hlslib_example"]
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+
+synth:streaming:2.15:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    - make xclbin USE_FRAMING=0
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw_streaming.xclbin
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+
+synth:framing:2.15:
+  stage: synth
+  variables:
+    SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
+  script:
+    - make xclbin USE_FRAMING=1
+  only:
+    - web 
+  artifacts:
+    paths:
+      - aurora_hls_test_hw.xclbin
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:streaming:2.16:
   stage: synth
@@ -238,7 +238,7 @@ synth:streaming:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_streaming.xclbin
-  needs: ["emu:hlslib_example"]
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:framing:2.16:
   stage: synth
@@ -252,42 +252,9 @@ synth:framing:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw.xclbin
-  needs: ["emu:hlslib_example"]
+  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
-run:streaming:2.15:
-  stage: run
-  variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
-  script:
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
-  only:
-    - web 
-  artifacts:
-    paths:
-     - results.csv
-  dependencies:
-    - build:host:2.15
-    - synth:streaming:2.15
-  needs: ["build:host:2.15", "synth:streaming:2.15"]
-
-run:framing:2.15:
-  stage: run
-  variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
-  script:
-    - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh
-  only:
-    - web 
-  artifacts:
-    paths:
-     - results.csv
-  dependencies:
-    - build:host:2.15
-    - synth:framing:2.15
-  needs: ["build:host:2.15", "synth:framing:2.15"]
-
-run:streaming:2.14:
+run:N1:streaming:2.14:
   stage: run
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
@@ -304,7 +271,7 @@ run:streaming:2.14:
     - synth:streaming:2.14
   needs: ["build:host:2.14", "synth:streaming:2.14"]
 
-run:framing:2.14:
+run:N1:framing:2.14:
   stage: run
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
@@ -321,7 +288,40 @@ run:framing:2.14:
     - synth:framing:2.14
   needs: ["build:host:2.14", "synth:framing:2.14"]
 
-run:streaming:2.16:
+run:N1:streaming:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.15
+    - synth:streaming:2.15
+  needs: ["build:host:2.15", "synth:streaming:2.15"]
+
+run:N1:framing:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    - ml fpga/xilinx/xrt/2.15
+    - ./scripts/run_N1.sh
+  only:
+    - web 
+  artifacts:
+    paths:
+     - results.csv
+  dependencies:
+    - build:host:2.15
+    - synth:framing:2.15
+  needs: ["build:host:2.15", "synth:framing:2.15"]
+
+run:N1:streaming:2.16:
   stage: run
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
@@ -338,7 +338,7 @@ run:streaming:2.16:
     - synth:streaming:2.16
   needs: ["build:host:2.16", "synth:streaming:2.16"]
 
-run:framing:2.16:
+run:N1:framing:2.16:
   stage: run
   variables:
     SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
@@ -350,6 +350,89 @@ run:framing:2.16:
   artifacts:
     paths:
      - results.csv
+  dependencies:
+    - build:host:2.16
+    - synth:framing:2.16
+  needs: ["build:host:2.16", "synth:framing:2.16"]
+
+run:nfc_test:streaming:2.14:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+  script:
+    - ml fpga/xilinx/xrt/2.14
+    - ./scripts/run_nfc_test.sh -p aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  dependencies:
+    - build:host:2.14
+    - synth:streaming:2.14
+  needs: ["build:host:2.14", "synth:streaming:2.14"]
+
+run:nfc_test:framing:2.14:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+  script:
+    - ml fpga/xilinx/xrt/2.14
+    - ./scripts/run_nfc_test.sh
+  only:
+    - web 
+  dependencies:
+    - build:host:2.14
+    - synth:framing:2.14
+  needs: ["build:host:2.14", "synth:framing:2.14"]
+
+run:nfc_test:streaming:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    - ./scripts/run_nfc_test.sh -p aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  dependencies:
+    - build:host:2.15
+    - synth:streaming:2.15
+  needs: ["build:host:2.15", "synth:streaming:2.15"]
+
+run:nfc_test:framing:2.15:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+  script:
+    - ml fpga/xilinx/xrt/2.15
+    - ./scripts/run_nfc_test.sh
+  only:
+    - web 
+  dependencies:
+    - build:host:2.15
+    - synth:framing:2.15
+  needs: ["build:host:2.15", "synth:framing:2.15"]
+
+run:nfc_test:streaming:2.16:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+  script:
+    - ml fpga/xilinx/xrt/2.16
+    - ./scripts/run_nfc_test.sh -p aurora_hls_test_hw_streaming.xclbin
+  only:
+    - web 
+  dependencies:
+    - build:host:2.16
+    - synth:streaming:2.16
+  needs: ["build:host:2.16", "synth:streaming:2.16"]
+
+run:nfc_test:framing:2.16:
+  stage: run
+  variables:
+    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+  script:
+    - ml fpga/xilinx/xrt/2.16
+    - ./scripts/run_nfc_test.sh
+  only:
+    - web 
   dependencies:
     - build:host:2.16
     - synth:framing:2.16
@@ -371,7 +454,7 @@ benchmark:2.14:
     - build:host:2.14
     - synth:streaming:2.14
     - synth:framing:2.14
-  needs: ["build:host:2.14", "synth:streaming:2.14", "synth:framing:2.14", "run:streaming:2.14", "run:framing:2.14"]
+  needs: ["build:host:2.14", "synth:streaming:2.14", "synth:framing:2.14", "run:N1:streaming:2.14", "run:N1:framing:2.14"]
 
 benchmark:2.15:
   stage: benchmark      
@@ -388,7 +471,7 @@ benchmark:2.15:
     - build:host:2.15
     - synth:streaming:2.15
     - synth:framing:2.15
-  needs: ["build:host:2.15", "synth:streaming:2.15", "synth:framing:2.15", "run:streaming:2.15", "run:framing:2.15"]
+  needs: ["build:host:2.15", "synth:streaming:2.15", "synth:framing:2.15", "run:N1:streaming:2.15", "run:N1:framing:2.15"]
 
 benchmark:2.16:
   stage: benchmark      
@@ -406,5 +489,4 @@ benchmark:2.16:
     - build:host:2.16
     - synth:streaming:2.16
     - synth:framing:2.16
-  needs: ["build:host:2.16", "synth:streaming:2.16", "synth:framing:2.16", "run:streaming:2.16", "run:framing:2.16"]
-
+  needs: ["build:host:2.16", "synth:streaming:2.16", "synth:framing:2.16", "run:N1:streaming:2.16", "run:N1:framing:2.16"]
