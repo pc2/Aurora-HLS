@@ -311,7 +311,7 @@ public:
         data_bo.read(data.data());
     }
 
-    void compare_data(char *ref, uint32_t repetition)
+    uint32_t compare_data(char *ref, uint32_t repetition)
     {
         uint32_t err_num = 0;
         for (uint32_t i = 0; i < config.message_sizes[repetition]; i++) {
@@ -329,6 +329,7 @@ public:
             std::cout << "Total mismatched bytes: " << err_num << std::endl;
             std::cout << "Ratio: " << (double)err_num/(double) config.message_sizes[repetition] << std::endl;
         }
+        return err_num;
     }
 
     std::vector<char> data;
@@ -419,6 +420,8 @@ int main(int argc, char *argv[])
     IssueKernel issue(instance, device, xclbin_uuid, config);
     DumpKernel dump(instance, device, xclbin_uuid, config);
 
+    uint32_t total_errors = 0;
+
     double local_transmission_times[config.repetitions];
     for (uint32_t r = 0; r < config.repetitions; r++) {
         issue.prepare_repetition(r);
@@ -470,50 +473,80 @@ int main(int argc, char *argv[])
 
             dump.write_back();
         
-            dump.compare_data(issue.data.data(), r);
+            total_errors += dump.compare_data(issue.data.data(), r);
+        } else {
+            local_transmission_times[r] = 0.0;
         }
     }
+    MPI_Reduce(world_rank == 0 ? MPI_IN_PLACE : &total_errors, &total_errors, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    uint32_t total_frames_received = 0;
+    uint32_t total_frames_with_errors = 0;
+    if (aurora.has_framing())
+    {
+        total_frames_received += aurora.get_frames_received();
+        MPI_Reduce(world_rank == 0 ? MPI_IN_PLACE : &total_frames_received, &total_frames_received, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        total_frames_with_errors += aurora.get_frames_with_errors();
+        MPI_Reduce(world_rank == 0 ? MPI_IN_PLACE : &total_frames_with_errors, &total_frames_with_errors, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        if (world_rank == 0) {
+            std::cout << total_frames_received << " frames received, with "
+                << total_frames_with_errors << " errors" << std::endl;
+        }
+    }
+
     double total_transmission_times[config.repetitions * world_size];
     MPI_Gather(local_transmission_times, config.repetitions, MPI_DOUBLE, total_transmission_times, config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    if (config.test_nfc) {
-        std::cout << "NFC test passed" << std::endl;
-    } else {
-        double total_transmission_times[config.repetitions * world_size];
-        MPI_Gather(local_transmission_times, config.repetitions, MPI_DOUBLE, total_transmission_times, config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        if (world_rank == 0) {
-            uint32_t failed_transmissions = 0;
-            double average_transmission_time = 0.0;
-            double average_throughput = 0.0;
-            double transmission_time_sum = 0.0;
-            for (uint32_t i = 0; i < config.repetitions * world_size; i++) {
-                if (total_transmission_times[i] != 0.0) {
-                    transmission_time_sum += total_transmission_times[i];
-                } else {
-                    failed_transmissions += 1;
-                }
-            }
-            if (failed_transmissions) {
-                std::cout << failed_transmissions << " failed transmissions" << std::endl;
+    if (world_rank == 0) {
+        uint32_t failed_transmissions = 0;
+        double transmission_time_sum = 0.0;
+        for (uint32_t i = 0; i < config.repetitions * world_size; i++) {
+            if (total_transmission_times[i] != 0.0) {
+                transmission_time_sum += total_transmission_times[i];
             } else {
-                average_transmission_time = transmission_time_sum / world_size;
+                failed_transmissions += 1;
+            }
+        }
+        if (failed_transmissions) {
+            std::cout << failed_transmissions << " failed transmissions" << std::endl;
+        } else {
+            if (config.test_nfc) {
+                std::cout << "NFC test passed" << std::endl;
+            } else {
+                double average_transmission_time = transmission_time_sum / world_size;
+                double minimum_latency = std::numeric_limits<double>::infinity();
+                double highest_throughput = 0.0;
                 double total_gigabits = 0.0;
                 for (uint32_t r = 0; r < config.repetitions; r++) {
-                    double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
-                    total_gigabits += gigabits_per_iteration * config.iterations_per_message[r];
-                }
-                average_throughput = total_gigabits / average_transmission_time;
-                std::cout << "All correct, average throughput: " << average_throughput << " Gbit/s" << std::endl;
-            }
-            config.write_results(world_size, total_transmission_times);
-        }
-    }
+                    for (int32_t i = 0; i < world_size; i++) {
+                        double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
+                        total_gigabits += gigabits_per_iteration * config.iterations_per_message[r];
 
-    if (aurora.has_framing())
-    {
-        std::cout << "Total frames received: " << aurora.get_frames_received() << std::endl;
-        std::cout << "Frames with errors: " << aurora.get_frames_with_errors() << std::endl;
+                        double throughput = gigabits_per_iteration * config.iterations_per_message[r] / total_transmission_times[r * world_size + i];
+                        if (throughput > highest_throughput) {
+                            highest_throughput = throughput;
+                        }
+
+                        double latency = total_transmission_times[r * world_size + i] / config.iterations_per_message[r];
+                        if (latency < minimum_latency) {
+                            minimum_latency = latency;
+                        }
+                    }
+                }
+                double average_throughput = total_gigabits / average_transmission_time / world_size;
+                if (average_throughput == highest_throughput) {
+                    std::cout << "Throughput: " << average_throughput << " Gbit/s" << std::endl;
+                } else {
+                    std::cout << "Highest Throughput: " << highest_throughput << " Gbit/s" << std::endl;
+                }
+                std::cout << "Minimum Latency: " << minimum_latency << " ms" << std::endl;
+            }
+       }
+        config.write_results(world_size, total_transmission_times);
     }
 
     MPI_Finalize();
 }
+
