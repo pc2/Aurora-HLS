@@ -16,10 +16,10 @@ srun -n 1 changeFPGAlinksXilinx --fpgalink=n00:acl1:ch0-n00:acl1:ch1 --fpgalink=
 
 srun -n 1 ./scripts/reset.sh
 
-srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw_streaming.xclbin -l -i 10 -t 100000 -f 0 -s
+srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw_streaming.xclbin -l -i 10 -t 100000 -f 0 $@
 
 for frame_size in 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152 4194304
 do 
     srun -n 1 ./scripts/reset.sh
-    srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw.xclbin -l -i 10 -t 150000 -f $frame_size -s
+    srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw.xclbin -l -i 10 -t 150000 -f $frame_size $@
 done
