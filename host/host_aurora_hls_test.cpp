@@ -22,6 +22,9 @@
 #include <vector>
 #include <thread>
 #include <mpi.h>
+#include <iostream>
+#include <filesystem>
+#include <fstream>
 
 class Configuration
 {
@@ -40,7 +43,6 @@ public:
     bool latency_measuring = false;
     uint32_t timeout_ms = 10000; // 10 seconds
     bool wait = false;
-    bool semaphore = false;
     // default for now
     bool randomize_data = true;
 
@@ -78,8 +80,6 @@ public:
                 timeout_ms = (uint32_t)(std::stoi(std::string(optarg)));
             } else if (opt == 'w') {
                 wait = true;
-            } else if (opt == 's') {
-                semaphore = true; 
             }
         }
 
@@ -176,6 +176,7 @@ public:
         std::cout << repetitions << " repetitions" << std::endl;
         std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
     }
+
     void write_results(uint32_t world_size, double *transmission_times)
     {
         char* hostname;
@@ -186,12 +187,20 @@ public:
             sprintf(hostname, "NA");
         }
 
-        if (semaphore) {
-            while (rename("results.csv", "results.csv.lock") != 0) {}
+        std::filesystem::path results = "results.csv";
+        if (!std::filesystem::exists(results)) {
+            std::ofstream file(results, std::ios::app);
+            if (file) {
+                std::cout << "new results.csv created" << std::endl;
+            } else {
+                std::cout << "failed creating results.csv" << std::endl;
+                MPI_Abort(MPI_COMM_WORLD, errno);
+            }
         }
+        while (rename("results.csv", "results.csv.lock") != 0) {}
 
         std::ofstream of;
-        of.open(semaphore ? "results.csv.lock" : "results.csv", std::ios_base::app);
+        of.open("results.csv.lock", std::ios_base::app);
         for (uint32_t i = 0; i < repetitions; i++) {
             for (uint32_t core = 0; core < world_size; core++) {
                 of << hostname << "," << i << "," << core << "," << frame_size << "," << message_sizes[i] 
@@ -200,9 +209,7 @@ public:
         }
         of.close();
 
-        if (semaphore) {
-            rename("results.csv.lock", "results.csv");
-        }
+        rename("results.csv.lock", "results.csv");
     }
 };
 
