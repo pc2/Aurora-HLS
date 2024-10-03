@@ -177,49 +177,7 @@ public:
         std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
     }
 
-    void print_results(uint32_t world_size, double *transmission_times)
-    {
-        std::cout << std::setw(16) << "Repetition"
-                  << std::setw(16) << "Bytes"
-                  << std::setw(16) << "Min. Latency"
-                  << std::setw(16) << "Avg. Latency"
-                  << std::setw(16) << "Max. Latency"
-                  << std::setw(16) << "Min. Throughput"
-                  << std::setw(16) << "Avg. Throughput"
-                  << std::setw(16) << "Max. Throughput"
-                  << std::endl
-                  << std::setw(128) << std::setfill('-') << "-"
-                  << std::endl << std::setfill(' ');
-
-        for (uint32_t r = 0; r < repetitions; r++) {
-            double latency_min = std::numeric_limits<double>::infinity();
-            double latency_max = 0.0;
-            double latency_sum = 0.0;
-            double gigabits_per_iteration = 8 * message_sizes[r] / 1000000000.0;
-            for (uint32_t i = 0; i < world_size; i++) {
-                double latency = transmission_times[r * world_size + i] / iterations_per_message[r];
-                latency_sum += latency;
-                if (latency < latency_min) {
-                    latency_min = latency;
-                }
-                if (latency > latency_max) {
-                    latency_max = latency;
-                }
-            }
-            double latency_avg = latency_sum / world_size;
-            std::cout << std::setw(16) << r
-                      << std::setw(16) << message_sizes[r]
-                      << std::setw(16) << latency_min
-                      << std::setw(16) << latency_avg
-                      << std::setw(16) << latency_max
-                      << std::setw(16) << gigabits_per_iteration / latency_max
-                      << std::setw(16) << gigabits_per_iteration / latency_avg
-                      << std::setw(16) << gigabits_per_iteration / latency_min
-                      << std::endl;
-        }
-    }
-
-    void write_results(uint32_t world_size, double *transmission_times)
+   void write_results(uint32_t world_size, double *transmission_times)
     {
         char* hostname;
         hostname = new char[100];
@@ -279,7 +237,9 @@ public:
 
     uint32_t start_frames_received, start_frames_with_errors;
 
-    Results(Configuration config, Aurora aurora) : config(config), aurora(aurora)
+    int world_size;
+
+    Results(Configuration config, Aurora aurora, int32_t world_size) : config(config), aurora(aurora), world_size(world_size)
     {
         local_transmission_times.resize(config.repetitions);
         local_failed_transmissions.resize(config.repetitions);
@@ -293,11 +253,6 @@ public:
             start_frames_received = aurora.get_frames_received();
             start_frames_with_errors = aurora.get_frames_with_errors();
         }
-    }
-
-    void set_transmission_time(uint32_t repetition, double wtime)
-    {
-        local_transmission_times[repetition] = wtime;
     }
 
     void update_status(uint32_t repetition)
@@ -315,7 +270,7 @@ public:
         }
     }
 
-    void gather(int32_t world_size)
+    void gather()
     {
         total_transmission_times.resize(config.repetitions * world_size);
         MPI_Gather(local_transmission_times.data(), config.repetitions, MPI_DOUBLE, total_transmission_times.data(), config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -367,6 +322,54 @@ public:
         }
         return count;
     }
+
+    void print()
+    {
+        std::cout << std::setw(32) << " "
+                  << std::setw(32) << "Latency (s)"
+                  << std::setw(48) << "Throghput (Gbit/s)"
+                  << std::endl
+                  << std::setw(16) << "Repetition"
+                  << std::setw(16) << "Bytes"
+                  << std::setw(16) << "Min."
+                  << std::setw(16) << "Avg."
+                  << std::setw(16) << "Max."
+                  << std::setw(16) << "Min."
+                  << std::setw(16) << "Avg."
+                  << std::setw(16) << "Max."
+                  << std::endl
+                  << std::setw(128) << std::setfill('-') << "-"
+                  << std::endl << std::setfill(' ');
+
+        for (uint32_t r = 0; r < config.repetitions; r++) {
+            double latency_min = std::numeric_limits<double>::infinity();
+            double latency_max = 0.0;
+            double latency_sum = 0.0;
+            double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
+            for (int32_t i = 0; i < world_size; i++) {
+                double latency = total_transmission_times[i * world_size + r] / config.iterations_per_message[r];
+                latency_sum += latency;
+                if (latency < latency_min) {
+                    latency_min = latency;
+                }
+                if (latency > latency_max) {
+                    latency_max = latency;
+                }
+            }
+            double latency_avg = latency_sum / world_size;
+            std::cout << std::setw(16) << r
+                      << std::setw(16) << config.message_sizes[r]
+                      << std::setw(16) << latency_min
+                      << std::setw(16) << latency_avg
+                      << std::setw(16) << latency_max
+                      << std::setw(16) << gigabits_per_iteration / latency_max
+                      << std::setw(16) << gigabits_per_iteration / latency_avg
+                      << std::setw(16) << gigabits_per_iteration / latency_min
+                      << std::endl;
+        }
+    }
+
+ 
 };
 
 class IssueKernel
@@ -583,7 +586,7 @@ int main(int argc, char *argv[])
     IssueKernel issue(instance, device, xclbin_uuid, config);
     DumpKernel dump(instance, device, xclbin_uuid, config);
 
-    Results results(config, aurora);
+    Results results(config, aurora, world_size);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
         issue.prepare_repetition(r);
@@ -616,11 +619,11 @@ int main(int argc, char *argv[])
 
         if (dump.timeout()) {
             results.local_failed_transmissions[r] = 1;
+            if (issue.timeout()) {
+                results.local_failed_transmissions[r] = 2;
+            }
         } else {
             results.local_failed_transmissions[r] = 0;
-        }
-        if (issue.timeout()) {
-            results.local_failed_transmissions[r] = 2;
         }
 
         results.local_transmission_times[r] = get_wtime() - start_time;
@@ -629,7 +632,7 @@ int main(int argc, char *argv[])
         results.local_errors[r] = dump.compare_data(issue.data.data(), r);
     }
 
-    results.gather(world_size);
+    results.gather();
 
     if (world_rank == 0) {
         uint32_t failed_transmissions = results.failed_transmissions();
@@ -649,9 +652,9 @@ int main(int argc, char *argv[])
                     std::cout << frame_errors << " frames with errors" << std::endl;
                 }
 
-                config.print_results(world_size, results.total_transmission_times.data());
             }
         }
+        results.print();
         config.write_results(world_size, results.total_transmission_times.data());
     }
 
