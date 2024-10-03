@@ -130,11 +130,19 @@ public:
         iterations_per_message.resize(repetitions);
         max_num_bytes = num_bytes;
         if (latency_measuring) {
+            double max_throughput = 12500000000.0;
+            double expected_latency = iterations * (num_bytes / max_throughput);
+            std::cout << "expected latency: " << expected_latency << std::endl;
             for (uint32_t i = repetitions; i > 0; i--) {
                 message_sizes[i - 1] = num_bytes;
-                num_bytes >>= 1;
                 iterations_per_message[i - 1] = iterations;
-                iterations <<= 1;
+                num_bytes >>= 1;
+                // estimate number of iterations for next repetition
+                double estimated_latency = iterations * (num_bytes / max_throughput);
+                while (estimated_latency < expected_latency) {
+                    iterations++;
+                    estimated_latency += 1e-6 + num_bytes / max_throughput;
+                }
             }
         } else {
             for (uint32_t i = 0; i < repetitions; i++) {
