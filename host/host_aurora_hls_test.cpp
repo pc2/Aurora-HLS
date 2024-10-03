@@ -212,9 +212,9 @@ public:
                       << std::setw(16) << latency_min
                       << std::setw(16) << latency_avg
                       << std::setw(16) << latency_max
-                      << std::setw(16) << gigabits_per_iteration / latency_min
-                      << std::setw(16) << gigabits_per_iteration / latency_avg
                       << std::setw(16) << gigabits_per_iteration / latency_max
+                      << std::setw(16) << gigabits_per_iteration / latency_avg
+                      << std::setw(16) << gigabits_per_iteration / latency_min
                       << std::endl;
         }
     }
@@ -341,13 +341,31 @@ public:
 
     uint32_t failed_transmissions()
     {
-        uint32_t total_count = 0;
+        uint32_t count = 0;
         for (const auto errorcode: total_failed_transmissions) {
             if (errorcode) {
-                total_count++;
+                count++;
             }
         }
-        return total_count;
+        return count;
+    }
+
+    uint32_t byte_errors()
+    {
+        uint32_t count = 0;
+        for (const auto errors: total_errors) {
+            count += errors;
+        }
+        return count;
+    }
+
+    uint32_t frame_errors()
+    {
+        uint32_t count = 0;
+        for (const auto errors: total_frames_with_errors) {
+            count += errors;
+        }
+        return count;
     }
 };
 
@@ -597,15 +615,14 @@ int main(int argc, char *argv[])
         }
 
         if (dump.timeout()) {
-            if (!emulation) {
-                aurora.print_core_status();
-            }
-            if (issue.timeout()) {
-                results.local_failed_transmissions[r] = 1;
-            } else {
-                results.local_failed_transmissions[r] = 2;
-            }
+            results.local_failed_transmissions[r] = 1;
+        } else {
+            results.local_failed_transmissions[r] = 0;
         }
+        if (issue.timeout()) {
+            results.local_failed_transmissions[r] = 2;
+        }
+
         results.local_transmission_times[r] = get_wtime() - start_time;
         results.update_status(r);
         dump.write_back();
@@ -622,9 +639,19 @@ int main(int argc, char *argv[])
             if (config.test_nfc) {
                 std::cout << "NFC test passed" << std::endl;
             } else {
-          }
+                uint32_t byte_errors = results.byte_errors();
+                if (byte_errors) {
+                    std::cout << byte_errors << " bytes with errors" << std::endl;
+                }
+
+                uint32_t frame_errors = results.frame_errors();
+                if (frame_errors) {
+                    std::cout << frame_errors << " frames with errors" << std::endl;
+                }
+
+                config.print_results(world_size, results.total_transmission_times.data());
+            }
         }
-        config.print_results(world_size, results.total_transmission_times.data());
         config.write_results(world_size, results.total_transmission_times.data());
     }
 
