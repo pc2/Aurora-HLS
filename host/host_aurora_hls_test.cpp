@@ -17,6 +17,7 @@
 #include "Aurora.hpp"
 #include "experimental/xrt_kernel.h"
 #include "experimental/xrt_ip.h"
+#include "version.h"
 #include <fstream>
 #include <unistd.h>
 #include <vector>
@@ -25,7 +26,6 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-
 class Configuration
 {
 public:
@@ -177,40 +177,6 @@ public:
         std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
     }
 
-   void write_results(uint32_t world_size, double *transmission_times)
-    {
-        char* hostname;
-        hostname = new char[100];
-        if (world_size < 7) {
-            gethostname(hostname, 100);
-        } else {
-            sprintf(hostname, "NA");
-        }
-
-        std::filesystem::path results = "results.csv";
-        if (!std::filesystem::exists(results)) {
-            std::ofstream file(results, std::ios::app);
-            if (file) {
-                std::cout << "new results.csv created" << std::endl;
-            } else {
-                std::cout << "failed creating results.csv" << std::endl;
-                MPI_Abort(MPI_COMM_WORLD, errno);
-            }
-        }
-        while (rename("results.csv", "results.csv.lock") != 0) {}
-
-        std::ofstream of;
-        of.open("results.csv.lock", std::ios_base::app);
-        for (uint32_t i = 0; i < repetitions; i++) {
-            for (uint32_t core = 0; core < world_size; core++) {
-                of << hostname << "," << i << "," << core << "," << frame_size << "," << message_sizes[i] 
-                    << "," << iterations_per_message[i] << "," << transmission_times[core * repetitions + i] << "," << use_ack << std::endl;
-            }
-        }
-        of.close();
-
-        rename("results.csv.lock", "results.csv");
-    }
 };
 
 class Results
@@ -220,7 +186,7 @@ public:
     Aurora aurora;
 
     std::vector<double> local_transmission_times;
-    std::vector<uint8_t> local_failed_transmissions;
+    std::vector<uint32_t> local_failed_transmissions;
     std::vector<uint32_t> local_core_status;
     std::vector<uint32_t> local_fifo_status;
     std::vector<uint32_t> local_errors;
@@ -228,7 +194,7 @@ public:
     std::vector<uint32_t> local_frames_with_errors;
 
     std::vector<double> total_transmission_times;
-    std::vector<uint8_t> total_failed_transmissions;
+    std::vector<uint32_t> total_failed_transmissions;
     std::vector<uint32_t> total_core_status;
     std::vector<uint32_t> total_fifo_status;
     std::vector<uint32_t> total_errors;
@@ -347,7 +313,7 @@ public:
             double latency_sum = 0.0;
             double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
             for (int32_t i = 0; i < world_size; i++) {
-                double latency = total_transmission_times[i * world_size + r] / config.iterations_per_message[r];
+                double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
                 if (latency < latency_min) {
                     latency_min = latency;
@@ -369,7 +335,72 @@ public:
         }
     }
 
- 
+    std::string get_commit_id()
+    {
+        std::string commit_id;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("git describe --always --tags --dirty", "r"), pclose);
+        if (pipe) {
+            char buf[128];
+            while (fgets(buf, 128, pipe.get()) != nullptr) {
+                commit_id += buf;
+            }
+        }
+        if (!commit_id.empty() && commit_id.back() == '\n') {
+            commit_id.pop_back();
+        }
+        return commit_id;
+    }
+
+    void write()
+    {
+        char* hostname;
+        hostname = new char[100];
+        if (world_size < 7) {
+            gethostname(hostname, 100);
+        } else {
+            sprintf(hostname, "NA");
+        }
+
+        std::filesystem::path results = "results.csv";
+        if (!std::filesystem::exists(results)) {
+            std::ofstream file(results, std::ios::app);
+            if (file) {
+                std::cout << "new results.csv created" << std::endl;
+            } else {
+                std::cout << "failed creating results.csv" << std::endl;
+                MPI_Abort(MPI_COMM_WORLD, errno);
+            }
+        }
+        while (rename("results.csv", "results.csv.lock") != 0) {}
+
+        std::ofstream of;
+        of.open("results.csv.lock", std::ios_base::app);
+        for (uint32_t r = 0; r < config.repetitions; r++) {
+            for (int core = 0; core < world_size; core++) {
+                of << hostname << ","
+                   << std::string(std::getenv("SLURM_JOB_ID")) << ","
+                   << get_commit_id() << ","
+                   << xrt_build_version << ","
+                   << r << ","
+                   << core << ","
+                   << config.frame_size << ","
+                   << config.message_sizes[r] << ","
+                   << config.iterations_per_message[r] << ","
+                   << config.test_nfc << ","
+                   << total_transmission_times[core * config.repetitions + r] << ","
+                   << total_failed_transmissions[core * config.repetitions + r] << ","
+                   << total_core_status[core * config.repetitions + r] << ","
+                   << total_fifo_status[core * config.repetitions + r] << ","
+                   << total_errors[core * config.repetitions + r] << ","
+                   << total_frames_received[core * config.repetitions + r] << ","
+                   << total_frames_with_errors[core * config.repetitions + r]
+                   << std::endl;
+            }
+        }
+        of.close();
+
+        rename("results.csv.lock", "results.csv");
+    }
 };
 
 class IssueKernel
@@ -596,14 +627,15 @@ int main(int argc, char *argv[])
             if (world_rank == 0) {
                 std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
             }
+            aurora.print_fifo_status();
             issue.start(); 
 
             std::this_thread::sleep_for(std::chrono::seconds(10));
-            aurora.print_fifo_status();
             if (aurora.has_framing())
             {
                 std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
             }
+            aurora.print_fifo_status();
         }
         MPI_Barrier(MPI_COMM_WORLD);        
 
@@ -619,11 +651,11 @@ int main(int argc, char *argv[])
 
         if (dump.timeout()) {
             results.local_failed_transmissions[r] = 1;
-            if (issue.timeout()) {
-                results.local_failed_transmissions[r] = 2;
-            }
         } else {
             results.local_failed_transmissions[r] = 0;
+        }
+        if (issue.timeout()) {
+            results.local_failed_transmissions[r] = 2;
         }
 
         results.local_transmission_times[r] = get_wtime() - start_time;
@@ -655,7 +687,7 @@ int main(int argc, char *argv[])
             }
         }
         results.print();
-        config.write_results(world_size, results.total_transmission_times.data());
+        results.write();
     }
 
     MPI_Finalize();
