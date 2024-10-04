@@ -189,6 +189,8 @@ The -w flag is needed for using chipscope on this design. After loading the bits
 
 There are two more special test cases. The first one is testing the flowcontrol by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
 
+When scaling this test to multiple nodes, the -s flag can used to guarantee that only one job is writing to results file at once. Beware that the file must exist, otherwise the application will wait forever on it.
+
 By default, the first two ranks will choose the device with index 0, going up with the next ranks. This can be changed with specifying an offset, for this selection procedure. This is useful, for example, when only one specific device needs to be tested.
 
 ### Latency test

@@ -26,6 +26,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+
 class Configuration
 {
 public:
@@ -43,6 +44,7 @@ public:
     bool latency_measuring = false;
     uint32_t timeout_ms = 10000; // 10 seconds
     bool wait = false;
+    bool semaphore = false;
     // default for now
     bool randomize_data = true;
 
@@ -80,6 +82,8 @@ public:
                 timeout_ms = (uint32_t)(std::stoi(std::string(optarg)));
             } else if (opt == 'w') {
                 wait = true;
+            } else if (opt == 's') {
+                semaphore = true; 
             }
         }
 
@@ -369,20 +373,12 @@ public:
             sprintf(hostname, "NA");
         }
 
-        std::filesystem::path results = "results.csv";
-        if (!std::filesystem::exists(results)) {
-            std::ofstream file(results, std::ios::app);
-            if (file) {
-                std::cout << "new results.csv created" << std::endl;
-            } else {
-                std::cout << "failed creating results.csv" << std::endl;
-                MPI_Abort(MPI_COMM_WORLD, errno);
-            }
+        if (config.semaphore) {
+            while (rename("results.csv", "results.csv.lock") != 0) {}
         }
-        while (rename("results.csv", "results.csv.lock") != 0) {}
 
         std::ofstream of;
-        of.open("results.csv.lock", std::ios_base::app);
+        of.open(config.semaphore ? "results.csv.lock" : "results.csv", std::ios_base::app);
         for (uint32_t r = 0; r < config.repetitions; r++) {
             for (int core = 0; core < world_size; core++) {
                 of << hostname << ","
@@ -407,7 +403,9 @@ public:
         }
         of.close();
 
-        rename("results.csv.lock", "results.csv");
+        if (config.semaphore) {
+            rename("results.csv.lock", "results.csv");
+        }
     }
 };
 
