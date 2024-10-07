@@ -17,11 +17,15 @@
 #include "Aurora.hpp"
 #include "experimental/xrt_kernel.h"
 #include "experimental/xrt_ip.h"
+#include "version.h"
 #include <fstream>
 #include <unistd.h>
 #include <vector>
 #include <thread>
 #include <mpi.h>
+#include <iostream>
+#include <filesystem>
+#include <fstream>
 
 class Configuration
 {
@@ -130,11 +134,19 @@ public:
         iterations_per_message.resize(repetitions);
         max_num_bytes = num_bytes;
         if (latency_measuring) {
+            double max_throughput = 12500000000.0;
+            double expected_latency = iterations * (num_bytes / max_throughput);
+            std::cout << "expected latency: " << expected_latency << std::endl;
             for (uint32_t i = repetitions; i > 0; i--) {
                 message_sizes[i - 1] = num_bytes;
-                num_bytes >>= 1;
                 iterations_per_message[i - 1] = iterations;
-                iterations <<= 1;
+                num_bytes >>= 1;
+                // estimate number of iterations for next repetition
+                double estimated_latency = iterations * (num_bytes / max_throughput);
+                while (estimated_latency < expected_latency) {
+                    iterations++;
+                    estimated_latency += 1e-6 + num_bytes / max_throughput;
+                }
             }
         } else {
             for (uint32_t i = 0; i < repetitions; i++) {
@@ -176,7 +188,182 @@ public:
         std::cout << repetitions << " repetitions" << std::endl;
         std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
     }
-    void write_results(uint32_t world_size, double *transmission_times)
+
+};
+
+class Results
+{
+public:
+    Configuration config;
+    Aurora aurora;
+
+    std::vector<double> local_transmission_times;
+    std::vector<uint32_t> local_failed_transmissions;
+    std::vector<uint32_t> local_core_status;
+    std::vector<uint32_t> local_fifo_status;
+    std::vector<uint32_t> local_errors;
+    std::vector<uint32_t> local_frames_received;
+    std::vector<uint32_t> local_frames_with_errors;
+
+    std::vector<double> total_transmission_times;
+    std::vector<uint32_t> total_failed_transmissions;
+    std::vector<uint32_t> total_core_status;
+    std::vector<uint32_t> total_fifo_status;
+    std::vector<uint32_t> total_errors;
+    std::vector<uint32_t> total_frames_received;
+    std::vector<uint32_t> total_frames_with_errors;
+
+    uint32_t start_frames_received, start_frames_with_errors;
+
+    int world_size;
+
+    Results(Configuration config, Aurora aurora, int32_t world_size) : config(config), aurora(aurora), world_size(world_size)
+    {
+        local_transmission_times.resize(config.repetitions);
+        local_failed_transmissions.resize(config.repetitions);
+        local_core_status.resize(config.repetitions);
+        local_fifo_status.resize(config.repetitions);
+        local_errors.resize(config.repetitions);
+        local_frames_received.resize(config.repetitions);
+        local_frames_with_errors.resize(config.repetitions);
+
+        if (aurora.has_framing()) {
+            start_frames_received = aurora.get_frames_received();
+            start_frames_with_errors = aurora.get_frames_with_errors();
+        }
+    }
+
+    void update_status(uint32_t repetition)
+    {
+        local_core_status[repetition] = aurora.get_core_status();
+        local_fifo_status[repetition] = aurora.get_fifo_status();
+
+        if (aurora.has_framing()) {
+            uint32_t new_frames_received = aurora.get_frames_received();
+            uint32_t new_frames_with_errors = aurora.get_frames_with_errors();
+            local_frames_received[repetition] = new_frames_received - start_frames_received;
+            local_frames_with_errors[repetition] = new_frames_with_errors - start_frames_with_errors;
+            start_frames_received = new_frames_received;
+            start_frames_with_errors = new_frames_with_errors;
+        }
+    }
+
+    void gather()
+    {
+        total_transmission_times.resize(config.repetitions * world_size);
+        MPI_Gather(local_transmission_times.data(), config.repetitions, MPI_DOUBLE, total_transmission_times.data(), config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        total_failed_transmissions.resize(config.repetitions * world_size);
+        MPI_Gather(local_failed_transmissions.data(), config.repetitions, MPI_UNSIGNED, total_failed_transmissions.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_core_status.resize(config.repetitions * world_size);
+        MPI_Gather(local_core_status.data(), config.repetitions, MPI_UNSIGNED, total_core_status.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_fifo_status.resize(config.repetitions * world_size);
+        MPI_Gather(local_fifo_status.data(), config.repetitions, MPI_UNSIGNED, total_fifo_status.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_errors.resize(config.repetitions * world_size);
+        MPI_Gather(local_errors.data(), config.repetitions, MPI_UNSIGNED, total_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_frames_received.resize(config.repetitions * world_size);
+        MPI_Gather(local_frames_received.data(), config.repetitions, MPI_UNSIGNED, total_frames_received.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_frames_with_errors.resize(config.repetitions * world_size);
+        MPI_Gather(local_frames_with_errors.data(), config.repetitions, MPI_UNSIGNED, total_frames_with_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    }
+
+    uint32_t failed_transmissions()
+    {
+        uint32_t count = 0;
+        for (const auto errorcode: total_failed_transmissions) {
+            if (errorcode) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    uint32_t byte_errors()
+    {
+        uint32_t count = 0;
+        for (const auto errors: total_errors) {
+            count += errors;
+        }
+        return count;
+    }
+
+    uint32_t frame_errors()
+    {
+        uint32_t count = 0;
+        for (const auto errors: total_frames_with_errors) {
+            count += errors;
+        }
+        return count;
+    }
+
+    void print()
+    {
+        std::cout << std::setw(32) << " "
+                  << std::setw(32) << "Latency (s)"
+                  << std::setw(48) << "Throghput (Gbit/s)"
+                  << std::endl
+                  << std::setw(16) << "Repetition"
+                  << std::setw(16) << "Bytes"
+                  << std::setw(16) << "Min."
+                  << std::setw(16) << "Avg."
+                  << std::setw(16) << "Max."
+                  << std::setw(16) << "Min."
+                  << std::setw(16) << "Avg."
+                  << std::setw(16) << "Max."
+                  << std::endl
+                  << std::setw(128) << std::setfill('-') << "-"
+                  << std::endl << std::setfill(' ');
+
+        for (uint32_t r = 0; r < config.repetitions; r++) {
+            double latency_min = std::numeric_limits<double>::infinity();
+            double latency_max = 0.0;
+            double latency_sum = 0.0;
+            double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
+            for (int32_t i = 0; i < world_size; i++) {
+                double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
+                latency_sum += latency;
+                if (latency < latency_min) {
+                    latency_min = latency;
+                }
+                if (latency > latency_max) {
+                    latency_max = latency;
+                }
+            }
+            double latency_avg = latency_sum / world_size;
+            std::cout << std::setw(16) << r
+                      << std::setw(16) << config.message_sizes[r]
+                      << std::setw(16) << latency_min
+                      << std::setw(16) << latency_avg
+                      << std::setw(16) << latency_max
+                      << std::setw(16) << gigabits_per_iteration / latency_max
+                      << std::setw(16) << gigabits_per_iteration / latency_avg
+                      << std::setw(16) << gigabits_per_iteration / latency_min
+                      << std::endl;
+        }
+    }
+
+    std::string get_commit_id()
+    {
+        std::string commit_id;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("git describe --always --tags --dirty", "r"), pclose);
+        if (pipe) {
+            char buf[128];
+            while (fgets(buf, 128, pipe.get()) != nullptr) {
+                commit_id += buf;
+            }
+        }
+        if (!commit_id.empty() && commit_id.back() == '\n') {
+            commit_id.pop_back();
+        }
+        return commit_id;
+    }
+
+    void write()
     {
         char* hostname;
         hostname = new char[100];
@@ -186,21 +373,37 @@ public:
             sprintf(hostname, "NA");
         }
 
-        if (semaphore) {
+        if (config.semaphore) {
             while (rename("results.csv", "results.csv.lock") != 0) {}
         }
 
         std::ofstream of;
-        of.open(semaphore ? "results.csv.lock" : "results.csv", std::ios_base::app);
-        for (uint32_t i = 0; i < repetitions; i++) {
-            for (uint32_t core = 0; core < world_size; core++) {
-                of << hostname << "," << i << "," << core << "," << frame_size << "," << message_sizes[i] 
-                    << "," << iterations_per_message[i] << "," << transmission_times[core * repetitions + i] << "," << use_ack << std::endl;
+        of.open(config.semaphore ? "results.csv.lock" : "results.csv", std::ios_base::app);
+        for (uint32_t r = 0; r < config.repetitions; r++) {
+            for (int core = 0; core < world_size; core++) {
+                of << hostname << ","
+                   << std::string(std::getenv("SLURM_JOB_ID")) << ","
+                   << get_commit_id() << ","
+                   << xrt_build_version << ","
+                   << r << ","
+                   << core << ","
+                   << config.frame_size << ","
+                   << config.message_sizes[r] << ","
+                   << config.iterations_per_message[r] << ","
+                   << config.test_nfc << ","
+                   << total_transmission_times[core * config.repetitions + r] << ","
+                   << total_failed_transmissions[core * config.repetitions + r] << ","
+                   << total_core_status[core * config.repetitions + r] << ","
+                   << total_fifo_status[core * config.repetitions + r] << ","
+                   << total_errors[core * config.repetitions + r] << ","
+                   << total_frames_received[core * config.repetitions + r] << ","
+                   << total_frames_with_errors[core * config.repetitions + r]
+                   << std::endl;
             }
         }
         of.close();
 
-        if (semaphore) {
+        if (config.semaphore) {
             rename("results.csv.lock", "results.csv");
         }
     }
@@ -311,7 +514,7 @@ public:
         data_bo.read(data.data());
     }
 
-    void compare_data(char *ref, uint32_t repetition)
+    uint32_t compare_data(char *ref, uint32_t repetition)
     {
         uint32_t err_num = 0;
         for (uint32_t i = 0; i < config.message_sizes[repetition]; i++) {
@@ -329,6 +532,7 @@ public:
             std::cout << "Total mismatched bytes: " << err_num << std::endl;
             std::cout << "Ratio: " << (double)err_num/(double) config.message_sizes[repetition] << std::endl;
         }
+        return err_num;
     }
 
     std::vector<char> data;
@@ -419,101 +623,90 @@ int main(int argc, char *argv[])
     IssueKernel issue(instance, device, xclbin_uuid, config);
     DumpKernel dump(instance, device, xclbin_uuid, config);
 
-    double local_transmission_times[config.repetitions];
+    Results results(config, aurora, world_size);
+
     for (uint32_t r = 0; r < config.repetitions; r++) {
-        issue.prepare_repetition(r);
-        dump.prepare_repetition(r);
+        try {
+            issue.prepare_repetition(r);
+            dump.prepare_repetition(r);
 
-        if (config.test_nfc) {
-            if (world_rank == 0) {
-                std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
-            }
-            issue.start(); 
-
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            aurora.print_fifo_status();
-            if (aurora.has_framing())
-            {
-                std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
-            }
-        }
-        MPI_Barrier(MPI_COMM_WORLD);        
-
-        double start_time, finish_time;
-        bool rx_success;
-        
-        dump.start();
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        start_time = get_wtime();
-
-        if (!config.test_nfc) {
-            issue.start();
-        }
-
-        if (dump.timeout()) {
-            if (!emulation) {
-                aurora.print_core_status();
-            }
-            rx_success = false;
-        } else {
-            finish_time = get_wtime();
-            rx_success = true;
-        }
-
-        if (issue.timeout()) {
-            std::cout << "Issue timeout. Something is terribly wrong!" << std::endl;
-        }
-
-        if (rx_success) {
-            local_transmission_times[r] = finish_time - start_time;
-
-            dump.write_back();
-        
-            dump.compare_data(issue.data.data(), r);
-        }
-    }
-    double total_transmission_times[config.repetitions * world_size];
-    MPI_Gather(local_transmission_times, config.repetitions, MPI_DOUBLE, total_transmission_times, config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    if (config.test_nfc) {
-        std::cout << "NFC test passed" << std::endl;
-    } else {
-        double total_transmission_times[config.repetitions * world_size];
-        MPI_Gather(local_transmission_times, config.repetitions, MPI_DOUBLE, total_transmission_times, config.repetitions, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        if (world_rank == 0) {
-            uint32_t failed_transmissions = 0;
-            double average_transmission_time = 0.0;
-            double average_throughput = 0.0;
-            double transmission_time_sum = 0.0;
-            for (uint32_t i = 0; i < config.repetitions * world_size; i++) {
-                if (total_transmission_times[i] != 0.0) {
-                    transmission_time_sum += total_transmission_times[i];
-                } else {
-                    failed_transmissions += 1;
+            if (config.test_nfc) {
+                if (world_rank == 0) {
+                    std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
                 }
+                aurora.print_fifo_status();
+                issue.start(); 
+
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+                if (aurora.has_framing())
+                {
+                    std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
+                }
+                aurora.print_fifo_status();
             }
-            if (failed_transmissions) {
-                std::cout << failed_transmissions << " failed transmissions" << std::endl;
+            MPI_Barrier(MPI_COMM_WORLD);        
+
+            
+            dump.start();
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            double start_time = get_wtime();
+
+            if (!config.test_nfc) {
+                issue.start();
+            }
+
+            if (dump.timeout()) {
+                results.local_failed_transmissions[r] = 1;
             } else {
-                average_transmission_time = transmission_time_sum / world_size;
-                double total_gigabits = 0.0;
-                for (uint32_t r = 0; r < config.repetitions; r++) {
-                    double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
-                    total_gigabits += gigabits_per_iteration * config.iterations_per_message[r];
-                }
-                average_throughput = total_gigabits / average_transmission_time;
-                std::cout << "All correct, average throughput: " << average_throughput << " Gbit/s" << std::endl;
+                results.local_failed_transmissions[r] = 0;
             }
-            config.write_results(world_size, total_transmission_times);
+            if (issue.timeout()) {
+                results.local_failed_transmissions[r] = 2;
+            }
+
+            results.local_transmission_times[r] = get_wtime() - start_time;
+            results.update_status(r);
+            dump.write_back();
+            results.local_errors[r] = dump.compare_data(issue.data.data(), r);
+        } catch (const std::runtime_error &e) {
+            std::cout << "caught runtime error: " << e.what() << std::endl;
+            results.local_failed_transmissions[r] = 3;
+        } catch (const std::exception &e) {
+            std::cout << "caught unexpected error: " << e.what() << std::endl;
+            results.local_failed_transmissions[r] = 4;
+        } catch (...) {
+            std::cout << "caught non-std::logic_error" << std::endl;
+            results.local_failed_transmissions[r] = 5;
         }
     }
 
-    if (aurora.has_framing())
-    {
-        std::cout << "Total frames received: " << aurora.get_frames_received() << std::endl;
-        std::cout << "Frames with errors: " << aurora.get_frames_with_errors() << std::endl;
+    results.gather();
+
+    if (world_rank == 0) {
+        uint32_t failed_transmissions = results.failed_transmissions();
+        if (failed_transmissions) {
+            std::cout << failed_transmissions << " failed transmissions" << std::endl;
+        } else {
+            if (config.test_nfc) {
+                std::cout << "NFC test passed" << std::endl;
+            } else {
+                uint32_t byte_errors = results.byte_errors();
+                if (byte_errors) {
+                    std::cout << byte_errors << " bytes with errors" << std::endl;
+                }
+
+                uint32_t frame_errors = results.frame_errors();
+                if (frame_errors) {
+                    std::cout << frame_errors << " frames with errors" << std::endl;
+                }
+
+            }
+        }
+        results.print();
+        results.write();
     }
 
     MPI_Finalize();
 }
+
