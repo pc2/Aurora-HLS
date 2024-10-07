@@ -626,48 +626,59 @@ int main(int argc, char *argv[])
     Results results(config, aurora, world_size);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
-        issue.prepare_repetition(r);
-        dump.prepare_repetition(r);
+        try {
+            issue.prepare_repetition(r);
+            dump.prepare_repetition(r);
 
-        if (config.test_nfc) {
-            if (world_rank == 0) {
-                std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
+            if (config.test_nfc) {
+                if (world_rank == 0) {
+                    std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
+                }
+                aurora.print_fifo_status();
+                issue.start(); 
+
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+                if (aurora.has_framing())
+                {
+                    std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
+                }
+                aurora.print_fifo_status();
             }
-            aurora.print_fifo_status();
-            issue.start(); 
+            MPI_Barrier(MPI_COMM_WORLD);        
 
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            if (aurora.has_framing())
-            {
-                std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
+            
+            dump.start();
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            double start_time = get_wtime();
+
+            if (!config.test_nfc) {
+                issue.start();
             }
-            aurora.print_fifo_status();
+
+            if (dump.timeout()) {
+                results.local_failed_transmissions[r] = 1;
+            } else {
+                results.local_failed_transmissions[r] = 0;
+            }
+            if (issue.timeout()) {
+                results.local_failed_transmissions[r] = 2;
+            }
+
+            results.local_transmission_times[r] = get_wtime() - start_time;
+            results.update_status(r);
+            dump.write_back();
+            results.local_errors[r] = dump.compare_data(issue.data.data(), r);
+        } catch (const std::runtime_error &e) {
+            std::cout << "caught runtime error: " << e.what() << std::endl;
+            results.local_failed_transmissions[r] = 3;
+        } catch (const std::exception &e) {
+            std::cout << "caught unexpected error: " << e.what() << std::endl;
+            results.local_failed_transmissions[r] = 4;
+        } catch (...) {
+            std::cout << "caught non-std::logic_error" << std::endl;
+            results.local_failed_transmissions[r] = 5;
         }
-        MPI_Barrier(MPI_COMM_WORLD);        
-
-        
-        dump.start();
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        double start_time = get_wtime();
-
-        if (!config.test_nfc) {
-            issue.start();
-        }
-
-        if (dump.timeout()) {
-            results.local_failed_transmissions[r] = 1;
-        } else {
-            results.local_failed_transmissions[r] = 0;
-        }
-        if (issue.timeout()) {
-            results.local_failed_transmissions[r] = 2;
-        }
-
-        results.local_transmission_times[r] = get_wtime() - start_time;
-        results.update_status(r);
-        dump.write_back();
-        results.local_errors[r] = dump.compare_data(issue.data.data(), r);
     }
 
     results.gather();
