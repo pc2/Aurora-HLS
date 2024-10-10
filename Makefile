@@ -193,6 +193,26 @@ host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp
 host: host_aurora_hls_test
 
 # verilog testbenches
+
+.PHONY: monitor_tb run_monitor_tb run_monitor_tb_gui
+
+xsim.dir/work/aurora_hls_monitor.sdb: ./rtl/aurora_hls_monitor.v
+	xvlog ./rtl/aurora_hls_monitor.v -d XSIM
+
+xsim.dir/work/aurora_hls_monitor_tb.sdb: ./rtl/aurora_hls_monitor_tb.v
+	xvlog ./rtl/aurora_hls_monitor_tb.v -d XSIM
+
+xsim.dir/monitor_tb/xsimk: xsim.dir/work/aurora_hls_monitor.sdb xsim.dir/work/aurora_hls_monitor_tb.sdb
+	xelab -debug typical aurora_hls_monitor_tb -s monitor_tb
+
+monitor_tb: xsim.dir/monitor_tb/xsimk
+
+run_monitor_tb: monitor_tb
+	xsim --tclbatch tcl/run_monitor_tb.tcl monitor_tb --wdb monitor_tb.wdb
+
+run_monitor_tb_gui: monitor_tb
+	xsim --gui monitor_tb
+
 .PHONY: nfc_tb run_nfc_tb run_nfc_tb_gui
 
 xsim.dir/work/aurora_hls_nfc.sdb: ./rtl/aurora_hls_nfc.v
