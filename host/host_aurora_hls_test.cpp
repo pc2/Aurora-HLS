@@ -136,7 +136,6 @@ public:
         if (latency_measuring) {
             double max_throughput = 12500000000.0;
             double expected_latency = iterations * (num_bytes / max_throughput);
-            std::cout << "expected latency: " << expected_latency << std::endl;
             for (uint32_t i = repetitions; i > 0; i--) {
                 message_sizes[i - 1] = num_bytes;
                 iterations_per_message[i - 1] = iterations;
@@ -303,27 +302,33 @@ public:
 
     void print()
     {
-        std::cout << std::setw(32) << " "
-                  << std::setw(32) << "Latency (s)"
-                  << std::setw(48) << "Throghput (Gbit/s)"
+        std::cout << std::setw(34) << "Latency (s)"
+                  << std::setw(36) << "Throughput (Gbit/s)"
+                  << std::setw(28) << "Errors"
                   << std::endl
-                  << std::setw(16) << "Repetition"
-                  << std::setw(16) << "Bytes"
-                  << std::setw(16) << "Min."
-                  << std::setw(16) << "Avg."
-                  << std::setw(16) << "Max."
-                  << std::setw(16) << "Min."
-                  << std::setw(16) << "Avg."
-                  << std::setw(16) << "Max."
+                  << std::setw(10) << "Bytes"
+                  << std::setw(12) << "Min."
+                  << std::setw(12) << "Avg."
+                  << std::setw(12) << "Max."
+                  << std::setw(12) << "Min."
+                  << std::setw(12) << "Avg."
+                  << std::setw(12) << "Max."
+                  << std::setw(6) << "Full"
+                  << std::setw(10) << "Bytes"
+                  << std::setw(10) << "Frames"
                   << std::endl
-                  << std::setw(128) << std::setfill('-') << "-"
+                  << std::setw(108) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
             double latency_min = std::numeric_limits<double>::infinity();
             double latency_max = 0.0;
             double latency_sum = 0.0;
-            double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
+            const double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
+
+            uint32_t failed_transmissions_sum = 0;
+            uint32_t byte_errors_sum = 0;
+            uint32_t frame_errors_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -333,16 +338,24 @@ public:
                 if (latency > latency_max) {
                     latency_max = latency;
                 }
+
+                if (total_failed_transmissions[i * config.repetitions + r] > 0) {
+                    failed_transmissions_sum++;
+                }
+                byte_errors_sum += total_errors[i * config.repetitions + r];
+                frame_errors_sum += total_frames_with_errors[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
-            std::cout << std::setw(16) << r
-                      << std::setw(16) << config.message_sizes[r]
-                      << std::setw(16) << latency_min
-                      << std::setw(16) << latency_avg
-                      << std::setw(16) << latency_max
-                      << std::setw(16) << gigabits_per_iteration / latency_max
-                      << std::setw(16) << gigabits_per_iteration / latency_avg
-                      << std::setw(16) << gigabits_per_iteration / latency_min
+            std::cout << std::setw(10) << config.message_sizes[r]
+                      << std::setw(12) << latency_min
+                      << std::setw(12) << latency_avg
+                      << std::setw(12) << latency_max
+                      << std::setw(12) << gigabits_per_iteration / latency_max
+                      << std::setw(12) << gigabits_per_iteration / latency_avg
+                      << std::setw(12) << gigabits_per_iteration / latency_min
+                      << std::setw(6) << failed_transmissions_sum
+                      << std::setw(10) << byte_errors_sum
+                      << std::setw(10) << frame_errors_sum
                       << std::endl;
         }
     }
@@ -657,11 +670,13 @@ int main(int argc, char *argv[])
             }
 
             if (dump.timeout()) {
+                std::cout << "Dump timeout" << std::endl;
                 results.local_failed_transmissions[r] = 1;
             } else {
                 results.local_failed_transmissions[r] = 0;
             }
             if (issue.timeout()) {
+                std::cout << "Issue timeout" << std::endl;
                 results.local_failed_transmissions[r] = 2;
             }
 
@@ -670,13 +685,13 @@ int main(int argc, char *argv[])
             dump.write_back();
             results.local_errors[r] = dump.compare_data(issue.data.data(), r);
         } catch (const std::runtime_error &e) {
-            std::cout << "caught runtime error: " << e.what() << std::endl;
+            std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
             results.local_failed_transmissions[r] = 3;
         } catch (const std::exception &e) {
-            std::cout << "caught unexpected error: " << e.what() << std::endl;
+            std::cout << "caught unexpected error at repetition " << r << ": " << e.what() << std::endl;
             results.local_failed_transmissions[r] = 4;
         } catch (...) {
-            std::cout << "caught non-std::logic_error" << std::endl;
+            std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
             results.local_failed_transmissions[r] = 5;
         }
     }
