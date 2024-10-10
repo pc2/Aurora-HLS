@@ -24,6 +24,8 @@ module aurora_hls_nfc_tb();
     reg s_axi_nfc_tready;
     wire s_axi_nfc_tvalid;
     wire [15:0] s_axi_nfc_tdata;
+    reg rx_tvalid;
+    wire [31:0] full_trigger_count, empty_trigger_count;
 
     aurora_hls_nfc dut (
         .clk(clk),
@@ -32,7 +34,10 @@ module aurora_hls_nfc_tb();
         .fifo_rx_prog_empty(fifo_rx_prog_empty),
         .s_axi_nfc_tready(s_axi_nfc_tready),
         .s_axi_nfc_tvalid(s_axi_nfc_tvalid),
-        .s_axi_nfc_tdata(s_axi_nfc_tdata)
+        .s_axi_nfc_tdata(s_axi_nfc_tdata),
+        .rx_tvalid(rx_tvalid),
+        .full_trigger_count(full_trigger_count),
+        .empty_trigger_count(empty_trigger_count)
     );
 
     initial begin
@@ -47,6 +52,8 @@ module aurora_hls_nfc_tb();
         $dumpvars(0, aurora_hls_nfc);
         $monitor("s_axi_nfc_tvalid = %d", s_axi_nfc_tvalid);
         $monitor("s_axi_nfc_tdata = %d", s_axi_nfc_tdata);
+        $monitor("full_trigger_count = %d", full_trigger_count);
+        $monitor("empty_trigger_count = %d", empty_trigger_count);
 
         errors = 4'h0;
 
@@ -75,6 +82,11 @@ module aurora_hls_nfc_tb();
             errors = errors + 1;
         end
 
+        if (full_trigger_count != 1 && empty_trigger_count != 0) begin
+            $error(1, "full trigger counting not correct");
+            errors = errors + 1;
+        end
+
         s_axi_nfc_tready = 1'b1;
         repeat (20) @(posedge clk);
         fifo_rx_prog_full = 1'b0;
@@ -87,8 +99,14 @@ module aurora_hls_nfc_tb();
             errors = errors + 1;
         end
 
+        if (full_trigger_count != 1 && empty_trigger_count != 1) begin
+            $error(1, "empty trigger counting not correct");
+            errors = errors + 1;
+        end
+
         repeat (4) @(posedge clk);
         fifo_rx_prog_empty = 1'b0;
+
     end
  
 endmodule
