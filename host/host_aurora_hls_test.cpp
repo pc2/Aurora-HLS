@@ -203,6 +203,7 @@ public:
     std::vector<uint32_t> local_errors;
     std::vector<uint32_t> local_frames_received;
     std::vector<uint32_t> local_frames_with_errors;
+    std::string local_bdf;
 
     std::vector<double> total_transmission_times;
     std::vector<uint32_t> total_failed_transmissions;
@@ -211,12 +212,16 @@ public:
     std::vector<uint32_t> total_errors;
     std::vector<uint32_t> total_frames_received;
     std::vector<uint32_t> total_frames_with_errors;
+    std::vector<char> total_bdf_raw;
+
+    std::vector<std::string> total_bdf;
+    const int BDF_SIZE = 12; 
 
     uint32_t start_frames_received, start_frames_with_errors;
 
     int world_size;
 
-    Results(Configuration config, Aurora aurora, int32_t world_size) : config(config), aurora(aurora), world_size(world_size)
+    Results(Configuration &config, Aurora &aurora, xrt::device &device, int32_t world_size) : config(config), aurora(aurora), world_size(world_size)
     {
         local_transmission_times.resize(config.repetitions);
         local_failed_transmissions.resize(config.repetitions);
@@ -230,6 +235,8 @@ public:
             start_frames_received = aurora.get_frames_received();
             start_frames_with_errors = aurora.get_frames_with_errors();
         }
+
+        local_bdf = device.get_info<xrt::info::device::bdf>();
     }
 
     void update_status(uint32_t repetition)
@@ -269,6 +276,14 @@ public:
 
         total_frames_with_errors.resize(config.repetitions * world_size);
         MPI_Gather(local_frames_with_errors.data(), config.repetitions, MPI_UNSIGNED, total_frames_with_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_bdf_raw.resize(BDF_SIZE * world_size);
+        MPI_Gather(local_bdf.data(), BDF_SIZE, MPI_CHAR, total_bdf_raw.data(), BDF_SIZE, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+        total_bdf.resize(world_size);
+        for (int i = 0; i < world_size; i++) {
+            total_bdf[i] = std::string(total_bdf_raw.data() + i * BDF_SIZE, BDF_SIZE);
+        }
     }
 
     uint32_t failed_transmissions()
@@ -398,8 +413,9 @@ public:
                    << std::string(std::getenv("SLURM_JOB_ID")) << ","
                    << get_commit_id() << ","
                    << xrt_build_version << ","
-                   << r << ","
+                   << total_bdf[core] << ","
                    << core << ","
+                   << r << ","
                    << config.frame_size << ","
                    << config.message_sizes[r] << ","
                    << config.iterations_per_message[r] << ","
@@ -636,7 +652,7 @@ int main(int argc, char *argv[])
     IssueKernel issue(instance, device, xclbin_uuid, config);
     DumpKernel dump(instance, device, xclbin_uuid, config);
 
-    Results results(config, aurora, world_size);
+    Results results(config, aurora, device, world_size);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
         try {
