@@ -447,7 +447,6 @@ public:
         snprintf(name, 100, "issue:{issue_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
-        run = xrt::run(kernel);
 
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
 
@@ -466,16 +465,17 @@ public:
         }
         data_bo.write(data.data());
         data_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-
-        run.set_arg(1, data_bo);
-        run.set_arg(3, config.frame_size);
-        run.set_arg(5, config.use_ack);
-   }
+  }
 
     void prepare_repetition(uint32_t repetition)
     {
+        run = xrt::run(kernel);
+
+        run.set_arg(1, data_bo);
         run.set_arg(2, config.message_sizes[repetition]);
+        run.set_arg(3, config.frame_size);
         run.set_arg(4, config.iterations_per_message[repetition]);
+        run.set_arg(5, config.use_ack);
     }
 
     void start()
@@ -507,14 +507,10 @@ public:
         snprintf(name, 100, "dump:{dump_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
-        run = xrt::run(kernel);
 
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
 
         data.resize(config.max_num_bytes);
-
-        run.set_arg(1, data_bo);
-        run.set_arg(4, config.use_ack);
 
         if (config.test_nfc) {
             run.set_arg(5, config.test_nfc);
@@ -523,8 +519,12 @@ public:
 
     void prepare_repetition(uint32_t repetition)
     {
+        run = xrt::run(kernel);
+
+        run.set_arg(1, data_bo);
         run.set_arg(2, config.message_sizes[repetition]);
         run.set_arg(3, config.iterations_per_message[repetition]);
+        run.set_arg(4, config.use_ack);
     }
 
     void start()
