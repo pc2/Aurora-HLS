@@ -17,7 +17,7 @@
 `timescale 1ns/1ps
 
 module aurora_hls_monitor(
-    input wire rst_n,
+    input wire rst,
     input wire clk,
     input wire [12:0] aurora_status,
     input wire fifo_rx_almost_full,
@@ -32,7 +32,7 @@ localparam core_status_ok = 13'h11ff;
 reg rx_full_triggered, tx_full_triggered;
 
 always @(posedge clk) begin
-    if (!rst_n) begin
+    if (rst) begin
         core_status_not_ok_count <= 0;
         fifo_rx_overflow_count <= 0;
         fifo_tx_overflow_count <= 0;

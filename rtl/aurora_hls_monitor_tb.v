@@ -18,7 +18,7 @@
 
 module aurora_hls_monitor_tb();
 
-    reg rst_n;
+    reg rst;
     reg clk;
     reg [12:0] aurora_status;
     reg fifo_rx_almost_full;
@@ -30,7 +30,7 @@ module aurora_hls_monitor_tb();
 
     aurora_hls_monitor dut (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst(rst),
         .aurora_status(aurora_status),
         .fifo_rx_almost_full(fifo_rx_almost_full),
         .fifo_tx_almost_full(fifo_tx_almost_full),
@@ -59,7 +59,7 @@ module aurora_hls_monitor_tb();
         fifo_rx_almost_full = 1'b0;
         fifo_tx_almost_full = 1'b0;
 
-        rst_n = 1'b0;
+        rst = 1'b1;
         repeat (2) @(posedge clk);
 
         if (core_status_not_ok_count != 0 || fifo_rx_overflow_count != 0 || fifo_tx_overflow_count != 0) begin
@@ -67,7 +67,7 @@ module aurora_hls_monitor_tb();
             errors = errors + 1;
         end
 
-        rst_n = 1'b1;
+        rst = 1'b0;
         repeat (4) @(posedge clk);
         aurora_status = aurora_status - 1;
         repeat (3) @(posedge clk);
