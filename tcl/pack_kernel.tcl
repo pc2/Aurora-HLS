@@ -35,6 +35,7 @@ add_files -norecurse -fileset sources_1 \
               ../rtl/aurora_hls_define.v \
               ../rtl/aurora_hls_crc_counter.v \
               ../rtl/aurora_hls_configuration.v \
+              ../rtl/aurora_hls_monitor.v \
               ../ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci \
               ../ip_creation/axis_data_fifo_rx/axis_data_fifo_rx.xci \
               ../ip_creation/axis_data_fifo_tx/axis_data_fifo_tx.xci \

@@ -40,15 +40,18 @@ module aurora_hls_control_s_axi (
     output wire         RVALID,
     input wire          RREADY,
     // control register signals
-    input wire  [12:0]  aurora_status,
-    input wire  [7:0]   fifo_status,
     input wire  [21:0]  configuration,
     input wire  [31:0]  fifo_thresholds,
-`ifdef USE_FRAMING
-    input wire  [31:0]  frames_received,
-    input wire  [31:0]  frames_with_errors,
-`endif
+    input wire  [12:0]  aurora_status,
+    input wire  [31:0]  core_status_not_ok_count,
+    input wire  [7:0]   fifo_status,
+    input wire  [31:0]  fifo_rx_overflow_count,
+    input wire  [31:0]  fifo_tx_overflow_count,
     output reg          sw_reset
+`ifdef USE_FRAMING
+   ,input wire  [31:0]  frames_received,
+    input wire  [31:0]  frames_with_errors
+`endif
 );
 
 //------------------------Address Info-------------------
@@ -56,26 +59,32 @@ module aurora_hls_control_s_axi (
 // 0x04 : reserved
 // 0x08 : reserved
 // 0x0c : reserved
-// 0x10 : Aurora status
-// 0x14 : FIFO status
-// 0x18 : Configuration
-// 0x1c : FIFO thresholds (configuration)
+// 0x10 : Configuration
+// 0x14 : FIFO thresholds (configuration)
+// 0x18 : Aurora status
+// 0x1c : Status not OK count
+// 0x20 : FIFO status
+// 0x24 : FIFO RX overflow count
+// 0x28 : FIFO TX overflow count
+// 0x2c : Software-controlled reset (LSB, active high)
 // only with framing enabled:
-// 0x20 : Frames received
-// 0x24 : Frames with errors
-// 0x28 : Software-controlled reset (LSB, active high)
+// 0x30 : Frames received
+// 0x34 : Frames with errors
 
 //------------------------Parameter----------------------
 localparam
-    ADDR_AURORA_STATUS  = 12'h010, 
-    ADDR_FIFO_STATUS    = 12'h014,
-    ADDR_CONFIGURATION  = 12'h018,
-    ADDR_FIFO_THRESHOLDS = 12'h01c,
+    ADDR_CONFIGURATION          = 12'h010,
+    ADDR_FIFO_THRESHOLDS        = 12'h014,
+    ADDR_AURORA_STATUS          = 12'h018, 
+    ADDR_STATUS_NOT_OK_COUNT    = 12'h01c,
+    ADDR_FIFO_STATUS            = 12'h020,
+    ADDR_FIFO_RX_OVERFLOW_COUNT = 12'h024,
+    ADDR_FIFO_TX_OVERFLOW_COUNT = 12'h028,
+    ADDR_SW_RESET               = 12'h02c,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED = 12'h020,
-    ADDR_FRAMES_WITH_ERRORS = 12'h024,
+    ADDR_FRAMES_RECEIVED        = 12'h030,
+    ADDR_FRAMES_WITH_ERRORS     = 12'h034,
 `endif
-    ADDR_SW_RESET       = 12'h028,
     
     // registers write state machine
     WRIDLE          = 2'd0,
@@ -201,17 +210,26 @@ localparam
     always @(posedge ACLK) begin
         if (ar_hs) begin
             case (raddr)
-                ADDR_AURORA_STATUS: begin
-                    rdata <= aurora_status;
-                end
-                ADDR_FIFO_STATUS: begin
-                    rdata <= fifo_status;
-                end
                 ADDR_CONFIGURATION: begin
                     rdata <= configuration;
                 end
                 ADDR_FIFO_THRESHOLDS: begin
                     rdata <= fifo_thresholds;
+                end
+                ADDR_AURORA_STATUS: begin
+                    rdata <= aurora_status;
+                end
+                ADDR_STATUS_NOT_OK_COUNT: begin
+                    rdata <= core_status_not_ok_count;
+                end
+                ADDR_FIFO_STATUS: begin
+                    rdata <= fifo_status;
+                end
+                ADDR_FIFO_RX_OVERFLOW_COUNT: begin
+                    rdata <= fifo_rx_overflow_count;
+                end
+                ADDR_FIFO_TX_OVERFLOW_COUNT: begin
+                    rdata <= fifo_tx_overflow_count;
                 end
 `ifdef USE_FRAMING
                 ADDR_FRAMES_RECEIVED: begin
