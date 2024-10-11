@@ -107,9 +107,12 @@ wire [3:0]      gt_powergood_u;
 wire            crc_pass_fail_n_u;
 wire            crc_valid_u;
 `endif
+wire            gt_pll_lock_u;
+
 //   init_clk domain
 wire            gt_pll_lock_i;
-//   sync status signals
+
+//   ap_clk domain
 wire [3:0]      line_up_sync;
 wire [3:0]      gt_powergood_sync;
 wire            channel_up_sync;
@@ -118,7 +121,9 @@ wire            hard_err_sync;
 wire            mmcm_not_locked_out_sync;
 wire            gt_pll_lock_sync;
 
+
 wire [12:0]     aurora_status;
+wire [12:0]     aurora_status_u;
 wire [7:0]      fifo_status;
 
 // fifo status signals
@@ -151,6 +156,8 @@ xpm_cdc_single  rx_prog_empty_sync (
 // internal reset signals
 wire             reset_pb_i;
 wire             pma_init_i;
+
+wire             reset_pb_u;
 
 // aurora reset generation
 wire            ap_rst_n_i;
@@ -239,6 +246,16 @@ xpm_cdc_single  aurora_status_sync_6 (
     .dest_out   (gt_pll_lock_sync)
 );
 
+assign aurora_status = {
+    channel_up_sync,
+    soft_err_sync,
+    hard_err_sync,
+    mmcm_not_locked_out_sync,
+    gt_pll_lock_sync,
+    line_up_sync,
+    gt_powergood_sync
+};
+
 xpm_cdc_single  fifo_status_sync_0 (
     .src_in     (fifo_rx_almost_full_u),
     .src_clk    (user_clk),
@@ -268,35 +285,15 @@ xpm_cdc_single  fifo_status_sync_3 (
 );
 
 assign fifo_status = {
-                        fifo_rx_almost_full_sync,
-                        fifo_rx_prog_full_sync,
-                        fifo_rx_almost_empty,
-                        fifo_rx_prog_empty,
-                        fifo_tx_almost_full,
-                        fifo_tx_prog_full,
-                        fifo_tx_almost_empty_sync,
-                        fifo_tx_prog_empty_sync
+    fifo_rx_almost_full_sync,
+    fifo_rx_prog_full_sync,
+    fifo_rx_almost_empty,
+    fifo_rx_prog_empty,
+    fifo_tx_almost_full,
+    fifo_tx_prog_full,
+    fifo_tx_almost_empty_sync,
+    fifo_tx_prog_empty_sync
 };
-
-// Aurora Status assignment :
-//  [12]    channel_up
-//  [11]    soft_err
-//  [10]    hard_err
-//  [9]     mmcm_not_locked_out
-//  [8]     gt_pll_lock
-//  [7:4]   line_up
-//  [3:0]   gt_powergood
-//
-
-assign aurora_status = {
-                        channel_up_sync,
-                        soft_err_sync,
-                        hard_err_sync,
-                        mmcm_not_locked_out_sync,
-                        gt_pll_lock_sync,
-                        line_up_sync,
-                        gt_powergood_sync
-                    };
 
 aurora_64b66b_0 aurora_64b66b_0_0 (
   .rxp                          (gt_rxp_in),                // input wire [0 : 3] rxp
@@ -376,53 +373,118 @@ aurora_64b66b_0 aurora_64b66b_0_0 (
 );
 
 aurora_hls_io aurora_hls_io_0 (
-    .ap_clk(ap_clk),
-    .ap_rst_n(ap_rst_n_core),
-    .user_clk(user_clk),
-    .ap_rst_n_u(ap_rst_n_u),
-    .rx_axis_tdata(rx_axis_tdata),
-    .rx_axis_tvalid(rx_axis_tvalid),
-    .rx_axis_tready(rx_axis_tready),
+    .ap_clk                 (ap_clk),
+    .ap_rst_n               (ap_rst_n_core),
+    .user_clk               (user_clk),
+    .ap_rst_n_u             (ap_rst_n_u),
+    .rx_axis_tdata          (rx_axis_tdata),
+    .rx_axis_tvalid         (rx_axis_tvalid),
+    .rx_axis_tready         (rx_axis_tready),
 `ifdef USE_FRAMING
-    .rx_axis_tlast(rx_axis_tlast),
-    .rx_axis_tkeep(rx_axis_tkeep),
+    .rx_axis_tlast          (rx_axis_tlast),
+    .rx_axis_tkeep          (rx_axis_tkeep),
 `endif
-    .m_axi_rx_tdata_u(m_axi_rx_tdata_u),
-    .m_axi_rx_tvalid_u(m_axi_rx_tvalid_u),
+    .m_axi_rx_tdata_u       (m_axi_rx_tdata_u),
+    .m_axi_rx_tvalid_u      (m_axi_rx_tvalid_u),
 `ifdef USE_FRAMING
-    .m_axi_rx_tlast_u(m_axi_rx_tlast_u),
-    .m_axi_rx_tkeep_u(m_axi_rx_tkeep_u),
+    .m_axi_rx_tlast_u       (m_axi_rx_tlast_u),
+    .m_axi_rx_tkeep_u       (m_axi_rx_tkeep_u),
 `endif
-    .tx_axis_tdata(tx_axis_tdata),
-    .tx_axis_tvalid(tx_axis_tvalid),
-    .tx_axis_tready(tx_axis_tready_raw),
+    .tx_axis_tdata          (tx_axis_tdata),
+    .tx_axis_tvalid         (tx_axis_tvalid),
+    .tx_axis_tready         (tx_axis_tready_raw),
 `ifdef USE_FRAMING
-    .tx_axis_tlast(tx_axis_tlast),
-    .tx_axis_tkeep(tx_axis_tkeep),
+    .tx_axis_tlast          (tx_axis_tlast),
+    .tx_axis_tkeep          (tx_axis_tkeep),
 `endif
-    .s_axi_tx_tdata_u(s_axi_tx_tdata_u),
-    .s_axi_tx_tvalid_u(s_axi_tx_tvalid_u),
-    .s_axi_tx_tready_u(s_axi_tx_tready_u),
+    .s_axi_tx_tdata_u       (s_axi_tx_tdata_u),
+    .s_axi_tx_tvalid_u      (s_axi_tx_tvalid_u),
+    .s_axi_tx_tready_u      (s_axi_tx_tready_u),
 `ifdef USE_FRAMING
-    .s_axi_tx_tlast_u(s_axi_tx_tlast_u), 
-    .s_axi_tx_tkeep_u(s_axi_tx_tkeep_u),
+    .s_axi_tx_tlast_u       (s_axi_tx_tlast_u), 
+    .s_axi_tx_tkeep_u       (s_axi_tx_tkeep_u),
 `endif
-    .fifo_rx_almost_full_u(fifo_rx_almost_full_u),
-    .fifo_rx_prog_full_u(fifo_rx_prog_full_u),
-    .fifo_rx_almost_empty(fifo_rx_almost_empty),
-    .fifo_rx_prog_empty(fifo_rx_prog_empty),
-    .fifo_tx_almost_full(fifo_tx_almost_full),
-    .fifo_tx_prog_full(fifo_tx_prog_full),
-    .fifo_tx_almost_empty_u(fifo_tx_almost_empty_u),
-    .fifo_tx_prog_empty_u(fifo_tx_prog_empty_u),
-    .rx_tvalid_u(rx_tvalid_u)
+    .fifo_rx_almost_full_u  (fifo_rx_almost_full_u),
+    .fifo_rx_prog_full_u    (fifo_rx_prog_full_u),
+    .fifo_rx_almost_empty   (fifo_rx_almost_empty),
+    .fifo_rx_prog_empty     (fifo_rx_prog_empty),
+    .fifo_tx_almost_full    (fifo_tx_almost_full),
+    .fifo_tx_prog_full      (fifo_tx_prog_full),
+    .fifo_tx_almost_empty_u (fifo_tx_almost_empty_u),
+    .fifo_tx_prog_empty_u   (fifo_tx_prog_empty_u),
+    .rx_tvalid_u            (rx_tvalid_u)
+);
+
+xpm_cdc_single  aurora_monitor_sync_0 (
+    .src_in     (gt_pll_lock_i),
+    .src_clk    (init_clk),
+    .dest_clk   (user_clk),
+    .dest_out   (gt_pll_lock_u)
+);
+
+xpm_cdc_single  aurora_monitor_sync_1 (
+    .src_in     (reset_pb_i),
+    .src_clk    (init_clk),
+    .dest_clk   (user_clk),
+    .dest_out   (reset_pb_u)
+);
+
+assign aurora_status_u = {
+    channel_up_u,
+    soft_err_u,
+    hard_err_u,
+    mmcm_not_locked_out_u,
+    gt_pll_lock_u,
+    line_up_u,
+    gt_powergood_u
+};
+
+
+wire [31:0] core_status_not_ok_count_u;
+wire [31:0] fifo_rx_overflow_count_u;
+wire [31:0] fifo_tx_overflow_count_u;
+
+aurora_hls_monitor aurora_hls_monitor_0 (
+    .rst_n                      (ap_rst_n_u),
+    .clk                        (user_clk),
+    .aurora_status              (aurora_status_u),
+    .fifo_rx_almost_full        (fifo_rx_almost_full_u),
+    .fifo_tx_almost_full        (fifo_tx_almost_full),
+    .core_status_not_ok_count   (core_status_not_ok_count_u),
+    .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
+    .fifo_tx_overflow_count     (fifo_tx_overflow_count_u)
+);
+
+wire [31:0] core_status_not_ok_count;
+wire [31:0] fifo_rx_overflow_count;
+wire [31:0] fifo_tx_overflow_count;
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_2 (
+    .src_in(core_status_not_ok_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(core_status_not_ok_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_3 (
+    .src_in(fifo_rx_overflow_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(fifo_rx_overflow_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_4 (
+    .src_in(fifo_tx_overflow_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(fifo_tx_overflow_count)
 );
 
 aurora_hls_nfc aurora_hls_nfc_0 (
-    .rst_n             (ap_rst_n_u),
-    .clk               (user_clk),
-    .fifo_rx_prog_full    (fifo_rx_prog_full_u),
-    .fifo_rx_prog_empty   (fifo_rx_prog_empty_u),
+    .rst_n                  (ap_rst_n_u),
+    .clk                    (user_clk),
+    .fifo_rx_prog_full      (fifo_rx_prog_full_u),
+    .fifo_rx_prog_empty     (fifo_rx_prog_empty_u),
     .s_axi_nfc_tready       (s_axi_nfc_tready_u),
     .s_axi_nfc_tvalid       (s_axi_nfc_tvalid_u),
     .s_axi_nfc_tdata        (s_axi_nfc_tdata_u),
@@ -434,12 +496,12 @@ wire [31:0] frames_received_u;
 wire [31:0] frames_with_errors_u;
 
 aurora_hls_crc_counter aurora_hls_crc_counter_0 (
-    .clk(user_clk),
-    .rst_n(ap_rst_n_u),
-    .crc_valid(crc_valid_u),
-    .crc_pass_fail_n(crc_pass_fail_n_u),
-    .frames_received(frames_received_u),
-    .frames_with_errors(frames_with_errors_u)
+    .clk                (user_clk),
+    .rst_n              (ap_rst_n_u),
+    .crc_valid          (crc_valid_u),
+    .crc_pass_fail_n    (crc_pass_fail_n_u),
+    .frames_received    (frames_received_u),
+    .frames_with_errors (frames_with_errors_u)
 );
 
 wire [31:0] frames_received;
@@ -470,34 +532,37 @@ aurora_hls_configuration aurora_hls_configuration_0 (
 );
 
 aurora_hls_control_s_axi axi_control_slave (
-  .ACLK             (ap_clk),
-  .ARESETn          (ap_rst_n),
-  .AWADDR           (s_axi_control_awaddr),
-  .AWVALID          (s_axi_control_awvalid),
-  .AWREADY          (s_axi_control_awready),
-  .WDATA            (s_axi_control_wdata),
-  .WSTRB            (s_axi_control_wstrb),
-  .WVALID           (s_axi_control_wvalid),
-  .WREADY           (s_axi_control_wready),
-  .BRESP            (s_axi_control_bresp),
-  .BVALID           (s_axi_control_bvalid),
-  .BREADY           (s_axi_control_bready),
-  .ARADDR           (s_axi_control_araddr),
-  .ARVALID          (s_axi_control_arvalid),
-  .ARREADY          (s_axi_control_arready),
-  .RDATA            (s_axi_control_rdata),
-  .RRESP            (s_axi_control_rresp),
-  .RVALID           (s_axi_control_rvalid),
-  .RREADY           (s_axi_control_rready),
-  .aurora_status    (aurora_status),
-  .fifo_status      (fifo_status),
-  .configuration    (configuration),
-  .fifo_thresholds  (fifo_thresholds),
+  .ACLK                     (ap_clk),
+  .ARESETn                  (ap_rst_n),
+  .AWADDR                   (s_axi_control_awaddr),
+  .AWVALID                  (s_axi_control_awvalid),
+  .AWREADY                  (s_axi_control_awready),
+  .WDATA                    (s_axi_control_wdata),
+  .WSTRB                    (s_axi_control_wstrb),
+  .WVALID                   (s_axi_control_wvalid),
+  .WREADY                   (s_axi_control_wready),
+  .BRESP                    (s_axi_control_bresp),
+  .BVALID                   (s_axi_control_bvalid),
+  .BREADY                   (s_axi_control_bready),
+  .ARADDR                   (s_axi_control_araddr),
+  .ARVALID                  (s_axi_control_arvalid),
+  .ARREADY                  (s_axi_control_arready),
+  .RDATA                    (s_axi_control_rdata),
+  .RRESP                    (s_axi_control_rresp),
+  .RVALID                   (s_axi_control_rvalid),
+  .RREADY                   (s_axi_control_rready),
+  .configuration            (configuration),
+  .fifo_thresholds          (fifo_thresholds),
+  .aurora_status            (aurora_status),
+  .core_status_not_ok_count (core_status_not_ok_count),
+  .fifo_status              (fifo_status),
+  .fifo_rx_overflow_count   (fifo_rx_overflow_count),
+  .fifo_tx_overflow_count   (fifo_tx_overflow_count),
 `ifdef USE_FRAMING
-  .frames_received  (frames_received),
-  .frames_with_errors (frames_with_errors),
+  .frames_received          (frames_received),
+  .frames_with_errors       (frames_with_errors),
 `endif
-  .sw_reset         (sw_reset)
+  .sw_reset                 (sw_reset)
 );
 
 endmodule

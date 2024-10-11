@@ -29,13 +29,16 @@ double get_wtime()
 }
 
 // control s axi addresses
-static const uint32_t CORE_STATUS_ADDRESS        = 0x00000010;
-static const uint32_t FIFO_STATUS_ADDRESS        = 0x00000014;
-static const uint32_t CONFIGURATION_ADDRESS      = 0x00000018;
-static const uint32_t FIFO_THRESHOLDS_ADDRESS    = 0x0000001c;
-static const uint32_t FRAMES_RECEIVED_ADDRESS    = 0x00000020;
-static const uint32_t FRAMES_WITH_ERRORS_ADDRESS = 0x00000024;
-static const uint32_t SW_RESET_ADDRESS           = 0x00000028;
+static const uint32_t CONFIGURATION_ADDRESS          = 0x00000010;
+static const uint32_t FIFO_THRESHOLDS_ADDRESS        = 0x00000014;
+static const uint32_t CORE_STATUS_ADDRESS            = 0x00000018;
+static const uint32_t STATUS_NOT_OK_COUNT_ADDRESS    = 0x0000001c;
+static const uint32_t FIFO_STATUS_ADDRESS            = 0x00000020;
+static const uint32_t FIFO_RX_OVERFLOW_COUNT_ADDRESS = 0x00000020;
+static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS = 0x00000020;
+static const uint32_t SW_RESET_ADDRESS               = 0x0000002c;
+static const uint32_t FRAMES_RECEIVED_ADDRESS        = 0x00000030;
+static const uint32_t FRAMES_WITH_ERRORS_ADDRESS     = 0x00000034;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD        = 0x0000000f;
@@ -223,6 +226,21 @@ public:
                 }
             }
         }
+    }
+
+    uint32_t get_status_not_ok_count()
+    {
+        return ip.read_register(STATUS_NOT_OK_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_rx_overflow_count()
+    {
+        return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_tx_overflow_count()
+    {
+        return ip.read_register(FIFO_TX_OVERFLOW_COUNT_ADDRESS);
     }
 
     uint32_t get_fifo_status()

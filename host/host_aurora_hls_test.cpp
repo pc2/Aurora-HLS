@@ -198,8 +198,9 @@ public:
 
     std::vector<double> local_transmission_times;
     std::vector<uint32_t> local_failed_transmissions;
-    std::vector<uint32_t> local_core_status;
-    std::vector<uint32_t> local_fifo_status;
+    std::vector<uint32_t> local_status_not_ok_count;
+    std::vector<uint32_t> local_fifo_rx_overflow_count;
+    std::vector<uint32_t> local_fifo_tx_overflow_count;
     std::vector<uint32_t> local_errors;
     std::vector<uint32_t> local_frames_received;
     std::vector<uint32_t> local_frames_with_errors;
@@ -207,8 +208,9 @@ public:
 
     std::vector<double> total_transmission_times;
     std::vector<uint32_t> total_failed_transmissions;
-    std::vector<uint32_t> total_core_status;
-    std::vector<uint32_t> total_fifo_status;
+    std::vector<uint32_t> total_status_not_ok_count;
+    std::vector<uint32_t> total_fifo_rx_overflow_count;
+    std::vector<uint32_t> total_fifo_tx_overflow_count;
     std::vector<uint32_t> total_errors;
     std::vector<uint32_t> total_frames_received;
     std::vector<uint32_t> total_frames_with_errors;
@@ -217,6 +219,8 @@ public:
     std::vector<std::string> total_bdf;
     const int BDF_SIZE = 12; 
 
+    uint32_t start_status_not_ok_count;
+    uint32_t start_fifo_rx_overflow_count, start_fifo_tx_overflow_count;
     uint32_t start_frames_received, start_frames_with_errors;
 
     int world_size;
@@ -225,8 +229,9 @@ public:
     {
         local_transmission_times.resize(config.repetitions);
         local_failed_transmissions.resize(config.repetitions);
-        local_core_status.resize(config.repetitions);
-        local_fifo_status.resize(config.repetitions);
+        local_status_not_ok_count.resize(config.repetitions);
+        local_fifo_rx_overflow_count.resize(config.repetitions);
+        local_fifo_tx_overflow_count.resize(config.repetitions);
         local_errors.resize(config.repetitions);
         local_frames_received.resize(config.repetitions);
         local_frames_with_errors.resize(config.repetitions);
@@ -236,21 +241,29 @@ public:
             start_frames_with_errors = aurora.get_frames_with_errors();
         }
 
+        start_status_not_ok_count = aurora.get_status_not_ok_count();
+        start_fifo_rx_overflow_count = aurora.get_fifo_rx_overflow_count();
+        start_fifo_tx_overflow_count = aurora.get_fifo_tx_overflow_count();
+
         local_bdf = device.get_info<xrt::info::device::bdf>();
     }
 
-    void update_status(uint32_t repetition)
+    void set_diff(uint32_t &start, uint32_t &dest, uint32_t value) {
+        dest = value - start;
+        start = value;
+    }
+
+    void update_counter(uint32_t repetition)
     {
-        local_core_status[repetition] = aurora.get_core_status();
-        local_fifo_status[repetition] = aurora.get_fifo_status();
+
+        set_diff(start_status_not_ok_count, local_status_not_ok_count[repetition], aurora.get_status_not_ok_count());
+
+        set_diff(start_fifo_rx_overflow_count, local_fifo_rx_overflow_count[repetition], aurora.get_fifo_rx_overflow_count());
+        set_diff(start_fifo_tx_overflow_count, local_fifo_tx_overflow_count[repetition], aurora.get_fifo_tx_overflow_count());
 
         if (aurora.has_framing()) {
-            uint32_t new_frames_received = aurora.get_frames_received();
-            uint32_t new_frames_with_errors = aurora.get_frames_with_errors();
-            local_frames_received[repetition] = new_frames_received - start_frames_received;
-            local_frames_with_errors[repetition] = new_frames_with_errors - start_frames_with_errors;
-            start_frames_received = new_frames_received;
-            start_frames_with_errors = new_frames_with_errors;
+            set_diff(start_frames_received, local_frames_received[repetition], aurora.get_frames_received());
+            set_diff(start_frames_with_errors, local_frames_with_errors[repetition], aurora.get_frames_with_errors());
         }
     }
 
@@ -262,11 +275,14 @@ public:
         total_failed_transmissions.resize(config.repetitions * world_size);
         MPI_Gather(local_failed_transmissions.data(), config.repetitions, MPI_UNSIGNED, total_failed_transmissions.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-        total_core_status.resize(config.repetitions * world_size);
-        MPI_Gather(local_core_status.data(), config.repetitions, MPI_UNSIGNED, total_core_status.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+        total_status_not_ok_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_status_not_ok_count.data(), config.repetitions, MPI_UNSIGNED, total_status_not_ok_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-        total_fifo_status.resize(config.repetitions * world_size);
-        MPI_Gather(local_fifo_status.data(), config.repetitions, MPI_UNSIGNED, total_fifo_status.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+        total_fifo_rx_overflow_count.resize(config.repetitions * world_size);
+        MPI_Gather(total_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_fifo_tx_overflow_count.resize(config.repetitions * world_size);
+        MPI_Gather(total_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_errors.resize(config.repetitions * world_size);
         MPI_Gather(local_errors.data(), config.repetitions, MPI_UNSIGNED, total_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -319,7 +335,7 @@ public:
     {
         std::cout << std::setw(34) << "Latency (s)"
                   << std::setw(36) << "Throughput (Gbit/s)"
-                  << std::setw(28) << "Errors"
+                  << std::setw(18) << "Errors"
                   << std::endl
                   << std::setw(10) << "Bytes"
                   << std::setw(12) << "Min."
@@ -331,8 +347,11 @@ public:
                   << std::setw(6) << "Full"
                   << std::setw(10) << "Bytes"
                   << std::setw(10) << "Frames"
+                  << std::setw(10) << "Status"
+                  << std::setw(10) << "FIFO RX"
+                  << std::setw(10) << "FIFO TX"
                   << std::endl
-                  << std::setw(108) << std::setfill('-') << "-"
+                  << std::setw(138) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -344,6 +363,9 @@ public:
             uint32_t failed_transmissions_sum = 0;
             uint32_t byte_errors_sum = 0;
             uint32_t frame_errors_sum = 0;
+            uint32_t status_errors_sum = 0;
+            uint32_t fifo_rx_errors_sum = 0;
+            uint32_t fifo_tx_errors_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -359,6 +381,9 @@ public:
                 }
                 byte_errors_sum += total_errors[i * config.repetitions + r];
                 frame_errors_sum += total_frames_with_errors[i * config.repetitions + r];
+                status_errors_sum += total_status_not_ok_count[i * config.repetitions + r];
+                fifo_rx_errors_sum += total_fifo_rx_overflow_count[i * config.repetitions + r];
+                fifo_tx_errors_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
             std::cout << std::setw(10) << config.message_sizes[r]
@@ -371,6 +396,9 @@ public:
                       << std::setw(6) << failed_transmissions_sum
                       << std::setw(10) << byte_errors_sum
                       << std::setw(10) << frame_errors_sum
+                      << std::setw(10) << status_errors_sum
+                      << std::setw(10) << fifo_rx_errors_sum
+                      << std::setw(10) << fifo_tx_errors_sum
                       << std::endl;
         }
     }
@@ -422,8 +450,9 @@ public:
                    << config.test_nfc << ","
                    << total_transmission_times[core * config.repetitions + r] << ","
                    << total_failed_transmissions[core * config.repetitions + r] << ","
-                   << total_core_status[core * config.repetitions + r] << ","
-                   << total_fifo_status[core * config.repetitions + r] << ","
+                   << total_status_not_ok_count[core * config.repetitions + r] << ","
+                   << total_fifo_rx_overflow_count[core * config.repetitions + r] << ","
+                   << total_fifo_tx_overflow_count[core * config.repetitions + r] << ","
                    << total_errors[core * config.repetitions + r] << ","
                    << total_frames_received[core * config.repetitions + r] << ","
                    << total_frames_with_errors[core * config.repetitions + r]
@@ -512,9 +541,6 @@ public:
 
         data.resize(config.max_num_bytes);
 
-        if (config.test_nfc) {
-            run.set_arg(5, config.test_nfc);
-        }
     }
 
     void prepare_repetition(uint32_t repetition)
@@ -628,10 +654,6 @@ int main(int argc, char *argv[])
 
     uint32_t instance = node_rank % 2;
 
-    if (world_rank == 0) {
-        config.print();
-        std::cout << "with " << world_size << " instances" << std::endl;
-    }
     xrt::device device = xrt::device(device_id);
     xrt::uuid xclbin_uuid = device.load_xclbin(config.xclbin_file);
 
@@ -646,6 +668,11 @@ int main(int argc, char *argv[])
         if (!aurora.has_framing()) {
             config.frame_size = 0; 
         }
+    }
+
+    if (world_rank == 0) {
+        config.print();
+        std::cout << "with " << world_size << " instances" << std::endl;
     }
 
     // create kernel objects
@@ -697,7 +724,6 @@ int main(int argc, char *argv[])
             }
 
             results.local_transmission_times[r] = get_wtime() - start_time;
-            results.update_status(r);
             dump.write_back();
             results.local_errors[r] = dump.compare_data(issue.data.data(), r);
         } catch (const std::runtime_error &e) {
@@ -710,6 +736,7 @@ int main(int argc, char *argv[])
             std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
             results.local_failed_transmissions[r] = 5;
         }
+        results.update_counter(r);
     }
 
     results.gather();
