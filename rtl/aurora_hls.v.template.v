@@ -445,7 +445,7 @@ wire [31:0] fifo_rx_overflow_count_u;
 wire [31:0] fifo_tx_overflow_count_u;
 
 aurora_hls_monitor aurora_hls_monitor_0 (
-    .rst_n                      (ap_rst_n_u),
+    .rst                        (reset_pb_u),
     .clk                        (user_clk),
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
