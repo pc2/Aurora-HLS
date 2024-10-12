@@ -223,9 +223,10 @@ public:
     uint32_t start_fifo_rx_overflow_count, start_fifo_tx_overflow_count;
     uint32_t start_frames_received, start_frames_with_errors;
 
+    bool emulation;
     int world_size;
 
-    Results(Configuration &config, Aurora &aurora, xrt::device &device, int32_t world_size) : config(config), aurora(aurora), world_size(world_size)
+    Results(Configuration &config, Aurora &aurora, bool emulation, xrt::device &device, int32_t world_size) : config(config), aurora(aurora), emulation(emulation), world_size(world_size)
     {
         local_transmission_times.resize(config.repetitions);
         local_failed_transmissions.resize(config.repetitions);
@@ -236,14 +237,18 @@ public:
         local_frames_received.resize(config.repetitions);
         local_frames_with_errors.resize(config.repetitions);
 
-        if (aurora.has_framing()) {
-            start_frames_received = aurora.get_frames_received();
-            start_frames_with_errors = aurora.get_frames_with_errors();
-        }
 
-        start_status_not_ok_count = aurora.get_status_not_ok_count();
-        start_fifo_rx_overflow_count = aurora.get_fifo_rx_overflow_count();
-        start_fifo_tx_overflow_count = aurora.get_fifo_tx_overflow_count();
+        if (!emulation) {
+
+            start_status_not_ok_count = aurora.get_status_not_ok_count();
+            start_fifo_rx_overflow_count = aurora.get_fifo_rx_overflow_count();
+            start_fifo_tx_overflow_count = aurora.get_fifo_tx_overflow_count();
+
+            if (aurora.has_framing()) {
+                start_frames_received = aurora.get_frames_received();
+                start_frames_with_errors = aurora.get_frames_with_errors();
+            }
+        }
 
         local_bdf = device.get_info<xrt::info::device::bdf>();
     }
@@ -255,17 +260,18 @@ public:
 
     void update_counter(uint32_t repetition)
     {
+        if (!emulation) {
+            set_diff(start_status_not_ok_count, local_status_not_ok_count[repetition], aurora.get_status_not_ok_count());
 
-        set_diff(start_status_not_ok_count, local_status_not_ok_count[repetition], aurora.get_status_not_ok_count());
+            set_diff(start_fifo_rx_overflow_count, local_fifo_rx_overflow_count[repetition], aurora.get_fifo_rx_overflow_count());
+            set_diff(start_fifo_tx_overflow_count, local_fifo_tx_overflow_count[repetition], aurora.get_fifo_tx_overflow_count());
 
-        set_diff(start_fifo_rx_overflow_count, local_fifo_rx_overflow_count[repetition], aurora.get_fifo_rx_overflow_count());
-        set_diff(start_fifo_tx_overflow_count, local_fifo_tx_overflow_count[repetition], aurora.get_fifo_tx_overflow_count());
-
-        if (aurora.has_framing()) {
-            set_diff(start_frames_received, local_frames_received[repetition], aurora.get_frames_received());
-            set_diff(start_frames_with_errors, local_frames_with_errors[repetition], aurora.get_frames_with_errors());
+            if (aurora.has_framing()) {
+                set_diff(start_frames_received, local_frames_received[repetition], aurora.get_frames_received());
+                set_diff(start_frames_with_errors, local_frames_with_errors[repetition], aurora.get_frames_with_errors());
+            }
         }
-    }
+   }
 
     void gather()
     {
@@ -433,12 +439,15 @@ public:
             while (rename("results.csv", "results.csv.lock") != 0) {}
         }
 
+        char *job_id = std::getenv("SLURM_JOB_ID");
+        std::string job_id_str(job_id == NULL ? "none" : job_id);
+
         std::ofstream of;
         of.open(config.semaphore ? "results.csv.lock" : "results.csv", std::ios_base::app);
         for (uint32_t r = 0; r < config.repetitions; r++) {
             for (int core = 0; core < world_size; core++) {
                 of << hostname << ","
-                   << std::string(std::getenv("SLURM_JOB_ID")) << ","
+                   << job_id_str << ","
                    << get_commit_id() << ","
                    << xrt_build_version << ","
                    << total_bdf[core] << ","
@@ -679,7 +688,7 @@ int main(int argc, char *argv[])
     IssueKernel issue(instance, device, xclbin_uuid, config);
     DumpKernel dump(instance, device, xclbin_uuid, config);
 
-    Results results(config, aurora, device, world_size);
+    Results results(config, aurora, emulation, device, world_size);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
         try {
