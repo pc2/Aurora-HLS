@@ -10,11 +10,14 @@ variables:
   ACCOUNT: "hpc-prf-cifi"
   SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 4 --mem 16g"
   SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
-  RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 02:15:00 -N 1 -n 6"
-  LINK_CONFIG: "--fpgalink=n00:acl0:ch0-n00:acl0:ch1 --fpgalink=n00:acl1:ch0-n00:acl1:ch1 --fpgalink=n00:acl2:ch0-n00:acl2:ch1"
-  RUN_SCHEDULER_PARAMETERS_2_14: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.14"
-  RUN_SCHEDULER_PARAMETERS_2_15: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.15"
-  RUN_SCHEDULER_PARAMETERS_2_16: "${RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.16"
+  SHORT_RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 00:30:00 -N 1 -n 6"
+  LONG_RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 01:30:00 -N 1 -n 6"
+  SHORT_RUN_SCHEDULER_PARAMETERS_2_14: "${SHORT_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.14"
+  SHORT_RUN_SCHEDULER_PARAMETERS_2_15: "${SHORT_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.15"
+  SHORT_RUN_SCHEDULER_PARAMETERS_2_16: "${SHORT_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.16"
+  LONG_RUN_SCHEDULER_PARAMETERS_2_14: "${LONG_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.14"
+  LONG_RUN_SCHEDULER_PARAMETERS_2_15: "${LONG_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.15"
+  LONG_RUN_SCHEDULER_PARAMETERS_2_16: "${LONG_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt2.16"
 
 default:
   id_tokens:
@@ -257,7 +260,7 @@ synth:framing:2.16:
 run:N1:streaming:2.14:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
@@ -274,7 +277,7 @@ run:N1:streaming:2.14:
 run:N1:framing:2.14:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/run_N1.sh
@@ -291,7 +294,7 @@ run:N1:framing:2.14:
 run:N1:streaming:2.15:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
   only:
@@ -307,7 +310,7 @@ run:N1:streaming:2.15:
 run:N1:framing:2.15:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh
@@ -324,7 +327,7 @@ run:N1:framing:2.15:
 run:N1:streaming:2.16:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin
@@ -341,7 +344,7 @@ run:N1:streaming:2.16:
 run:N1:framing:2.16:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/run_N1.sh
@@ -358,7 +361,7 @@ run:N1:framing:2.16:
 run:nfc_test:streaming:2.14:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin -n
@@ -372,7 +375,7 @@ run:nfc_test:streaming:2.14:
 run:nfc_test:framing:2.14:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
     - ./scripts/run_N1.sh -n 
@@ -386,7 +389,7 @@ run:nfc_test:framing:2.14:
 run:nfc_test:streaming:2.15:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin -n
   only:
@@ -399,7 +402,7 @@ run:nfc_test:streaming:2.15:
 run:nfc_test:framing:2.15:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh -n
@@ -413,7 +416,7 @@ run:nfc_test:framing:2.15:
 run:nfc_test:streaming:2.16:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_streaming.xclbin -n 
@@ -427,7 +430,7 @@ run:nfc_test:streaming:2.16:
 run:nfc_test:framing:2.16:
   stage: run
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+    SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
     - ./scripts/run_N1.sh -n
@@ -441,10 +444,10 @@ run:nfc_test:framing:2.16:
 benchmark:2.14:
   stage: benchmark      
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_14
+    SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1_over_framesizes.sh -l -i 10 -t 100000
+    - ./scripts/run_N1_over_framesizes.sh -l -i 10
   only:
     - web 
   artifacts:
@@ -459,9 +462,9 @@ benchmark:2.14:
 benchmark:2.15:
   stage: benchmark      
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_15
+    SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_15
   script:
-    - ./scripts/run_N1_over_framesizes.sh -l -i 10 -t 100000
+    - ./scripts/run_N1_over_framesizes.sh -l -i 10
   only:
     - web 
   artifacts:
@@ -476,10 +479,10 @@ benchmark:2.15:
 benchmark:2.16:
   stage: benchmark      
   variables:
-    SCHEDULER_PARAMETERS: $RUN_SCHEDULER_PARAMETERS_2_16
+    SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1_over_framesizes.sh -l -i 10 -t 100000
+    - ./scripts/run_N1_over_framesizes.sh -l -i 10
   only:
     - web 
   artifacts:
