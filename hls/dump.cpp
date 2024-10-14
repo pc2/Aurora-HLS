@@ -21,13 +21,13 @@
 
 #define _XF_SYNTHESIS_ 1
 
-#define PTR_WIDTH 512
-#define PTR_BYTE_WIDTH 64
+#define DATA_WIDTH 512
+#define DATA_BYTE_WIDTH 64
 
 extern "C"
 {
-    void dump (hls::stream<ap_axiu<PTR_WIDTH, 0, 0, 0>>& data_input,
-                    ap_uint<PTR_WIDTH> *data_output,
+    void dump (hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_input,
+                    ap_uint<DATA_WIDTH> *data_output,
                     unsigned int byte_size,
                     unsigned int iterations,
                     bool ack_enable,
@@ -36,9 +36,9 @@ extern "C"
     iterations:
         for (unsigned int n = 0; n < iterations; n++) {
         read:
-            for (int i = 0; i < (byte_size / PTR_BYTE_WIDTH); i++) {
+            for (int i = 0; i < (byte_size / DATA_BYTE_WIDTH); i++) {
 #pragma HLS PIPELINE II = 1
-                ap_axiu<PTR_WIDTH, 0, 0, 0> temp = data_input.read();
+                ap_axiu<DATA_WIDTH, 0, 0, 0> temp = data_input.read();
                 data_output[i] = temp.data;
             }
             if (ack_enable) {
