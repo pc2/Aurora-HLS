@@ -109,8 +109,8 @@ public:
             mega_bytes = num_bytes / 1024.0 / 1024.0;
         }
 
-        if (num_bytes < 64) {
-            std::cout << "Error: number of bytes must be larger than the channel width (64)" << std::endl;
+        if ((num_bytes % 64) != 0) {
+            std::cout << "Error: number of bytes must be multiple of the channel width (64)" << std::endl;
             exit(1);
         }
         
