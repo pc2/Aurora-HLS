@@ -201,6 +201,8 @@ public:
     std::vector<uint32_t> local_status_not_ok_count;
     std::vector<uint32_t> local_fifo_rx_overflow_count;
     std::vector<uint32_t> local_fifo_tx_overflow_count;
+    std::vector<uint32_t> local_nfc_full_trigger_count;
+    std::vector<uint32_t> local_nfc_empty_trigger_count;
     std::vector<uint32_t> local_errors;
     std::vector<uint32_t> local_frames_received;
     std::vector<uint32_t> local_frames_with_errors;
@@ -211,6 +213,8 @@ public:
     std::vector<uint32_t> total_status_not_ok_count;
     std::vector<uint32_t> total_fifo_rx_overflow_count;
     std::vector<uint32_t> total_fifo_tx_overflow_count;
+    std::vector<uint32_t> total_nfc_full_trigger_count;
+    std::vector<uint32_t> total_nfc_empty_trigger_count;
     std::vector<uint32_t> total_errors;
     std::vector<uint32_t> total_frames_received;
     std::vector<uint32_t> total_frames_with_errors;
@@ -222,6 +226,7 @@ public:
     uint32_t start_status_not_ok_count;
     uint32_t start_fifo_rx_overflow_count, start_fifo_tx_overflow_count;
     uint32_t start_frames_received, start_frames_with_errors;
+    uint32_t start_nfc_full_trigger_count, start_nfc_empty_trigger_count;
 
     bool emulation;
     int world_size;
@@ -233,16 +238,19 @@ public:
         local_status_not_ok_count.resize(config.repetitions);
         local_fifo_rx_overflow_count.resize(config.repetitions);
         local_fifo_tx_overflow_count.resize(config.repetitions);
+        local_nfc_full_trigger_count.resize(config.repetitions);
+        local_nfc_empty_trigger_count.resize(config.repetitions);
         local_errors.resize(config.repetitions);
         local_frames_received.resize(config.repetitions);
         local_frames_with_errors.resize(config.repetitions);
-
 
         if (!emulation) {
 
             start_status_not_ok_count = aurora.get_status_not_ok_count();
             start_fifo_rx_overflow_count = aurora.get_fifo_rx_overflow_count();
             start_fifo_tx_overflow_count = aurora.get_fifo_tx_overflow_count();
+            start_nfc_full_trigger_count = aurora.get_nfc_full_trigger_count();
+            start_nfc_empty_trigger_count = aurora.get_nfc_empty_trigger_count();
 
             if (aurora.has_framing()) {
                 start_frames_received = aurora.get_frames_received();
@@ -253,22 +261,25 @@ public:
         local_bdf = device.get_info<xrt::info::device::bdf>();
     }
 
-    void set_diff(uint32_t &start, uint32_t &dest, uint32_t value) {
-        dest = value - start;
-        start = value;
+    void set_diff(uint32_t *start, uint32_t *dest, uint32_t value) {
+        *dest = value - *start;
+        *start = value;
     }
 
     void update_counter(uint32_t repetition)
     {
         if (!emulation) {
-            set_diff(start_status_not_ok_count, local_status_not_ok_count[repetition], aurora.get_status_not_ok_count());
+            set_diff(&start_status_not_ok_count, &local_status_not_ok_count[repetition], aurora.get_status_not_ok_count());
 
-            set_diff(start_fifo_rx_overflow_count, local_fifo_rx_overflow_count[repetition], aurora.get_fifo_rx_overflow_count());
-            set_diff(start_fifo_tx_overflow_count, local_fifo_tx_overflow_count[repetition], aurora.get_fifo_tx_overflow_count());
+            set_diff(&start_fifo_rx_overflow_count, &local_fifo_rx_overflow_count[repetition], aurora.get_fifo_rx_overflow_count());
+            set_diff(&start_fifo_tx_overflow_count, &local_fifo_tx_overflow_count[repetition], aurora.get_fifo_tx_overflow_count());
+
+            set_diff(&start_nfc_full_trigger_count, &local_nfc_full_trigger_count[repetition], aurora.get_nfc_full_trigger_count());
+            set_diff(&start_nfc_empty_trigger_count, &local_nfc_empty_trigger_count[repetition], aurora.get_nfc_empty_trigger_count());
 
             if (aurora.has_framing()) {
-                set_diff(start_frames_received, local_frames_received[repetition], aurora.get_frames_received());
-                set_diff(start_frames_with_errors, local_frames_with_errors[repetition], aurora.get_frames_with_errors());
+                set_diff(&start_frames_received, &local_frames_received[repetition], aurora.get_frames_received());
+                set_diff(&start_frames_with_errors, &local_frames_with_errors[repetition], aurora.get_frames_with_errors());
             }
         }
    }
@@ -285,10 +296,16 @@ public:
         MPI_Gather(local_status_not_ok_count.data(), config.repetitions, MPI_UNSIGNED, total_status_not_ok_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_fifo_rx_overflow_count.resize(config.repetitions * world_size);
-        MPI_Gather(total_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+        MPI_Gather(local_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_rx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_fifo_tx_overflow_count.resize(config.repetitions * world_size);
-        MPI_Gather(total_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+        MPI_Gather(local_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, total_fifo_tx_overflow_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_nfc_full_trigger_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_nfc_full_trigger_count.data(), config.repetitions, MPI_UNSIGNED, total_nfc_full_trigger_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_nfc_empty_trigger_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_nfc_empty_trigger_count.data(), config.repetitions, MPI_UNSIGNED, total_nfc_empty_trigger_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_errors.resize(config.repetitions * world_size);
         MPI_Gather(local_errors.data(), config.repetitions, MPI_UNSIGNED, total_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -351,13 +368,15 @@ public:
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
                   << std::setw(6) << "Full"
-                  << std::setw(10) << "Bytes"
-                  << std::setw(10) << "Frames"
-                  << std::setw(10) << "Status"
-                  << std::setw(10) << "FIFO RX"
-                  << std::setw(10) << "FIFO TX"
+                  << std::setw(12) << "Bytes"
+                  << std::setw(12) << "Frames"
+                  << std::setw(12) << "Status"
+                  << std::setw(12) << "FIFO RX"
+                  << std::setw(12) << "FIFO TX"
+                  << std::setw(12) << "NFC On"
+                  << std::setw(12) << "NFC Off"
                   << std::endl
-                  << std::setw(138) << std::setfill('-') << "-"
+                  << std::setw(174) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -372,6 +391,8 @@ public:
             uint32_t status_errors_sum = 0;
             uint32_t fifo_rx_errors_sum = 0;
             uint32_t fifo_tx_errors_sum = 0;
+            uint32_t nfc_full_trigger_sum = 0;
+            uint32_t nfc_empty_trigger_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -390,6 +411,8 @@ public:
                 status_errors_sum += total_status_not_ok_count[i * config.repetitions + r];
                 fifo_rx_errors_sum += total_fifo_rx_overflow_count[i * config.repetitions + r];
                 fifo_tx_errors_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
+                nfc_full_trigger_sum += total_nfc_full_trigger_count[i * config.repetitions + r];
+                nfc_empty_trigger_sum += total_nfc_empty_trigger_count[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
             std::cout << std::setw(10) << config.message_sizes[r]
@@ -400,11 +423,13 @@ public:
                       << std::setw(12) << gigabits_per_iteration / latency_avg
                       << std::setw(12) << gigabits_per_iteration / latency_min
                       << std::setw(6) << failed_transmissions_sum
-                      << std::setw(10) << byte_errors_sum
-                      << std::setw(10) << frame_errors_sum
-                      << std::setw(10) << status_errors_sum
-                      << std::setw(10) << fifo_rx_errors_sum
-                      << std::setw(10) << fifo_tx_errors_sum
+                      << std::setw(12) << byte_errors_sum
+                      << std::setw(12) << frame_errors_sum
+                      << std::setw(12) << status_errors_sum
+                      << std::setw(12) << fifo_rx_errors_sum
+                      << std::setw(12) << fifo_tx_errors_sum
+                      << std::setw(12) << nfc_full_trigger_sum
+                      << std::setw(12) << nfc_empty_trigger_sum
                       << std::endl;
         }
     }
@@ -462,6 +487,8 @@ public:
                    << total_status_not_ok_count[core * config.repetitions + r] << ","
                    << total_fifo_rx_overflow_count[core * config.repetitions + r] << ","
                    << total_fifo_tx_overflow_count[core * config.repetitions + r] << ","
+                   << total_nfc_full_trigger_count[core * config.repetitions + r] << ","
+                   << total_nfc_empty_trigger_count[core * config.repetitions + r] << ","
                    << total_errors[core * config.repetitions + r] << ","
                    << total_frames_received[core * config.repetitions + r] << ","
                    << total_frames_with_errors[core * config.repetitions + r]
