@@ -47,6 +47,8 @@ module aurora_hls_control_s_axi (
     input wire  [7:0]   fifo_status,
     input wire  [31:0]  fifo_rx_overflow_count,
     input wire  [31:0]  fifo_tx_overflow_count,
+    input wire  [31:0]  nfc_full_trigger_count,
+    input wire  [31:0]  nfc_empty_trigger_count,
     output reg          sw_reset
 `ifdef USE_FRAMING
    ,input wire  [31:0]  frames_received,
@@ -66,24 +68,28 @@ module aurora_hls_control_s_axi (
 // 0x20 : FIFO status
 // 0x24 : FIFO RX overflow count
 // 0x28 : FIFO TX overflow count
-// 0x2c : Software-controlled reset (LSB, active high)
+// 0x2x : NFC full trigger count
+// 0x30 : NFC empty trigger count
+// 0x34 : Software-controlled reset (LSB, active high)
 // only with framing enabled:
-// 0x30 : Frames received
-// 0x34 : Frames with errors
+// 0x38 : Frames received
+// 0x3c : Frames with errors
 
 //------------------------Parameter----------------------
 localparam
-    ADDR_CONFIGURATION          = 12'h010,
-    ADDR_FIFO_THRESHOLDS        = 12'h014,
-    ADDR_AURORA_STATUS          = 12'h018, 
-    ADDR_STATUS_NOT_OK_COUNT    = 12'h01c,
-    ADDR_FIFO_STATUS            = 12'h020,
-    ADDR_FIFO_RX_OVERFLOW_COUNT = 12'h024,
-    ADDR_FIFO_TX_OVERFLOW_COUNT = 12'h028,
-    ADDR_SW_RESET               = 12'h02c,
+    ADDR_CONFIGURATION           = 12'h010,
+    ADDR_FIFO_THRESHOLDS         = 12'h014,
+    ADDR_AURORA_STATUS           = 12'h018, 
+    ADDR_STATUS_NOT_OK_COUNT     = 12'h01c,
+    ADDR_FIFO_STATUS             = 12'h020,
+    ADDR_FIFO_RX_OVERFLOW_COUNT  = 12'h024,
+    ADDR_FIFO_TX_OVERFLOW_COUNT  = 12'h028,
+    ADDR_NFC_FULL_TRIGGER_COUNT  = 12'h02c,
+    ADDR_NFC_EMPTY_TRIGGER_COUNT = 12'h030,
+    ADDR_SW_RESET                = 12'h034,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED        = 12'h030,
-    ADDR_FRAMES_WITH_ERRORS     = 12'h034,
+    ADDR_FRAMES_RECEIVED         = 12'h038,
+    ADDR_FRAMES_WITH_ERRORS      = 12'h03c,
 `endif
     
     // registers write state machine
@@ -230,6 +236,12 @@ localparam
                 end
                 ADDR_FIFO_TX_OVERFLOW_COUNT: begin
                     rdata <= fifo_tx_overflow_count;
+                end
+                ADDR_NFC_FULL_TRIGGER_COUNT: begin
+                    rdata <= nfc_full_trigger_count;
+                end
+                ADDR_NFC_EMPTY_TRIGGER_COUNT: begin
+                    rdata <= nfc_empty_trigger_count;
                 end
 `ifdef USE_FRAMING
                 ADDR_FRAMES_RECEIVED: begin

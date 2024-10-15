@@ -29,16 +29,18 @@ double get_wtime()
 }
 
 // control s axi addresses
-static const uint32_t CONFIGURATION_ADDRESS          = 0x00000010;
-static const uint32_t FIFO_THRESHOLDS_ADDRESS        = 0x00000014;
-static const uint32_t CORE_STATUS_ADDRESS            = 0x00000018;
-static const uint32_t STATUS_NOT_OK_COUNT_ADDRESS    = 0x0000001c;
-static const uint32_t FIFO_STATUS_ADDRESS            = 0x00000020;
-static const uint32_t FIFO_RX_OVERFLOW_COUNT_ADDRESS = 0x00000020;
-static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS = 0x00000020;
-static const uint32_t SW_RESET_ADDRESS               = 0x0000002c;
-static const uint32_t FRAMES_RECEIVED_ADDRESS        = 0x00000030;
-static const uint32_t FRAMES_WITH_ERRORS_ADDRESS     = 0x00000034;
+static const uint32_t CONFIGURATION_ADDRESS           = 0x00000010;
+static const uint32_t FIFO_THRESHOLDS_ADDRESS         = 0x00000014;
+static const uint32_t CORE_STATUS_ADDRESS             = 0x00000018;
+static const uint32_t STATUS_NOT_OK_COUNT_ADDRESS     = 0x0000001c;
+static const uint32_t FIFO_STATUS_ADDRESS             = 0x00000020;
+static const uint32_t FIFO_RX_OVERFLOW_COUNT_ADDRESS  = 0x00000024;
+static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS  = 0x00000028;
+static const uint32_t NFC_FULL_TRIGGER_COUNT_ADDRESS  = 0x0000002c;
+static const uint32_t NFC_EMPTY_TRIGGER_COUNT_ADDRESS = 0x00000030;
+static const uint32_t SW_RESET_ADDRESS                = 0x00000034;
+static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000038;
+static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x0000003c;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD        = 0x0000000f;
@@ -296,6 +298,16 @@ public:
                 std::cout << fifo_status_name[bit] << std::endl;
             }
         }
+    }
+
+    uint32_t get_nfc_full_trigger_count()
+    {
+        return ip.read_register(NFC_FULL_TRIGGER_COUNT_ADDRESS);
+    }
+
+    uint32_t get_nfc_empty_trigger_count()
+    {
+        return ip.read_register(NFC_FULL_TRIGGER_COUNT_ADDRESS);
     }
 
     uint32_t get_frames_received()
