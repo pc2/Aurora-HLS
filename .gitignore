@@ -26,9 +26,7 @@ xsim.dir
 *.xml
 *.ltx
 *.csv
-!eval/latency_tests.csv
-!eval/simple_tests.csv
-!eval/data.csv
+!eval/*.csv
 eval/.ipynb_checkpoints
 *.protoinst
 *.vcd

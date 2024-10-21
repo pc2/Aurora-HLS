@@ -42,8 +42,9 @@ Using framing on this high line rate has stringent timing requirements. If you h
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
 The FIFO on the receiving side can be configured with the following options. The depth of the FIFO can be configured in powers of two ranging from 16 to 16384. The thresholds for programmable full and programmable empty can be any number, as long they are not too close to zero or completly full.
+
 ```
-  make aurora RX_FIFO_DEPTH=512 RX_FIFO_PROG_FULL=384 RX_FIFO_PROG_EMPTY=128
+  make aurora RX_FIFO_DEPTH=1024 RX_FIFO_PROG_FULL=512 RX_FIFO_PROG_EMPTY=128
 ```
 
 The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this for your setup you can enable a integrated logic analyzer for the NFC module, which also probes the valid signal of the receiving side, to count the number of transmissions. Pay attention that the valid signal after the datawidth converter is used, because probing the valid signal of the aurora core itself is very difficult to route. With the regular setup of a FIFO width of 64 bytes, one transmission after the datawidth converter corresponds to two transmissions with the aurora core, which has a width of 32 bytes.
@@ -53,6 +54,12 @@ Use the following command to enable the debug probe for the NFC module:
 ```
 make aurora PROBE_NFC=1
 ```
+
+Experiments have shown, that a FIFO size of 1024 is necessary to prevent overflows other all tested configurations.
+
+The number of times the NFC module gets activated and deactivated is monitored and reported in the final output of the test run. Also the full signal of the RX fifo is monitored and overruns are reported, because they are leading to fatal errors. The numbers can also be read from the ip direclty.
+
+### FIFO configuration
 
 The FIFO on the transceiving side can be configured the same way as the FIFO on the RX side, but has smaller default values.
 
@@ -68,7 +75,6 @@ stream_connect=issue_1.data_output:aurora_hls_1.tx_axis:256
 
 All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
 
-### Configure FIFO width
 
 By default the FIFO and therefore the streams for input and output have a width of 64 bytes. This is the width which is also needed to reach the maximum throughput of 100Gbit/s. If you have a special application which needs another width, this is also configurable. But be careful, because other sizes have not been tested.
 
@@ -129,17 +135,19 @@ if (frames_with_errors > 0) {
 // get a print of the configuration of the core
 aurora.print_configuration();
 
-// get a print of all the FIFO status signals
-aurora.print_fifo_status();
+if (aurora.get_fifo_rx_overflow_count() > 0) {
+    // something went wrong
+}
 ```
 
 
 ### Testbenches
 
-The verilog modules for flow control, CRC frame counting and for the configuration have testbenches, which can be executed with:
+The verilog modules for flow control, monitoring, CRC frame counting and for the configuration have testbenches, which can be executed with:
 
 ```
   make run_nfc_tb
+  make run_monitor_tb
   make run_crc_counter_tb
   make configuration_tb
 ```
@@ -195,34 +203,36 @@ By default, the first two ranks will choose the device with index 0, going up wi
 
 ### Latency test
 
-The second is the so-called latency test, which tests different message sizes with different iterations. Enabling the latency test with the -l flag also sets the use_ack parameter to true. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes and not smaller than the frame size is tested. The acknowledgement synchronizes between every iteration of the issue and dump kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The given number of iterations is the base for the largest message and is increased with smaller message sizes. The following is an example for the largest possible messagesize and the smallest possible framesize.
+The second is the so-called latency test, which tests different message sizes with different iterations. Enabling the latency test with the -l flag also sets the use_ack parameter to true. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes and not smaller than the frame size is tested. The acknowledgement synchronizes between every iteration of the issue and dump kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
 
 ```
 ./host_aurora_hls_test -l -i 20 -f 1
 
-Repetition 0 - 64 bytes - 41943040 iterations
-Repetition 1 - 128 bytes - 20971520 iterations
-Repetition 2 - 256 bytes - 10485760 iterations
-Repetition 3 - 512 bytes - 5242880 iterations
-Repetition 4 - 1024 bytes - 2621440 iterations
-Repetition 5 - 2048 bytes - 1310720 iterations
-Repetition 6 - 4096 bytes - 655360 iterations
-Repetition 7 - 8192 bytes - 327680 iterations
-Repetition 8 - 16384 bytes - 163840 iterations
-Repetition 9 - 32768 bytes - 81920 iterations
-Repetition 10 - 65536 bytes - 40960 iterations
-Repetition 11 - 131072 bytes - 20480 iterations
-Repetition 12 - 262144 bytes - 10240 iterations
-Repetition 13 - 524288 bytes - 5120 iterations
-Repetition 14 - 1048576 bytes - 2560 iterations
-Repetition 15 - 2097152 bytes - 1280 iterations
-Repetition 16 - 4194304 bytes - 640 iterations
-Repetition 17 - 8388608 bytes - 320 iterations
-Repetition 18 - 16777216 bytes - 160 iterations
-Repetition 19 - 33554432 bytes - 80 iterations
-Repetition 20 - 67108864 bytes - 40 iterations
-Repetition 21 - 134217728 bytes - 20 iterations
-Repetition 22 - 268435456 bytes - 10 iterations
+  Repetition       Bytes  Iterations
+------------------------------------
+           0          64     1405867
+           1         128     1198316
+           2         256      995838
+           3         512      801484
+           4        1024      619564
+           5        2048      455570
+           6        4096      315462
+           7        8192      204084
+           8       16384      123084
+           9       32768       69664
+          10       65536       37534
+          11      131072       19569
+          12      262144       10005
+          13      524288        5061
+          14     1048576        2545
+          15     2097152        1277
+          16     4194304         640
+          17     8388608         320
+          18    16777216         160
+          19    33554432          80
+          20    67108864          40
+          21   134217728          20
+          22   268435456          10
 ```
 
 ### Noctua2
@@ -233,14 +243,16 @@ There are scripts available for running on the [Noctua 2](https://pc2.uni-paderb
   source env.sh
 ```
 
-There is one script for simple synthesis and one for synthesing one bitstream with streaming and one with framing. Both bitstreams are needed for running the [full latency test](./scripts/run_latency_test.sh).
+There is one script for simple synthesis and one for synthesing one bitstream with streaming and one with framing. Both bitstreams are needed for running [over all frame sizes](./scripts/run_N1_over_framesizes.sh).
 
 For quick testing, there are two scripts, which do a simple run on either 3 or 6 FPGAs (1 or 2 nodes).
+
+The scripts are passing all parameters to the test run.
 
 There is also a helper script which runs a given script for every available FPGA node. You can use it with scripts which are running on one node.
 
 ```
-./scripts/for_every_node.sh ./scripts/run_latency_test.sh
+./scripts/for_every_node.sh ./scripts/run_N1_over_framesizes.sh
 ```
 
 <p align="center"><sup>Copyright&copy; 2023-2024 Gerrit Pape (papeg@mail.upb.de)</sup></p>
