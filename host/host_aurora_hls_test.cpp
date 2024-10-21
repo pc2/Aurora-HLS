@@ -175,8 +175,18 @@ public:
         }
         if (latency_measuring) {
             std::cout << "Measuring latency with the following configuration:" << std::endl;
+            std::cout << std::setw(12) << "Repetition"
+                      << std::setw(12) << "Bytes"
+                      << std::setw(12) << "Iterations"
+                      << std::endl
+                      << std::setw(36) << std::setfill('-') << "-"
+                      << std::endl << std::setfill(' ');
+
             for (uint32_t i = 0; i < repetitions; i++) {
-                std::cout << "Repetition " << i << " - " << message_sizes[i] << " bytes - " << iterations_per_message[i] << " iterations" << std::endl;
+                std::cout << std::setw(12) << i
+                          << std::setw(12) << message_sizes[i]
+                          << std::setw(12) << iterations_per_message[i]
+                          << std::endl;
             }
         } else {
             if (use_ack) {
