@@ -325,6 +325,8 @@ public:
         }
     }
 
+    // The following functions should be called only from rank 0 after the gather
+
     uint32_t failed_transmissions()
     {
         uint32_t count = 0;
@@ -352,6 +354,42 @@ public:
             count += errors;
         }
         return count;
+    }
+
+    uint32_t fifo_rx_overflows()
+    {
+        uint32_t count = 0;
+        for (const auto overflows: total_fifo_rx_overflow_count) {
+            count += overflows;
+        }
+        return count;
+    }
+
+    uint32_t nfc_errors()
+    {
+        uint32_t count = 0;
+        for (uint32_t i = 0; i < total_nfc_full_trigger_count.size(); i++) {
+            count += (total_nfc_full_trigger_count[i] - total_nfc_empty_trigger_count[i]);
+        }
+        return count;
+    }
+
+    uint32_t status_errors()
+    {
+        uint32_t count = 0;
+        for (const auto status: total_status_not_ok_count) {
+            count += status;
+        }
+        return count;
+    }
+
+    bool has_errors()
+    {
+        return failed_transmissions() > 0
+            || byte_errors() > 0
+            || frame_errors() > 0
+            || fifo_rx_overflows() > 0
+            || nfc_errors() > 0;
     }
 
     void print()
@@ -802,5 +840,6 @@ int main(int argc, char *argv[])
     }
 
     MPI_Finalize();
+    return results.has_errors();
 }
 
