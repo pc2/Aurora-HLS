@@ -748,6 +748,16 @@ int main(int argc, char *argv[])
     Aurora aurora;
     if (!emulation) {
         aurora = Aurora(instance, device, xclbin_uuid);
+
+        // soft reset aurora cores
+        MPI_Barrier(MPI_COMM_WORLD);
+        aurora.set_reset(true);
+        MPI_Barrier(MPI_COMM_WORLD);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        MPI_Barrier(MPI_COMM_WORLD);
+        aurora.set_reset(false);
+        MPI_Barrier(MPI_COMM_WORLD);
+
         check_core_status_global(aurora, config.timeout_ms, world_rank, world_size);
         if (!aurora.has_framing()) {
             config.frame_size = 0; 
