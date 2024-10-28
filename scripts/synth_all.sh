@@ -4,13 +4,15 @@ source env.sh
 
 make clean
 
-framing_path=`pwd`
-streaming_path="${framing_path}_streaming"
-rm -rf ${streaming_path}
-cp -r ${framing_path} ${streaming_path}
+base_path=`pwd`
 
-cd ${streaming_path}
-sbatch ./scripts/synth.sh
+for mode in 0 1; do
+    for width in 32 64 128; do
+        path=${base_path}_${mode}_${width}
+        rm -rf ${path}
+        cp -r ${base_path} ${path}
 
-cd ${framing_path}
-sbatch ./scripts/synth.sh USE_FRAMING=1
+        cd ${path}
+        sbatch ./scripts/synth.sh USE_FRAMING=${mode} FIFO_WIDTH=${width}
+    done
+done
