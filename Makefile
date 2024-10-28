@@ -35,14 +35,18 @@ RX_EQ_MODE := LPM
 USE_FRAMING := 0
 DRAIN_AXI_ON_RESET := 1
 
+#supported is 64, 32 and 128
 FIFO_WIDTH := 64
-RX_FIFO_DEPTH := 1024
-RX_FIFO_PROG_FULL := 512
-RX_FIFO_PROG_EMPTY := 128
 
-TX_FIFO_DEPTH := 128
-TX_FIFO_PROG_FULL := 96
-TX_FIFO_PROG_EMPTY := 32
+RX_FIFO_SIZE := 65536
+RX_FIFO_DEPTH := $(shell echo $$(( $(RX_FIFO_SIZE) / $(FIFO_WIDTH) )))
+RX_FIFO_PROG_FULL := $(shell echo $$(( $(RX_FIFO_DEPTH) / 2 )))
+RX_FIFO_PROG_EMPTY := $(shell echo $$(( $(RX_FIFO_DEPTH) / 8 )))
+
+TX_FIFO_SIZE := 8192
+TX_FIFO_DEPTH := $(shell echo $$(( $(TX_FIFO_SIZE) / $(FIFO_WIDTH) )))
+TX_FIFO_PROG_FULL := $(shell echo $$(( $(TX_FIFO_DEPTH) / 4 * 3 )))
+TX_FIFO_PROG_EMPTY := $(shell echo $$(( $(TX_FIFO_DEPTH) / 4 )))
 
 ifeq ($(USE_FRAMING), 1)
 	HAS_TKEEP := 1
@@ -96,7 +100,7 @@ PROBE_CRC_COUNTER := 1
 
 # synth flags
 COMMFLAGS := --platform $(PLATFORM) --target $(TARGET) --save-temps --debug
-HLSCFLAGS := --compile $(COMMFLAGS)
+HLSCFLAGS := --compile $(COMMFLAGS) -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
 LINKFLAGS := --link --optimize 3 $(COMMFLAGS)
 
 # collect the RTL source code

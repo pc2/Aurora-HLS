@@ -19,9 +19,11 @@
 #include <ap_int.h>
 #include <ap_axi_sdata.h>
 
-#define DATA_WIDTH 512
-#define DATA_BYTE_WIDTH 64
+#ifndef DATA_WIDTH_BYTES
+#define DATA_WIDTH_BYTES 64
+#endif
 
+#define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
 extern "C"
 {
@@ -33,7 +35,7 @@ extern "C"
                     bool ack_enable,
                     hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream)
     {
-        int chunks = (byte_size / DATA_BYTE_WIDTH) + ((byte_size % DATA_BYTE_WIDTH) != 0);
+        int chunks = (byte_size / DATA_WIDTH_BYTES) + ((byte_size % DATA_WIDTH_BYTES) != 0);
         for (unsigned int n = 0; n < iterations; n++) {
             for (int i = 0; i < chunks; i++) {
                 #pragma HLS PIPELINE II = 1

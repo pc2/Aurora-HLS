@@ -19,10 +19,12 @@
 #include <ap_int.h>
 #include <ap_axi_sdata.h>
 
-#define _XF_SYNTHESIS_ 1
+#ifndef DATA_WIDTH_BYTES
+#define DATA_WIDTH_BYTES 64
+#endif
 
-#define DATA_WIDTH 512
-#define DATA_BYTE_WIDTH 64
+#define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
+
 
 extern "C"
 {
@@ -36,7 +38,7 @@ extern "C"
     iterations:
         for (unsigned int n = 0; n < iterations; n++) {
         read:
-            for (int i = 0; i < (byte_size / DATA_BYTE_WIDTH); i++) {
+            for (int i = 0; i < (byte_size / DATA_WIDTH_BYTES); i++) {
 #pragma HLS PIPELINE II = 1
                 ap_axiu<DATA_WIDTH, 0, 0, 0> temp = data_input.read();
                 data_output[i] = temp.data;
