@@ -217,6 +217,7 @@ public:
     std::vector<uint32_t> local_frames_received;
     std::vector<uint32_t> local_frames_with_errors;
     std::string local_bdf;
+    uint32_t local_aurora_config;
 
     std::vector<double> total_transmission_times;
     std::vector<uint32_t> total_failed_transmissions;
@@ -229,6 +230,7 @@ public:
     std::vector<uint32_t> total_frames_received;
     std::vector<uint32_t> total_frames_with_errors;
     std::vector<char> total_bdf_raw;
+    std::vector<uint32_t> total_aurora_config;
 
     std::vector<std::string> total_bdf;
     const int BDF_SIZE = 12; 
@@ -255,6 +257,7 @@ public:
         local_frames_with_errors.resize(config.repetitions);
 
         if (!emulation) {
+            local_aurora_config = aurora.get_configuration();
 
             start_status_not_ok_count = aurora.get_status_not_ok_count();
             start_fifo_rx_overflow_count = aurora.get_fifo_rx_overflow_count();
@@ -333,6 +336,9 @@ public:
         for (int i = 0; i < world_size; i++) {
             total_bdf[i] = std::string(total_bdf_raw.data() + i * BDF_SIZE, BDF_SIZE);
         }
+
+        total_aurora_config.resize(world_size);
+        MPI_Gather(&local_aurora_config, 1, MPI_UNSIGNED, total_aurora_config.data(), 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     }
 
     // The following functions should be called only from rank 0 after the gather
@@ -525,6 +531,7 @@ public:
                    << xrt_build_version << ","
                    << total_bdf[core] << ","
                    << core << ","
+                   << total_aurora_config[core] << ","
                    << r << ","
                    << config.frame_size << ","
                    << config.message_sizes[r] << ","

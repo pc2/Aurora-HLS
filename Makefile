@@ -35,8 +35,14 @@ RX_EQ_MODE := LPM
 USE_FRAMING := 0
 DRAIN_AXI_ON_RESET := 1
 
-#supported is 64, 32 and 128
+#supported is 32 and 64
 FIFO_WIDTH := 64
+
+ifeq ($(FIFO_WIDTH), 32)
+	SKIP_DATAWIDTH_CONVERTER := 1
+else
+	SKIP_DATAWIDTH_CONVERTER := 0
+endif
 
 RX_FIFO_SIZE := 65536
 RX_FIFO_DEPTH := $(shell echo $$(( $(RX_FIFO_SIZE) / $(FIFO_WIDTH) )))
@@ -154,6 +160,9 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 	echo "\`define HAS_TKEEP $(HAS_TKEEP)" >> $@
 	echo "\`define HAS_TLAST $(HAS_TKEEP)" >> $@
 	echo "\`define FIFO_WIDTH $(FIFO_WIDTH)" >> $@
+	if [ $(SKIP_DATAWIDTH_CONVERTER = 1) ]; then \
+		echo "\`define SKIP_DATAWIDTH_CONVERTER" >> $@; \
+	fi
 	echo "\`define RX_FIFO_DEPTH $(RX_FIFO_DEPTH)" >> $@
 	echo "\`define RX_FIFO_PROG_FULL $(RX_FIFO_PROG_FULL)" >> $@
 	echo "\`define RX_FIFO_PROG_EMPTY $(RX_FIFO_PROG_EMPTY)" >> $@

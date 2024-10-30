@@ -16,7 +16,7 @@ srun -n 1 changeFPGAlinksXilinx --fpgalink=n00:acl0:ch0-n00:acl0:ch0 --fpgalink=
 
 for mode in 0 1
 do 
-    for width in 32 64 128
+    for width in 32 64
     do
         srun -n 1 ./scripts/reset.sh
         srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw_${mode}_${width}.xclbin -f 64 $@
