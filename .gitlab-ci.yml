@@ -179,12 +179,12 @@ synth:streaming:64:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=0
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_streaming.xclbin
+      - aurora_hls_test_hw_0_64.xclbin
   needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.14:
@@ -194,11 +194,12 @@ synth:framing:64:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=1
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw.xclbin
+      - aurora_hls_test_hw_1_64.xclbin
   needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:streaming:64:2.15:
@@ -207,12 +208,12 @@ synth:streaming:64:2.15:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
     - make xclbin USE_FRAMING=0
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_streaming.xclbin
+    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_streaming.xclbin
+      - aurora_hls_test_hw_0_64.xclbin
   needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.15:
