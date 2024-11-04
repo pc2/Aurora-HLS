@@ -133,6 +133,11 @@ public:
         return rx_eq_mode_names[rx_eq_mode];
     }
 
+    uint32_t get_configuration()
+    {
+        return ip.read_register(CONFIGURATION_ADDRESS);
+    }
+
     void print_configuration()
     {
         std::cout << "Aurora configuration: " << std::endl;

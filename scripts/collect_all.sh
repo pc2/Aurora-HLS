@@ -9,10 +9,6 @@ base_path=`pwd`
 for mode in 0 1; do
     for width in 32 64 128; do
         path=${base_path}_${mode}_${width}
-        rm -rf ${path}
-        cp -r ${base_path} ${path}
-
-        cd ${path}
-        sbatch ./scripts/synth.sh USE_FRAMING=${mode} FIFO_WIDTH=${width}
+        cp ${path}/aurora_hls_test_hw.xclbin ${base_path}/aurora_hls_test_hw_${mode}_${width}.xclbin
     done
 done

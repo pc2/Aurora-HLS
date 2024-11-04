@@ -22,7 +22,7 @@ module aurora_hls_@@@instance@@@ (
     input wire           ap_rst_n,
 
 // TX/RX AXIS interface
-    output wire [511:0]  rx_axis_tdata,
+    output wire [((`FIFO_WIDTH * 8) - 1):0]  rx_axis_tdata,
     output wire          rx_axis_tvalid,
     input wire           rx_axis_tready,
 `ifdef USE_FRAMING
@@ -30,7 +30,7 @@ module aurora_hls_@@@instance@@@ (
     output wire [63:0]   rx_axis_tkeep,
 `endif
 
-    input wire  [511:0]  tx_axis_tdata,
+    input wire  [((`FIFO_WIDTH * 8) - 1):0]  tx_axis_tdata,
     input wire           tx_axis_tvalid,
     output wire          tx_axis_tready,
 `ifdef USE_FRAMING

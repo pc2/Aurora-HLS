@@ -46,6 +46,7 @@ The FIFO on the receiving side can be configured with the following options. The
 ```
   make aurora RX_FIFO_DEPTH=1024 RX_FIFO_PROG_FULL=512 RX_FIFO_PROG_EMPTY=128
 ```
+When only the depth is given, the threshold are automatically set to half of the depth for the programmable full and one eight of the depth for the programmable empty.
 
 The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this for your setup you can enable a integrated logic analyzer for the NFC module, which also probes the valid signal of the receiving side, to count the number of transmissions. Pay attention that the valid signal after the datawidth converter is used, because probing the valid signal of the aurora core itself is very difficult to route. With the regular setup of a FIFO width of 64 bytes, one transmission after the datawidth converter corresponds to two transmissions with the aurora core, which has a width of 32 bytes.
 
