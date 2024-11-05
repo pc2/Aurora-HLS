@@ -36,7 +36,7 @@ USE_FRAMING := 0
 DRAIN_AXI_ON_RESET := 1
 
 #supported is 32 and 64
-FIFO_WIDTH := 64
+FIFO_WIDTH := 32
 
 ifeq ($(FIFO_WIDTH), 32)
 	SKIP_DATAWIDTH_CONVERTER := 1
@@ -106,7 +106,7 @@ PROBE_CRC_COUNTER := 1
 
 # synth flags
 COMMFLAGS := --platform $(PLATFORM) --target $(TARGET) --save-temps --debug
-HLSCFLAGS := --compile $(COMMFLAGS) -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
+HLSCFLAGS := --compile $(COMMFLAGS) -DDATA_WIDTH_BYTES=64
 LINKFLAGS := --link --optimize 3 $(COMMFLAGS)
 
 # collect the RTL source code

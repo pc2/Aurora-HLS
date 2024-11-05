@@ -111,7 +111,7 @@ public:
                 exit(1);
             }
             // removing all message sizes smaller than channel width and frame size
-            repetitions = log2(max_num_bytes) + 1 - log2(fifo_width);
+            repetitions = log2(max_num_bytes) + 1 - log2(64);
             if (frame_size > 0) {
                 repetitions -= log2(frame_size);
             }
