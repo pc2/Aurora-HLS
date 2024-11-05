@@ -37,16 +37,36 @@ This has the advantage, that the aurora core uses CRC for checking every frame. 
 
 Using framing on this high line rate has stringent timing requirements. If you have trouble routing, consider going back to streaming.
 
+### FIFO configuration
+
+The FIFOs on the transceiving and on the receiving side can be configured manually the following way. The depth of the FIFO can be configured in powers of two ranging from 16 to 16384. The thresholds for programmable full and programmable empty can be any number, as long they are not too close to zero or completly full.
+
+
+```
+  make aurora FIFO_WIDTH=64 TX_FIFO_DEPTH=128 TX_FIFO_PROG_FULL=96 TX_FIFO_PROG_EMPTY=32 RX_FIFO_DEPTH=1024 RX_FIFO_PROG_FULL=512 RX_FIFO_PROG_EMPTY=128
+```
+
+The threshold signals on the receiving side are relevant for the flow control, the threshold signals on the transmitting side serve no functional purpose except for status reporting. When there is a larger FIFO needed, it is sufficient and cleaner to add a FIFO to the AXI connection on the link level.
+
+```
+stream_connect=issue_1.data_output:aurora_hls_1.tx_axis:256
+```
+
+All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
+
+
+By default the FIFO and therefore the streams for input and output have a width of 64 bytes. This is the width which is also needed to reach the maximum throughput of 100Gbit/s. If you have a special application which needs another width, this is also configurable. When configuring the width to 32, the internal datawidth converter is skipped, which leads to a small reduction in resources and latency. When the application has an output which is less than the 32 bytes per cycle, this is the preferred option. The linking step automatically adds a datawidth converter when two axi streams of different sizes are connected. But this is only recommended for upscaling, when connecting a larger stream to an input of 32, the total possible throughput will be reduced.
+
+```
+  make aurora FIFO_WIDTH=32 TX_FIFO_SIZE=8192 RX_FIFO_SIZE=65536
+```
+
+When only the size in bytes and the width are given, the depth will be calculated and the thresholds are automatically set to half of the depth for the programmable full and one eight of the depth for the programmable empty.
+
 ### Flow Control
 
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
-The FIFO on the receiving side can be configured with the following options. The depth of the FIFO can be configured in powers of two ranging from 16 to 16384. The thresholds for programmable full and programmable empty can be any number, as long they are not too close to zero or completly full.
-
-```
-  make aurora RX_FIFO_DEPTH=1024 RX_FIFO_PROG_FULL=512 RX_FIFO_PROG_EMPTY=128
-```
-When only the depth is given, the threshold are automatically set to half of the depth for the programmable full and one eight of the depth for the programmable empty.
 
 The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this for your setup you can enable a integrated logic analyzer for the NFC module, which also probes the valid signal of the receiving side, to count the number of transmissions. Pay attention that the valid signal after the datawidth converter is used, because probing the valid signal of the aurora core itself is very difficult to route. With the regular setup of a FIFO width of 64 bytes, one transmission after the datawidth converter corresponds to two transmissions with the aurora core, which has a width of 32 bytes.
 
@@ -56,32 +76,10 @@ Use the following command to enable the debug probe for the NFC module:
 make aurora PROBE_NFC=1
 ```
 
-Experiments have shown, that a FIFO size of 1024 is necessary to prevent overflows other all tested configurations.
+Experiments on our infrastrucutre have shown, that a FIFO size of 65536 bytes is necessary to prevent overflows on the receiving side, which would lead to data loss.
 
-The number of times the NFC module gets activated and deactivated is monitored and reported in the final output of the test run. Also the full signal of the RX fifo is monitored and overruns are reported, because they are leading to fatal errors. The numbers can also be read from the ip direclty.
+The number of times the NFC module gets activated and deactivated is monitored and reported in the final output of the test run. Also the full signal of the RX fifo is monitored and overruns are reported, because they are leading to fatal errors. The numbers can also be read from the ip directly.
 
-### FIFO configuration
-
-The FIFO on the transceiving side can be configured the same way as the FIFO on the RX side, but has smaller default values.
-
-```
-  make aurora TX_FIFO_DEPTH=128 TX_FIFO_PROG_FULL=96 TX_FIFO_PROG_EMPTY=32
-```
-
-The threshold signals serve no functional purpose except for status reporting. When there is a larger FIFO needed, it is sufficient and cleaner to add a FIFO to the AXI connection on the link level.
-
-```
-stream_connect=issue_1.data_output:aurora_hls_1.tx_axis:256
-```
-
-All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
-
-
-By default the FIFO and therefore the streams for input and output have a width of 64 bytes. This is the width which is also needed to reach the maximum throughput of 100Gbit/s. If you have a special application which needs another width, this is also configurable. But be careful, because other sizes have not been tested.
-
-```
-  make aurora FIFO_WIDTH=32
-```
 
 ### Configure Equalization Parameters
 
