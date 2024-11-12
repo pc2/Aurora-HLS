@@ -14,6 +14,8 @@ public:
     std::vector<uint32_t> local_errors;
     std::vector<uint32_t> local_frames_received;
     std::vector<uint32_t> local_frames_with_errors;
+    std::vector<uint32_t> local_tx_count;
+    std::vector<uint32_t> local_rx_count;
     std::string local_bdf;
     uint32_t local_aurora_config;
 
@@ -27,6 +29,8 @@ public:
     std::vector<uint32_t> total_errors;
     std::vector<uint32_t> total_frames_received;
     std::vector<uint32_t> total_frames_with_errors;
+    std::vector<uint32_t> total_tx_count;
+    std::vector<uint32_t> total_rx_count;
     std::vector<char> total_bdf_raw;
     std::vector<uint32_t> total_aurora_config;
 
@@ -37,6 +41,7 @@ public:
     uint32_t start_fifo_rx_overflow_count, start_fifo_tx_overflow_count;
     uint32_t start_frames_received, start_frames_with_errors;
     uint32_t start_nfc_full_trigger_count, start_nfc_empty_trigger_count;
+    uint32_t start_tx_count, start_rx_count;
 
     bool emulation;
     int world_size;
@@ -53,6 +58,8 @@ public:
         local_errors.resize(config.repetitions);
         local_frames_received.resize(config.repetitions);
         local_frames_with_errors.resize(config.repetitions);
+        local_tx_count.resize(config.repetitions);
+        local_rx_count.resize(config.repetitions);
 
         if (!emulation) {
             local_aurora_config = aurora.get_configuration();
@@ -62,6 +69,9 @@ public:
             start_fifo_tx_overflow_count = aurora.get_fifo_tx_overflow_count();
             start_nfc_full_trigger_count = aurora.get_nfc_full_trigger_count();
             start_nfc_empty_trigger_count = aurora.get_nfc_empty_trigger_count();
+
+            start_tx_count = aurora.get_tx_count();
+            start_rx_count = aurora.get_rx_count();
 
             if (aurora.has_framing()) {
                 start_frames_received = aurora.get_frames_received();
@@ -87,6 +97,9 @@ public:
 
             set_diff(&start_nfc_full_trigger_count, &local_nfc_full_trigger_count[repetition], aurora.get_nfc_full_trigger_count());
             set_diff(&start_nfc_empty_trigger_count, &local_nfc_empty_trigger_count[repetition], aurora.get_nfc_empty_trigger_count());
+
+            set_diff(&start_tx_count, &local_tx_count[repetition], aurora.get_tx_count());
+            set_diff(&start_rx_count, &local_rx_count[repetition], aurora.get_rx_count());
 
             if (aurora.has_framing()) {
                 set_diff(&start_frames_received, &local_frames_received[repetition], aurora.get_frames_received());
@@ -120,6 +133,12 @@ public:
 
         total_errors.resize(config.repetitions * world_size);
         MPI_Gather(local_errors.data(), config.repetitions, MPI_UNSIGNED, total_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_tx_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_tx_count.data(), config.repetitions, MPI_UNSIGNED, total_tx_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_rx_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_rx_count.data(), config.repetitions, MPI_UNSIGNED, total_rx_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_frames_received.resize(config.repetitions * world_size);
         MPI_Gather(local_frames_received.data(), config.repetitions, MPI_UNSIGNED, total_frames_received.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -219,6 +238,8 @@ public:
                   << std::setw(12) << "Min."
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
+                  << std::setw(12) << "TX Count"
+                  << std::setw(12) << "RX Count"
                   << std::setw(6) << "Full"
                   << std::setw(12) << "Bytes"
                   << std::setw(12) << "Frames"
@@ -245,6 +266,8 @@ public:
             uint32_t fifo_tx_errors_sum = 0;
             uint32_t nfc_full_trigger_sum = 0;
             uint32_t nfc_empty_trigger_sum = 0;
+            uint32_t tx_count_sum = 0;
+            uint32_t rx_count_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -265,6 +288,8 @@ public:
                 fifo_tx_errors_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
                 nfc_full_trigger_sum += total_nfc_full_trigger_count[i * config.repetitions + r];
                 nfc_empty_trigger_sum += total_nfc_empty_trigger_count[i * config.repetitions + r];
+                tx_count_sum += total_tx_count[i * config.repetitions + r];
+                rx_count_sum += total_rx_count[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
             std::cout << std::setw(10) << config.message_sizes[r]
@@ -274,6 +299,8 @@ public:
                       << std::setw(12) << gigabits_per_iteration / latency_max
                       << std::setw(12) << gigabits_per_iteration / latency_avg
                       << std::setw(12) << gigabits_per_iteration / latency_min
+                      << std::setw(12) << tx_count_sum
+                      << std::setw(12) << rx_count_sum
                       << std::setw(6) << failed_transmissions_sum
                       << std::setw(12) << byte_errors_sum
                       << std::setw(12) << frame_errors_sum

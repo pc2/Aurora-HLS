@@ -201,7 +201,7 @@ CXXFLAGS += -fopenmp
 LDFLAGS := -L$(XILINX_XRT)/lib
 LDFLAGS += $(LDFLAGS) -lxrt_coreutil
 
-host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp
+host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
 	$(CXX) -o host_aurora_hls_test $< $(CXXFLAGS) $(LDFLAGS)
 
 host: host_aurora_hls_test

@@ -24,7 +24,6 @@ module aurora_hls_nfc (
     input wire  s_axi_nfc_tready,
     output reg  s_axi_nfc_tvalid,
     output reg [0:15] s_axi_nfc_tdata,
-    input wire  rx_tvalid,
     output reg [31:0] full_trigger_count,
     output reg [31:0] empty_trigger_count
 );
@@ -111,20 +110,5 @@ always @ (posedge clk) begin
         current_state <= next_state;
     end
 end
-
-`ifdef PROBE_NFC
-ila_nfc ila_nfc_0 (
-    .clk(clk),
-    .probe0(rst_n),
-    .probe1(fifo_rx_prog_full),
-    .probe2(fifo_rx_prog_empty),
-    .probe3(s_axi_nfc_tready),
-    .probe4(s_axi_nfc_tvalid),
-    .probe5(s_axi_nfc_tdata),
-    .probe6(current_state),
-    .probe7(next_state),
-    .probe8(rx_tvalid)
-);
-`endif
 
 endmodule

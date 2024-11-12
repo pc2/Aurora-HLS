@@ -49,6 +49,8 @@ module aurora_hls_control_s_axi (
     input wire  [31:0]  fifo_tx_overflow_count,
     input wire  [31:0]  nfc_full_trigger_count,
     input wire  [31:0]  nfc_empty_trigger_count,
+    input wire  [31:0]  tx_count,
+    input wire  [31:0]  rx_count,
     output reg          sw_reset
 `ifdef USE_FRAMING
    ,input wire  [31:0]  frames_received,
@@ -87,9 +89,11 @@ localparam
     ADDR_NFC_FULL_TRIGGER_COUNT  = 12'h02c,
     ADDR_NFC_EMPTY_TRIGGER_COUNT = 12'h030,
     ADDR_SW_RESET                = 12'h034,
+    ADDR_TX_COUNT                = 12'h038,
+    ADDR_RX_COUNT                = 12'h03c,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED         = 12'h038,
-    ADDR_FRAMES_WITH_ERRORS      = 12'h03c,
+    ADDR_FRAMES_RECEIVED         = 12'h040,
+    ADDR_FRAMES_WITH_ERRORS      = 12'h044,
 `endif
     
     // registers write state machine
@@ -242,6 +246,12 @@ localparam
                 end
                 ADDR_NFC_EMPTY_TRIGGER_COUNT: begin
                     rdata <= nfc_empty_trigger_count;
+                end
+                ADDR_TX_COUNT: begin
+                    rdata <= tx_count;
+                end
+                ADDR_RX_COUNT: begin
+                    rdata <= rx_count;
                 end
 `ifdef USE_FRAMING
                 ADDR_FRAMES_RECEIVED: begin

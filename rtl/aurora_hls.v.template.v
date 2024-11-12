@@ -411,8 +411,7 @@ aurora_hls_io aurora_hls_io_0 (
     .fifo_tx_almost_full    (fifo_tx_almost_full),
     .fifo_tx_prog_full      (fifo_tx_prog_full),
     .fifo_tx_almost_empty_u (fifo_tx_almost_empty_u),
-    .fifo_tx_prog_empty_u   (fifo_tx_prog_empty_u),
-    .rx_tvalid_u            (rx_tvalid_u)
+    .fifo_tx_prog_empty_u   (fifo_tx_prog_empty_u)
 );
 
 xpm_cdc_single  aurora_monitor_sync_0 (
@@ -452,6 +451,8 @@ assign aurora_status_u = {
 wire [31:0] core_status_not_ok_count_u;
 wire [31:0] fifo_rx_overflow_count_u;
 wire [31:0] fifo_tx_overflow_count_u;
+wire [31:0] tx_count_u;
+wire [31:0] rx_count_u;
 
 aurora_hls_monitor aurora_hls_monitor_0 (
     .rst                        (reset_pb_u),
@@ -459,14 +460,21 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
     .fifo_tx_almost_full        (fifo_tx_almost_full_u),
+    .tx_tvalid            (s_axi_tx_tvalid_u),
+    .tx_tready            (s_axi_tx_tready_u),
+    .rx_tvalid            (m_axi_rx_tvalid_u),
     .core_status_not_ok_count   (core_status_not_ok_count_u),
     .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
-    .fifo_tx_overflow_count     (fifo_tx_overflow_count_u)
+    .fifo_tx_overflow_count     (fifo_tx_overflow_count_u),
+    .tx_count                   (tx_count_u),
+    .rx_count                   (rx_count_u)
 );
 
 wire [31:0] core_status_not_ok_count;
 wire [31:0] fifo_rx_overflow_count;
 wire [31:0] fifo_tx_overflow_count;
+wire [31:0] tx_count;
+wire [31:0] rx_count;
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_3 (
     .src_in(core_status_not_ok_count_u),
@@ -489,6 +497,20 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_5 (
     .dest_out(fifo_tx_overflow_count)
 );
 
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_6 (
+    .src_in(tx_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(tx_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_7 (
+    .src_in(rx_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(rx_count)
+);
+
 wire [31:0] nfc_full_trigger_count_u;
 wire [31:0] nfc_empty_trigger_count_u; 
 
@@ -500,7 +522,6 @@ aurora_hls_nfc aurora_hls_nfc_0 (
     .s_axi_nfc_tready       (s_axi_nfc_tready_u),
     .s_axi_nfc_tvalid       (s_axi_nfc_tvalid_u),
     .s_axi_nfc_tdata        (s_axi_nfc_tdata_u),
-    .rx_tvalid              (rx_tvalid_u),
     .full_trigger_count     (nfc_full_trigger_count_u),
     .empty_trigger_count    (nfc_empty_trigger_count_u)
 );
@@ -591,6 +612,8 @@ aurora_hls_control_s_axi axi_control_slave (
   .fifo_tx_overflow_count   (fifo_tx_overflow_count),
   .nfc_full_trigger_count   (nfc_full_trigger_count),
   .nfc_empty_trigger_count  (nfc_empty_trigger_count),
+  .tx_count                 (tx_count),
+  .rx_count                 (rx_count),
 `ifdef USE_FRAMING
   .frames_received          (frames_received),
   .frames_with_errors       (frames_with_errors),

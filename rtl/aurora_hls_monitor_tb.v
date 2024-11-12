@@ -23,10 +23,15 @@ module aurora_hls_monitor_tb();
     reg [12:0] aurora_status;
     reg fifo_rx_almost_full;
     reg fifo_tx_almost_full;
+    reg tx_tvalid;
+    reg tx_tready;
+    reg rx_tvalid;
 
     wire [31:0] core_status_not_ok_count;
     wire [31:0] fifo_rx_overflow_count;
     wire [31:0] fifo_tx_overflow_count;
+    wire [31:0] tx_count;
+    wire [31:0] rx_count;
 
     aurora_hls_monitor dut (
         .clk(clk),
@@ -34,9 +39,14 @@ module aurora_hls_monitor_tb();
         .aurora_status(aurora_status),
         .fifo_rx_almost_full(fifo_rx_almost_full),
         .fifo_tx_almost_full(fifo_tx_almost_full),
+        .tx_tvalid(tx_tvalid),
+        .tx_tready(tx_tready),
+        .rx_tvalid(rx_tvalid),
         .core_status_not_ok_count(core_status_not_ok_count),
         .fifo_rx_overflow_count(fifo_rx_overflow_count),
-        .fifo_tx_overflow_count(fifo_tx_overflow_count)
+        .fifo_tx_overflow_count(fifo_tx_overflow_count),
+        .tx_count(tx_count),
+        .rx_count(rx_count)
     );
 
     initial begin
@@ -52,12 +62,17 @@ module aurora_hls_monitor_tb();
         $monitor("core_status_not_ok_count = %d", core_status_not_ok_count);
         $monitor("fifo_rx_overflow_count = %d", fifo_rx_overflow_count);
         $monitor("fifo_tx_overflow_count = %d", fifo_tx_overflow_count);
+        $monitor("tx_count = %d", tx_count);
+        $monitor("rx_count = %d", rx_count);
 
         errors = 0;
 
         aurora_status = 13'h11ff;
         fifo_rx_almost_full = 1'b0;
         fifo_tx_almost_full = 1'b0;
+        tx_tvalid = 1'b0;
+        tx_tready = 1'b0;
+        rx_tvalid = 1'b0;
 
         rst = 1'b1;
         repeat (2) @(posedge clk);
@@ -108,6 +123,22 @@ module aurora_hls_monitor_tb();
         if (fifo_tx_overflow_count != 3) begin
             $error(1, "rx overflow count not correct");
             errors = errors + 1;
+        end
+
+        tx_tvalid = 1'b1;
+        tx_tready = 1'b1;
+        rx_tvalid = 1'b1;
+        repeat (3) @(posedge clk);
+        tx_tvalid = 1'b0;
+        repeat (2) @(posedge clk);
+        rx_tvalid = 1'b0;
+
+        if (tx_count != 3) begin
+            $error(1, "tx count not correct");
+        end
+
+        if (rx_count != 5) begin
+            $error(1, "rx count not correct");
         end
 
     end
