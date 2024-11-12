@@ -61,18 +61,10 @@ module aurora_hls_io (
     output wire          fifo_tx_almost_full,
     output wire          fifo_tx_prog_full,
     output wire          fifo_tx_almost_empty_u,
-    output wire          fifo_tx_prog_empty_u,
-    output wire          rx_tvalid_u
+    output wire          fifo_tx_prog_empty_u
 );
 
 `ifdef SKIP_DATAWIDTH_CONVERTER
-
-xpm_cdc_single  aurora_status_sync_2 (
-    .src_in     (rx_axis_tvalid),
-    .src_clk    (ap_clk),
-    .dest_clk   (user_clk),
-    .dest_out   (rx_tvalid_u)
-);
 
 axis_data_fifo_rx axis_data_fifo_rx_0 (
   .s_axis_aresetn   (ap_rst_n_u),           // input wirewire s_axis_aresetn
@@ -138,8 +130,6 @@ wire            dwidth_rx_m_axis_tready_u;
 wire            dwidth_rx_m_axis_tlast_u;
 wire [63:0]     dwidth_rx_m_axis_tkeep_u;
 `endif
-
-assign rx_tvalid_u = dwidth_rx_m_axis_tvalid_u;
 
 axis_data_fifo_rx axis_data_fifo_rx_0 (
   .s_axis_aresetn   (ap_rst_n_u),           // input wirewire s_axis_aresetn

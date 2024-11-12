@@ -39,8 +39,10 @@ static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS  = 0x00000028;
 static const uint32_t NFC_FULL_TRIGGER_COUNT_ADDRESS  = 0x0000002c;
 static const uint32_t NFC_EMPTY_TRIGGER_COUNT_ADDRESS = 0x00000030;
 static const uint32_t SW_RESET_ADDRESS                = 0x00000034;
-static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000038;
-static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x0000003c;
+static const uint32_t TX_COUNT_ADDRESS                = 0x00000038;
+static const uint32_t RX_COUNT_ADDRESS                = 0x0000003c;
+static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000040;
+static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x00000044;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD        = 0x0000000f;
@@ -303,6 +305,16 @@ public:
                 std::cout << fifo_status_name[bit] << std::endl;
             }
         }
+    }
+
+    uint32_t get_tx_count()
+    {
+        return ip.read_register(TX_COUNT_ADDRESS);
+    }
+
+    uint32_t get_rx_count()
+    {
+        return ip.read_register(RX_COUNT_ADDRESS);
     }
 
     uint32_t get_nfc_full_trigger_count()
