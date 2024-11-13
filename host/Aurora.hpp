@@ -45,13 +45,13 @@ static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000040;
 static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x00000044;
 
 // masks for core status bits
-static const uint32_t GT_POWERGOOD        = 0x0000000f;
-static const uint32_t LINE_UP             = 0x000000f0;
-static const uint32_t GT_PLL_LOCK         = 0x00000100;
-static const uint32_t MMCM_NOT_LOCKED_OUT = 0x00000200;
-static const uint32_t HARD_ERR            = 0x00000400;
-static const uint32_t SOFT_ERR            = 0x00000800;
-static const uint32_t CHANNEL_UP          = 0x00001000;
+static const uint32_t GT_POWERGOOD    = 0x0000000f;
+static const uint32_t LINE_UP         = 0x000000f0;
+static const uint32_t GT_PLL_LOCK     = 0x00000100;
+static const uint32_t MMCM_NOT_LOCKED = 0x00000200;
+static const uint32_t HARD_ERR        = 0x00000400;
+static const uint32_t SOFT_ERR        = 0x00000800;
+static const uint32_t CHANNEL_UP      = 0x00001000;
 
 static const uint32_t CORE_STATUS_OK = GT_POWERGOOD | LINE_UP | GT_PLL_LOCK | CHANNEL_UP;
 
@@ -173,9 +173,9 @@ public:
         return (get_core_status() & GT_PLL_LOCK);
     }
 
-    bool mmcm_not_locked_out()
+    bool mmcm_not_locked()
     {
-        return (get_core_status() & MMCM_NOT_LOCKED_OUT);
+        return (get_core_status() & MMCM_NOT_LOCKED);
     }
 
     bool hard_err()
@@ -202,7 +202,7 @@ public:
         {
             std::cout << "GT PLL Lock" << std::endl;
         }
-        if (reg_read_data & MMCM_NOT_LOCKED_OUT)
+        if (reg_read_data & MMCM_NOT_LOCKED)
         {
             std::cout << "MMCM not locked out" << std::endl;
         }
