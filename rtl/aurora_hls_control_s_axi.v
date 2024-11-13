@@ -43,7 +43,19 @@ module aurora_hls_control_s_axi (
     input wire  [21:0]  configuration,
     input wire  [31:0]  fifo_thresholds,
     input wire  [12:0]  aurora_status,
-    input wire  [31:0]  core_status_not_ok_count,
+    input wire  [31:0]  gt_not_ready_0_count,
+    input wire  [31:0]  gt_not_ready_1_count,
+    input wire  [31:0]  gt_not_ready_2_count,
+    input wire  [31:0]  gt_not_ready_3_count,
+    input wire  [31:0]  line_down_0_count,
+    input wire  [31:0]  line_down_1_count,
+    input wire  [31:0]  line_down_2_count,
+    input wire  [31:0]  line_down_3_count,
+    input wire  [31:0]  pll_not_locked_count,
+    input wire  [31:0]  mmcm_not_locked_count,
+    input wire  [31:0]  hard_err_count,
+    input wire  [31:0]  soft_err_count,
+    input wire  [31:0]  channel_down_count,
     input wire  [7:0]   fifo_status,
     input wire  [31:0]  fifo_rx_overflow_count,
     input wire  [31:0]  fifo_tx_overflow_count,
@@ -91,9 +103,22 @@ localparam
     ADDR_SW_RESET                = 12'h034,
     ADDR_TX_COUNT                = 12'h038,
     ADDR_RX_COUNT                = 12'h03c,
+    ADDR_GT_NOT_READY_0_COUNT    = 12'h040,
+    ADDR_GT_NOT_READY_1_COUNT    = 12'h044,
+    ADDR_GT_NOT_READY_2_COUNT    = 12'h048,
+    ADDR_GT_NOT_READY_3_COUNT    = 12'h04c,
+    ADDR_LINE_DOWN_0_COUNT       = 12'h050,
+    ADDR_LINE_DOWN_1_COUNT       = 12'h054,
+    ADDR_LINE_DOWN_2_COUNT       = 12'h058,
+    ADDR_LINE_DOWN_3_COUNT       = 12'h05c,
+    ADDR_PLL_NOT_LOCKED_COUNT    = 12'h060,
+    ADDR_MMCM_NOT_LOCKED_COUNT   = 12'h064,
+    ADDR_HARD_ERR_COUNT          = 12'h068,
+    ADDR_SOFT_ERR_COUNT          = 12'h06c,
+    ADDR_CHANNEL_DOWN_COUNT      = 12'h070,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED         = 12'h040,
-    ADDR_FRAMES_WITH_ERRORS      = 12'h044,
+    ADDR_FRAMES_RECEIVED         = 12'h074,
+    ADDR_FRAMES_WITH_ERRORS      = 12'h078,
 `endif
     
     // registers write state machine
@@ -229,8 +254,44 @@ localparam
                 ADDR_AURORA_STATUS: begin
                     rdata <= aurora_status;
                 end
-                ADDR_STATUS_NOT_OK_COUNT: begin
-                    rdata <= core_status_not_ok_count;
+                ADDR_GT_NOT_READY_0_COUNT: begin
+                    rdata <= gt_not_ready_0_count;
+                end
+                ADDR_GT_NOT_READY_1_COUNT: begin
+                    rdata <= gt_not_ready_1_count;
+                end
+                ADDR_GT_NOT_READY_2_COUNT: begin
+                    rdata <= gt_not_ready_3_count;
+                end
+                ADDR_GT_NOT_READY_2_COUNT: begin
+                    rdata <= gt_not_ready_3_count;
+                end
+                ADDR_LINE_DOWN_0_COUNT: begin
+                    rdata <= line_down_0_count;
+                end
+                ADDR_LINE_DOWN_1_COUNT: begin
+                    rdata <= line_down_1_count;
+                end
+                ADDR_LINE_DOWN_2_COUNT: begin
+                    rdata <= line_down_2_count;
+                end
+                ADDR_LINE_DOWN_3_COUNT: begin
+                    rdata <= line_down_3_count;
+                end
+                ADDR_PLL_NOT_LOCKED_COUNT: begin
+                    rdata <= pll_not_locked_count;
+                end
+                ADDR_MMCM_NOT_LOCKED_COUNT: begin
+                    rdata <= mmcm_not_locked_count;
+                end
+                ADDR_HARD_ERR_COUNT: begin
+                    rdata <= hard_err_count;
+                end
+                ADDR_SOFT_ERR_COUNT: begin
+                    rdata <= soft_err_count;
+                end
+                ADDR_CHANNEL_DOWN_COUNT: begin
+                    rdata <= channel_down_count;
                 end
                 ADDR_FIFO_STATUS: begin
                     rdata <= fifo_status;

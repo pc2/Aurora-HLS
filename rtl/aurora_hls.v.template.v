@@ -448,7 +448,19 @@ assign aurora_status_u = {
 };
 
 
-wire [31:0] core_status_not_ok_count_u;
+wire [31:0] gt_not_ready_0_count_u;
+wire [31:0] gt_not_ready_1_count_u;
+wire [31:0] gt_not_ready_2_count_u;
+wire [31:0] gt_not_ready_3_count_u;
+wire [31:0] line_down_0_count_u;
+wire [31:0] line_down_1_count_u;
+wire [31:0] line_down_2_count_u;
+wire [31:0] line_down_3_count_u;
+wire [31:0] pll_not_locked_count_u;
+wire [31:0] mmcm_not_locked_count_u;
+wire [31:0] hard_err_count_u;
+wire [31:0] soft_err_count_u;
+wire [31:0] channel_down_count_u;
 wire [31:0] fifo_rx_overflow_count_u;
 wire [31:0] fifo_tx_overflow_count_u;
 wire [31:0] tx_count_u;
@@ -460,51 +472,159 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
     .fifo_tx_almost_full        (fifo_tx_almost_full_u),
-    .tx_tvalid            (s_axi_tx_tvalid_u),
-    .tx_tready            (s_axi_tx_tready_u),
-    .rx_tvalid            (m_axi_rx_tvalid_u),
-    .core_status_not_ok_count   (core_status_not_ok_count_u),
+    .tx_tvalid                  (s_axi_tx_tvalid_u),
+    .tx_tready                  (s_axi_tx_tready_u),
+    .rx_tvalid                  (m_axi_rx_tvalid_u),
+    .gt_not_ready_0_count       (gt_not_ready_0_count_u),
+    .gt_not_ready_1_count       (gt_not_ready_1_count_u),
+    .gt_not_ready_2_count       (gt_not_ready_2_count_u),
+    .gt_not_ready_3_count       (gt_not_ready_3_count_u),
+    .line_down_0_count          (line_down_0_count_u),
+    .line_down_1_count          (line_down_1_count_u),
+    .line_down_2_count          (line_down_2_count_u),
+    .line_down_3_count          (line_down_3_count_u),
+    .pll_not_locked_count       (pll_not_locked_count_u),
+    .mmcm_not_locked_count      (mmcm_not_locked_count_u),
+    .hard_err_count             (hard_err_count_u),
+    .soft_err_count             (soft_err_count_u),
+    .channel_down_count         (channel_down_count_u),
     .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
     .fifo_tx_overflow_count     (fifo_tx_overflow_count_u),
     .tx_count                   (tx_count_u),
     .rx_count                   (rx_count_u)
 );
 
-wire [31:0] core_status_not_ok_count;
+wire [31:0] gt_not_ready_0_count;
+wire [31:0] gt_not_ready_1_count;
+wire [31:0] gt_not_ready_2_count;
+wire [31:0] gt_not_ready_3_count;
+wire [31:0] line_down_0_count;
+wire [31:0] line_down_1_count;
+wire [31:0] line_down_2_count;
+wire [31:0] line_down_3_count;
+wire [31:0] pll_not_locked_count;
+wire [31:0] mmcm_not_locked_count;
+wire [31:0] hard_err_count;
+wire [31:0] soft_err_count;
+wire [31:0] channel_down_count;
 wire [31:0] fifo_rx_overflow_count;
 wire [31:0] fifo_tx_overflow_count;
 wire [31:0] tx_count;
 wire [31:0] rx_count;
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_3 (
-    .src_in(core_status_not_ok_count_u),
+    .src_in(gt_not_ready_0_count_u),
     .src_clk(user_clk),
     .dest_clk(ap_clk),
-    .dest_out(core_status_not_ok_count)
+    .dest_out(gt_not_ready_0_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_4 (
+    .src_in(gt_not_ready_1_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(gt_not_ready_1_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_5 (
+    .src_in(gt_not_ready_2_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(gt_not_ready_2_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_6 (
+    .src_in(gt_not_ready_3_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(gt_not_ready_3_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_7 (
+    .src_in(line_down_0_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(line_down_0_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_8 (
+    .src_in(line_down_1_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(line_down_1_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_9 (
+    .src_in(line_down_2_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(line_down_2_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_10 (
+    .src_in(line_down_3_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(line_down_3_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_11 (
+    .src_in(pll_not_locked_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(pll_not_locked_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_12 (
+    .src_in(mmcm_not_locked_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(mmcm_not_locked_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_13 (
+    .src_in(hard_err_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(hard_err_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_14 (
+    .src_in(soft_err_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(soft_err_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_15 (
+    .src_in(channel_down_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(channel_down_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_16 (
     .src_in(fifo_rx_overflow_count_u),
     .src_clk(user_clk),
     .dest_clk(ap_clk),
     .dest_out(fifo_rx_overflow_count)
 );
 
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_5 (
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_17 (
     .src_in(fifo_tx_overflow_count_u),
     .src_clk(user_clk),
     .dest_clk(ap_clk),
     .dest_out(fifo_tx_overflow_count)
 );
 
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_6 (
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_18 (
     .src_in(tx_count_u),
     .src_clk(user_clk),
     .dest_clk(ap_clk),
     .dest_out(tx_count)
 );
 
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_7 (
+xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_19 (
     .src_in(rx_count_u),
     .src_clk(user_clk),
     .dest_clk(ap_clk),
@@ -606,7 +726,19 @@ aurora_hls_control_s_axi axi_control_slave (
   .configuration            (configuration),
   .fifo_thresholds          (fifo_thresholds),
   .aurora_status            (aurora_status),
-  .core_status_not_ok_count (core_status_not_ok_count),
+  .gt_not_ready_0_count     (gt_not_ready_0_count),
+  .gt_not_ready_1_count     (gt_not_ready_1_count),
+  .gt_not_ready_2_count     (gt_not_ready_2_count),
+  .gt_not_ready_3_count     (gt_not_ready_3_count),
+  .line_down_0_count        (line_down_0_count),
+  .line_down_1_count        (line_down_1_count),
+  .line_down_2_count        (line_down_2_count),
+  .line_down_3_count        (line_down_3_count),
+  .pll_not_locked_count     (pll_not_locked_count),
+  .mmcm_not_locked_count    (mmcm_not_locked_count),
+  .hard_err_count           (hard_err_count),
+  .soft_err_count           (soft_err_count),
+  .channel_down_count       (channel_down_count),
   .fifo_status              (fifo_status),
   .fifo_rx_overflow_count   (fifo_rx_overflow_count),
   .fifo_tx_overflow_count   (fifo_tx_overflow_count),
