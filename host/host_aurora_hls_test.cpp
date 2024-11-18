@@ -192,7 +192,8 @@ int main(int argc, char *argv[])
 
             }
         }
-        results.print();
+        results.print_results();
+        results.print_errors();
         results.write();
     }
 
