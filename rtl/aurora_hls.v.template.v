@@ -195,6 +195,18 @@ xpm_cdc_async_rst reset_sync_1 (
     .dest_arst  (ap_rst_n_u)
 );
 
+wire            host_monitor_reset;
+wire            host_monitor_reset_u;
+wire            monitor_reset;
+
+xpm_cdc_async_rst reset_sync_2 (
+    .src_arst   (host_monitor_reset),
+    .dest_clk   (user_clk),
+    .dest_arst  (host_monitor_reset_u)
+);
+
+assign monitor_reset = reset_pb_u || host_monitor_reset_u;
+
 
 // aurora status sync
 xpm_cdc_array_single #(.WIDTH(4)) aurora_status_sync_0 (
@@ -467,7 +479,7 @@ wire [31:0] tx_count_u;
 wire [31:0] rx_count_u;
 
 aurora_hls_monitor aurora_hls_monitor_0 (
-    .rst                        (reset_pb_u),
+    .rst                        (monitor_reset),
     .clk                        (user_clk),
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
@@ -750,7 +762,8 @@ aurora_hls_control_s_axi axi_control_slave (
   .frames_received          (frames_received),
   .frames_with_errors       (frames_with_errors),
 `endif
-  .sw_reset                 (sw_reset)
+  .core_reset               (sw_reset),
+  .monitor_reset            (host_monitor_reset)
 );
 
 endmodule

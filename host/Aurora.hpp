@@ -29,20 +29,34 @@ double get_wtime()
 }
 
 // control s axi addresses
-static const uint32_t CONFIGURATION_ADDRESS           = 0x00000010;
-static const uint32_t FIFO_THRESHOLDS_ADDRESS         = 0x00000014;
-static const uint32_t CORE_STATUS_ADDRESS             = 0x00000018;
-static const uint32_t STATUS_NOT_OK_COUNT_ADDRESS     = 0x0000001c;
-static const uint32_t FIFO_STATUS_ADDRESS             = 0x00000020;
-static const uint32_t FIFO_RX_OVERFLOW_COUNT_ADDRESS  = 0x00000024;
-static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS  = 0x00000028;
-static const uint32_t NFC_FULL_TRIGGER_COUNT_ADDRESS  = 0x0000002c;
-static const uint32_t NFC_EMPTY_TRIGGER_COUNT_ADDRESS = 0x00000030;
-static const uint32_t SW_RESET_ADDRESS                = 0x00000034;
-static const uint32_t TX_COUNT_ADDRESS                = 0x00000038;
-static const uint32_t RX_COUNT_ADDRESS                = 0x0000003c;
-static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000040;
-static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x00000044;
+static const uint32_t CORE_RESET_ADDRESS              = 0x00000010;
+static const uint32_t COUNTER_RESET_ADDRESS           = 0x00000014;
+static const uint32_t CONFIGURATION_ADDRESS           = 0x00000018;
+static const uint32_t FIFO_THRESHOLDS_ADDRESS         = 0x0000001c;
+static const uint32_t CORE_STATUS_ADDRESS             = 0x00000020;
+static const uint32_t STATUS_NOT_OK_COUNT_ADDRESS     = 0x00000024;
+static const uint32_t FIFO_STATUS_ADDRESS             = 0x00000028;
+static const uint32_t FIFO_RX_OVERFLOW_COUNT_ADDRESS  = 0x0000002c;
+static const uint32_t FIFO_TX_OVERFLOW_COUNT_ADDRESS  = 0x00000030;
+static const uint32_t NFC_FULL_TRIGGER_COUNT_ADDRESS  = 0x00000034;
+static const uint32_t NFC_EMPTY_TRIGGER_COUNT_ADDRESS = 0x00000038;
+static const uint32_t TX_COUNT_ADDRESS                = 0x0000003c;
+static const uint32_t RX_COUNT_ADDRESS                = 0x00000040;
+static const uint32_t GT_NOT_READY_0_COUNT_ADDRESS    = 0x00000044;
+static const uint32_t GT_NOT_READY_1_COUNT_ADDRESS    = 0x00000048;
+static const uint32_t GT_NOT_READY_2_COUNT_ADDRESS    = 0x0000004c;
+static const uint32_t GT_NOT_READY_3_COUNT_ADDRESS    = 0x00000050;
+static const uint32_t LINE_DOWN_0_COUNT_ADDRESS       = 0x00000054;
+static const uint32_t LINE_DOWN_1_COUNT_ADDRESS       = 0x00000058;
+static const uint32_t LINE_DOWN_2_COUNT_ADDRESS       = 0x0000005c;
+static const uint32_t LINE_DOWN_3_COUNT_ADDRESS       = 0x00000060;
+static const uint32_t PLL_NOT_LOCKED_COUNT_ADDRESS    = 0x00000064;
+static const uint32_t MMCM_NOT_LOCKED_COUNT_ADDRESS   = 0x00000068;
+static const uint32_t HARD_ERR_COUNT_ADDRESS          = 0x0000006c;
+static const uint32_t SOFT_ERR_COUNT_ADDRESS          = 0x00000070;
+static const uint32_t CHANNEL_DOWN_COUNT_ADDRESS      = 0x00000074;
+static const uint32_t FRAMES_RECEIVED_ADDRESS         = 0x00000078;
+static const uint32_t FRAMES_WITH_ERRORS_ADDRESS      = 0x0000007c;
 
 // masks for core status bits
 static const uint32_t GT_POWERGOOD    = 0x0000000f;
@@ -327,6 +341,71 @@ public:
         return ip.read_register(NFC_FULL_TRIGGER_COUNT_ADDRESS);
     }
 
+    uint32_t get_gt_not_ready_0_count()
+    {
+        return ip.read_register(GT_NOT_READY_0_COUNT_ADDRESS);
+    }
+
+    uint32_t get_gt_not_ready_1_count()
+    {
+        return ip.read_register(GT_NOT_READY_1_COUNT_ADDRESS);
+    }
+
+    uint32_t get_gt_not_ready_2_count()
+    {
+        return ip.read_register(GT_NOT_READY_2_COUNT_ADDRESS);
+    }
+
+    uint32_t get_gt_not_ready_3_count()
+    {
+        return ip.read_register(GT_NOT_READY_3_COUNT_ADDRESS);
+    }
+
+    uint32_t get_line_down_0_count()
+    {
+        return ip.read_register(LINE_DOWN_0_COUNT_ADDRESS);
+    }
+
+    uint32_t get_line_down_1_count()
+    {
+        return ip.read_register(LINE_DOWN_1_COUNT_ADDRESS);
+    }
+
+    uint32_t get_line_down_2_count()
+    {
+        return ip.read_register(LINE_DOWN_2_COUNT_ADDRESS);
+    }
+
+    uint32_t get_line_down_3_count()
+    {
+        return ip.read_register(LINE_DOWN_3_COUNT_ADDRESS);
+    }
+
+    uint32_t get_pll_not_locked_count()
+    {
+        return ip.read_register(PLL_NOT_LOCKED_COUNT_ADDRESS);
+    }
+
+    uint32_t get_mmcm_not_locked_count()
+    {
+        return ip.read_register(MMCM_NOT_LOCKED_COUNT_ADDRESS);
+    }
+
+    uint32_t get_hard_err_count()
+    {
+        return ip.read_register(HARD_ERR_COUNT_ADDRESS);
+    }
+
+    uint32_t get_soft_err_count()
+    {
+        return ip.read_register(SOFT_ERR_COUNT_ADDRESS);
+    }
+
+    uint32_t get_channel_down_count()
+    {
+        return ip.read_register(CHANNEL_DOWN_COUNT_ADDRESS);
+    }
+
     uint32_t get_frames_received()
     {
         if (has_tlast) {
@@ -345,9 +424,14 @@ public:
         }
     }
 
-    void set_reset(bool active)
+    void reset_core()
     {
-        ip.write_register(SW_RESET_ADDRESS, active);
+        ip.write_register(CORE_RESET_ADDRESS, true);
+    }
+
+    void reset_counter()
+    {
+        ip.write_register(COUNTER_RESET_ADDRESS, true);
     }
 
     bool has_tkeep;

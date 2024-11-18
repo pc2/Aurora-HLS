@@ -40,6 +40,8 @@ module aurora_hls_control_s_axi (
     output wire         RVALID,
     input wire          RREADY,
     // control register signals
+    output reg          core_reset,
+    output reg          monitor_reset,
     input wire  [21:0]  configuration,
     input wire  [31:0]  fifo_thresholds,
     input wire  [12:0]  aurora_status,
@@ -62,8 +64,7 @@ module aurora_hls_control_s_axi (
     input wire  [31:0]  nfc_full_trigger_count,
     input wire  [31:0]  nfc_empty_trigger_count,
     input wire  [31:0]  tx_count,
-    input wire  [31:0]  rx_count,
-    output reg          sw_reset
+    input wire  [31:0]  rx_count
 `ifdef USE_FRAMING
    ,input wire  [31:0]  frames_received,
     input wire  [31:0]  frames_with_errors
@@ -91,34 +92,35 @@ module aurora_hls_control_s_axi (
 
 //------------------------Parameter----------------------
 localparam
-    ADDR_CONFIGURATION           = 12'h010,
-    ADDR_FIFO_THRESHOLDS         = 12'h014,
-    ADDR_AURORA_STATUS           = 12'h018, 
-    ADDR_STATUS_NOT_OK_COUNT     = 12'h01c,
-    ADDR_FIFO_STATUS             = 12'h020,
-    ADDR_FIFO_RX_OVERFLOW_COUNT  = 12'h024,
-    ADDR_FIFO_TX_OVERFLOW_COUNT  = 12'h028,
-    ADDR_NFC_FULL_TRIGGER_COUNT  = 12'h02c,
-    ADDR_NFC_EMPTY_TRIGGER_COUNT = 12'h030,
-    ADDR_SW_RESET                = 12'h034,
-    ADDR_TX_COUNT                = 12'h038,
-    ADDR_RX_COUNT                = 12'h03c,
-    ADDR_GT_NOT_READY_0_COUNT    = 12'h040,
-    ADDR_GT_NOT_READY_1_COUNT    = 12'h044,
-    ADDR_GT_NOT_READY_2_COUNT    = 12'h048,
-    ADDR_GT_NOT_READY_3_COUNT    = 12'h04c,
-    ADDR_LINE_DOWN_0_COUNT       = 12'h050,
-    ADDR_LINE_DOWN_1_COUNT       = 12'h054,
-    ADDR_LINE_DOWN_2_COUNT       = 12'h058,
-    ADDR_LINE_DOWN_3_COUNT       = 12'h05c,
-    ADDR_PLL_NOT_LOCKED_COUNT    = 12'h060,
-    ADDR_MMCM_NOT_LOCKED_COUNT   = 12'h064,
-    ADDR_HARD_ERR_COUNT          = 12'h068,
-    ADDR_SOFT_ERR_COUNT          = 12'h06c,
-    ADDR_CHANNEL_DOWN_COUNT      = 12'h070,
+    ADDR_CORE_RESET              = 12'h010,
+    ADDR_COUNTER_RESET           = 12'h014,
+    ADDR_CONFIGURATION           = 12'h018,
+    ADDR_FIFO_THRESHOLDS         = 12'h01c,
+    ADDR_AURORA_STATUS           = 12'h020, 
+    ADDR_STATUS_NOT_OK_COUNT     = 12'h024,
+    ADDR_FIFO_STATUS             = 12'h028,
+    ADDR_FIFO_RX_OVERFLOW_COUNT  = 12'h02c,
+    ADDR_FIFO_TX_OVERFLOW_COUNT  = 12'h030,
+    ADDR_NFC_FULL_TRIGGER_COUNT  = 12'h034,
+    ADDR_NFC_EMPTY_TRIGGER_COUNT = 12'h038,
+    ADDR_TX_COUNT                = 12'h03c,
+    ADDR_RX_COUNT                = 12'h040,
+    ADDR_GT_NOT_READY_0_COUNT    = 12'h044,
+    ADDR_GT_NOT_READY_1_COUNT    = 12'h048,
+    ADDR_GT_NOT_READY_2_COUNT    = 12'h04c,
+    ADDR_GT_NOT_READY_3_COUNT    = 12'h050,
+    ADDR_LINE_DOWN_0_COUNT       = 12'h054,
+    ADDR_LINE_DOWN_1_COUNT       = 12'h058,
+    ADDR_LINE_DOWN_2_COUNT       = 12'h05c,
+    ADDR_LINE_DOWN_3_COUNT       = 12'h060,
+    ADDR_PLL_NOT_LOCKED_COUNT    = 12'h064,
+    ADDR_MMCM_NOT_LOCKED_COUNT   = 12'h068,
+    ADDR_HARD_ERR_COUNT          = 12'h06c,
+    ADDR_SOFT_ERR_COUNT          = 12'h070,
+    ADDR_CHANNEL_DOWN_COUNT      = 12'h074,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED         = 12'h074,
-    ADDR_FRAMES_WITH_ERRORS      = 12'h078,
+    ADDR_FRAMES_RECEIVED         = 12'h078,
+    ADDR_FRAMES_WITH_ERRORS      = 12'h07c,
 `endif
     
     // registers write state machine
@@ -196,14 +198,26 @@ localparam
     // wdata
     always @(posedge ACLK) begin
         if (!ARESETn) begin
-            sw_reset <= 1'b0;
+            core_reset <= 1'b0;
+            monitor_reset <= 1'b0;
         end else if (w_hs) begin
             case (waddr)
-                ADDR_SW_RESET: begin
+                ADDR_CORE_RESET: begin
                     if (WSTRB[0])
-                        sw_reset <= WDATA[0];
+                        core_reset <= WDATA[0];
+                end
+                ADDR_COUNTER_RESET: begin
+                    if (WSTRB[0])
+                        monitor_reset <= WDATA[0];
                 end
             endcase
+        end
+        // set back to zero
+        if (core_reset) begin
+            core_reset <= 1'b0;
+        end
+        if (monitor_reset) begin
+            monitor_reset <= 1'b0;
         end
     end
     
