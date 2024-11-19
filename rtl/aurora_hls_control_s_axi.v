@@ -212,13 +212,6 @@ localparam
                 end
             endcase
         end
-        // set back to zero
-        if (core_reset) begin
-            core_reset <= 1'b0;
-        end
-        if (monitor_reset) begin
-            monitor_reset <= 1'b0;
-        end
     end
     
     //------------------------AXI read fsm-------------------
