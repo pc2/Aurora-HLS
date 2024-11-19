@@ -427,11 +427,13 @@ public:
     void reset_core()
     {
         ip.write_register(CORE_RESET_ADDRESS, true);
+        ip.write_register(CORE_RESET_ADDRESS, false);
     }
 
     void reset_counter()
     {
         ip.write_register(COUNTER_RESET_ADDRESS, true);
+        ip.write_register(COUNTER_RESET_ADDRESS, false);
     }
 
     bool has_tkeep;
