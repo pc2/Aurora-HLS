@@ -17,14 +17,11 @@
 `timescale 1ns/1ps
 
 module aurora_hls_monitor(
-    input wire rst,
-    input wire clk,
+    input wire rst_u,
+    input wire clk_u,
     input wire [12:0] aurora_status,
     input wire fifo_rx_almost_full,
-    input wire fifo_tx_almost_full,
-    input wire tx_tvalid,
-    input wire tx_tready,
-    input wire rx_tvalid,
+    output reg [31:0] fifo_rx_overflow_count,
     output reg [31:0] gt_not_ready_0_count,
     output reg [31:0] gt_not_ready_1_count,
     output reg [31:0] gt_not_ready_2_count,
@@ -38,16 +35,17 @@ module aurora_hls_monitor(
     output reg [31:0] hard_err_count,
     output reg [31:0] soft_err_count,
     output reg [31:0] channel_down_count,
-    output reg [31:0] fifo_rx_overflow_count,
     output reg [31:0] fifo_tx_overflow_count,
+    input wire rst,
+    input wire clk,
+    input wire fifo_tx_almost_full,
+    input wire tx_tvalid,
+    input wire tx_tready,
+    input wire rx_tvalid,
+    input wire rx_tready,
     output reg [31:0] tx_count,
     output reg [31:0] rx_count
 );
-
-// TODO: valid+ready+(keep?) count:  byte-counter
-// TODO: explicit status
-// TODO: counter reset (init)
-// TODO: further status?
 
 parameter
     GT_POWERGOOD_0  = 13'h0001,
@@ -73,8 +71,8 @@ parameter
 
 reg rx_full_triggered, tx_full_triggered;
 
-always @(posedge clk) begin
-    if (rst) begin
+always @(posedge clk_u) begin
+    if (rst_u) begin
         gt_not_ready_0_count <= 0;
         gt_not_ready_1_count <= 0;
         gt_not_ready_2_count <= 0;
@@ -89,11 +87,7 @@ always @(posedge clk) begin
         soft_err_count <= 0;
         channel_down_count <= 0;
         fifo_rx_overflow_count <= 0;
-        fifo_tx_overflow_count <= 0;
         rx_full_triggered <= fifo_rx_almost_full;
-        tx_full_triggered <= fifo_tx_almost_full;
-        tx_count <= 0;
-        rx_count <= 0;
     end else begin
         if (aurora_status != CORE_STATUS_OK) begin
             if (!(aurora_status & GT_POWERGOOD_0)) begin
@@ -148,10 +142,19 @@ always @(posedge clk) begin
         else if (!fifo_rx_almost_full && rx_full_triggered) begin
             rx_full_triggered <= 1'b0;
         end
+    end
+end
 
+always @(posedge clk) begin
+    if (rst) begin
+        fifo_tx_overflow_count <= 0;
+        tx_full_triggered <= fifo_tx_almost_full;
+        tx_count <= 0;
+        rx_count <= 0;
+    end else begin
         if (fifo_tx_almost_full && !tx_full_triggered) begin
             fifo_tx_overflow_count <= fifo_tx_overflow_count + 1;
-            rx_full_triggered <= 1'b1;
+            tx_full_triggered <= 1'b1;
         end
         else if (!fifo_tx_almost_full && tx_full_triggered) begin
             tx_full_triggered <= 1'b0;
@@ -160,7 +163,7 @@ always @(posedge clk) begin
         if (tx_tvalid && tx_tready) begin
             tx_count <= tx_count + 1;
         end
-        if (rx_tvalid) begin
+        if (rx_tvalid && rx_tready) begin
             rx_count <= rx_count + 1;
         end
     end
