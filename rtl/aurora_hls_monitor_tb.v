@@ -17,15 +17,10 @@
 `timescale 1ns/1ps
 
 module aurora_hls_monitor_tb();
-
-    reg rst;
-    reg clk;
+    reg rst_u;
+    reg clk_u;
     reg [12:0] aurora_status;
     reg fifo_rx_almost_full;
-    reg fifo_tx_almost_full;
-    reg tx_tvalid;
-    reg tx_tready;
-    reg rx_tvalid;
 
     wire [31:0] gt_not_ready_0_count;
     wire [31:0] gt_not_ready_1_count;
@@ -40,21 +35,25 @@ module aurora_hls_monitor_tb();
     wire [31:0] hard_err_count;
     wire [31:0] soft_err_count;
     wire [31:0] channel_down_count;
- 
     wire [31:0] fifo_rx_overflow_count;
+
+    reg rst;
+    reg clk;
+    reg fifo_tx_almost_full;
+    reg tx_tvalid;
+    reg tx_tready;
+    reg rx_tvalid;
+    reg rx_tready;
+
     wire [31:0] fifo_tx_overflow_count;
     wire [31:0] tx_count;
     wire [31:0] rx_count;
 
     aurora_hls_monitor dut (
-        .clk(clk),
-        .rst(rst),
+        .clk_u(clk_u),
+        .rst_u(rst_u),
         .aurora_status(aurora_status),
         .fifo_rx_almost_full(fifo_rx_almost_full),
-        .fifo_tx_almost_full(fifo_tx_almost_full),
-        .tx_tvalid(tx_tvalid),
-        .tx_tready(tx_tready),
-        .rx_tvalid(rx_tvalid),
         .gt_not_ready_0_count(gt_not_ready_0_count),
         .gt_not_ready_1_count(gt_not_ready_1_count),
         .gt_not_ready_2_count(gt_not_ready_2_count),
@@ -69,14 +68,26 @@ module aurora_hls_monitor_tb();
         .soft_err_count(soft_err_count),
         .channel_down_count(channel_down_count),
         .fifo_rx_overflow_count(fifo_rx_overflow_count),
+        .clk(clk),
+        .rst(rst),
+        .fifo_tx_almost_full(fifo_tx_almost_full),
+        .tx_tvalid(tx_tvalid),
+        .tx_tready(tx_tready),
+        .rx_tvalid(rx_tvalid),
+        .rx_tready(rx_tready),
         .fifo_tx_overflow_count(fifo_tx_overflow_count),
         .tx_count(tx_count),
         .rx_count(rx_count)
     );
 
     initial begin
-        clk = 1'b0;
-        forever #10 clk = ~clk;
+        clk_u = 1'b0;
+        forever #10 clk_u = ~clk_u;
+    end
+
+    initial begin
+        clk_u = 1'b0;
+        forever #7 clk_u = ~clk_u;
     end
 
     reg [15:0] errors;
@@ -111,8 +122,9 @@ module aurora_hls_monitor_tb();
         tx_tready = 1'b0;
         rx_tvalid = 1'b0;
 
+        rst_u = 1'b1;
         rst = 1'b1;
-        repeat (2) @(posedge clk);
+        repeat (2) @(posedge clk_u);
 
         if (gt_not_ready_0_count != 0
             || gt_not_ready_1_count != 0
@@ -135,10 +147,11 @@ module aurora_hls_monitor_tb();
             errors = errors + 1;
         end
 
+        rst_u = 1'b0;
         rst = 1'b0;
-        repeat (4) @(posedge clk);
+        repeat (4) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.GT_POWERGOOD;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.GT_POWERGOOD;
 
         if (gt_not_ready_0_count != 3
@@ -150,7 +163,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.LINE_UP;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.LINE_UP;
 
         if (line_down_0_count != 3
@@ -162,7 +175,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.GT_PLL_LOCK;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.GT_PLL_LOCK;
 
         if (pll_not_locked_count != 3) begin
@@ -171,7 +184,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.MMCM_NOT_LOCKED;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.MMCM_NOT_LOCKED;
 
         if (mmcm_not_locked_count != 3) begin
@@ -180,7 +193,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.HARD_ERR;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.HARD_ERR;
 
         if (hard_err_count != 3) begin
@@ -189,7 +202,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.SOFT_ERR;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.SOFT_ERR;
 
         if (soft_err_count != 3) begin
@@ -198,7 +211,7 @@ module aurora_hls_monitor_tb();
         end
 
         aurora_status = aurora_status ^ dut.CHANNEL_UP;
-        repeat (3) @(posedge clk);
+        repeat (3) @(posedge clk_u);
         aurora_status = aurora_status ^ dut.CHANNEL_UP;
 
         if (channel_down_count != 3) begin
@@ -207,13 +220,13 @@ module aurora_hls_monitor_tb();
         end
 
         fifo_rx_almost_full = 1'b1;
-        @(posedge clk);
+        @(posedge clk_u);
         fifo_rx_almost_full = 1'b0;
-        @(posedge clk);
+        @(posedge clk_u);
         fifo_rx_almost_full = 1'b1;
-        @(posedge clk);
+        @(posedge clk_u);
         fifo_rx_almost_full = 1'b0;
-        @(posedge clk);
+        @(posedge clk_u);
 
         if (fifo_rx_overflow_count != 2) begin
             $error(1, "rx overflow count not correct");
@@ -241,6 +254,7 @@ module aurora_hls_monitor_tb();
         tx_tvalid = 1'b1;
         tx_tready = 1'b1;
         rx_tvalid = 1'b1;
+        rx_tready = 1'b1;
         repeat (3) @(posedge clk);
         tx_tvalid = 1'b0;
         repeat (2) @(posedge clk);

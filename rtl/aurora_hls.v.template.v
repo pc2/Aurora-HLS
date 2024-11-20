@@ -198,6 +198,7 @@ xpm_cdc_async_rst reset_sync_1 (
 wire            host_monitor_reset;
 wire            host_monitor_reset_u;
 wire            monitor_reset;
+wire            monitor_reset_u;
 
 xpm_cdc_async_rst reset_sync_2 (
     .src_arst   (host_monitor_reset),
@@ -205,8 +206,13 @@ xpm_cdc_async_rst reset_sync_2 (
     .dest_arst  (host_monitor_reset_u)
 );
 
-assign monitor_reset = reset_pb_u || host_monitor_reset_u;
+assign monitor_reset_u = reset_pb_u || host_monitor_reset_u;
 
+xpm_cdc_async_rst reset_sync_3 (
+    .src_arst   (monitor_reset_u),
+    .dest_clk   (ap_clk),
+    .dest_arst  (monitor_reset)
+);
 
 // aurora status sync
 xpm_cdc_array_single #(.WIDTH(4)) aurora_status_sync_0 (
@@ -440,15 +446,6 @@ xpm_cdc_single  aurora_monitor_sync_1 (
     .dest_out   (reset_pb_u)
 );
 
-wire fifo_tx_almost_full_u;
-
-xpm_cdc_single  aurora_monitor_sync_2 (
-    .src_in     (fifo_tx_almost_full),
-    .src_clk    (ap_clk),
-    .dest_clk   (user_clk),
-    .dest_out   (fifo_tx_almost_full_u)
-);
-
 assign aurora_status_u = {
     channel_up_u,
     soft_err_u,
@@ -473,20 +470,17 @@ wire [31:0] mmcm_not_locked_count_u;
 wire [31:0] hard_err_count_u;
 wire [31:0] soft_err_count_u;
 wire [31:0] channel_down_count_u;
+
 wire [31:0] fifo_rx_overflow_count_u;
-wire [31:0] fifo_tx_overflow_count_u;
-wire [31:0] tx_count_u;
-wire [31:0] rx_count_u;
+wire [31:0] fifo_tx_overflow_count;
+wire [31:0] tx_count;
+wire [31:0] rx_count;
 
 aurora_hls_monitor aurora_hls_monitor_0 (
-    .rst                        (monitor_reset),
-    .clk                        (user_clk),
+    .rst_u                      (monitor_reset_u),
+    .clk_u                      (user_clk),
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
-    .fifo_tx_almost_full        (fifo_tx_almost_full_u),
-    .tx_tvalid                  (s_axi_tx_tvalid_u),
-    .tx_tready                  (s_axi_tx_tready_u),
-    .rx_tvalid                  (m_axi_rx_tvalid_u),
     .gt_not_ready_0_count       (gt_not_ready_0_count_u),
     .gt_not_ready_1_count       (gt_not_ready_1_count_u),
     .gt_not_ready_2_count       (gt_not_ready_2_count_u),
@@ -501,9 +495,16 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .soft_err_count             (soft_err_count_u),
     .channel_down_count         (channel_down_count_u),
     .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
-    .fifo_tx_overflow_count     (fifo_tx_overflow_count_u),
-    .tx_count                   (tx_count_u),
-    .rx_count                   (rx_count_u)
+    .rst                        (monitor_reset),
+    .clk                        (ap_clk),
+    .tx_tvalid                  (tx_axis_tvalid),
+    .tx_tready                  (tx_axis_tready),
+    .rx_tvalid                  (rx_axis_tvalid),
+    .rx_tready                  (rx_axis_tready),
+    .fifo_tx_almost_full        (fifo_tx_almost_full),
+    .fifo_tx_overflow_count     (fifo_tx_overflow_count),
+    .tx_count                   (tx_count),
+    .rx_count                   (rx_count)
 );
 
 wire [31:0] gt_not_ready_0_count;
@@ -520,9 +521,6 @@ wire [31:0] hard_err_count;
 wire [31:0] soft_err_count;
 wire [31:0] channel_down_count;
 wire [31:0] fifo_rx_overflow_count;
-wire [31:0] fifo_tx_overflow_count;
-wire [31:0] tx_count;
-wire [31:0] rx_count;
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_3 (
     .src_in(gt_not_ready_0_count_u),
@@ -620,27 +618,6 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_16 (
     .src_clk(user_clk),
     .dest_clk(ap_clk),
     .dest_out(fifo_rx_overflow_count)
-);
-
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_17 (
-    .src_in(fifo_tx_overflow_count_u),
-    .src_clk(user_clk),
-    .dest_clk(ap_clk),
-    .dest_out(fifo_tx_overflow_count)
-);
-
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_18 (
-    .src_in(tx_count_u),
-    .src_clk(user_clk),
-    .dest_clk(ap_clk),
-    .dest_out(tx_count)
-);
-
-xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_19 (
-    .src_in(rx_count_u),
-    .src_clk(user_clk),
-    .dest_clk(ap_clk),
-    .dest_out(rx_count)
 );
 
 wire [31:0] nfc_full_trigger_count_u;
