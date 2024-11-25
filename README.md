@@ -67,19 +67,39 @@ When only the size in bytes and the width are given, the depth will be calculate
 
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
-
-The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this for your setup you can enable a integrated logic analyzer for the NFC module, which also probes the valid signal of the receiving side, to count the number of transmissions. Pay attention that the valid signal after the datawidth converter is used, because probing the valid signal of the aurora core itself is very difficult to route. With the regular setup of a FIFO width of 64 bytes, one transmission after the datawidth converter corresponds to two transmissions with the aurora core, which has a width of 32 bytes.
-
-Use the following command to enable the debug probe for the NFC module:
-
-```
-make aurora PROBE_NFC=1
-```
+The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this, you can use the test case explained in "Test the example", which checks how many transmission are occuring, after stopping the transmision.
 
 Experiments on our infrastrucutre have shown, that a FIFO size of 65536 bytes is necessary to prevent overflows on the receiving side, which would lead to data loss.
 
 The number of times the NFC module gets activated and deactivated is monitored and reported in the final output of the test run. Also the full signal of the RX fifo is monitored and overruns are reported, because they are leading to fatal errors. The numbers can also be read from the ip directly.
 
+### Monitoring
+
+The monitoring module checks the status of the aurora core and the overrun status of the FIFOs, and counts every cycle in which the status is not the expected one. The following is an overview of the available status signals.
+
+| Name | Expected Value | Description |
+| ---- | -------------- | ----------- |
+| GT Powergood | 4'b1111 | Asserted, when transceiver is powered up and ready. One bit for every lane. |
+| Line Up | 4'b1111 | Asserted, when lanes are initialized. One bit for every lane. | 
+| GT PLL Lock | 1'b1 | Asserted, when the transceiver clock is stable. |
+| MMCM not locked | 1'b0 | Asserted, when the Mixed-Mode Clock Manager (MMCM) is not generating a stable clock. | 
+| Hard error | 1'b0 | Asserted, when a hardware error in the transceiver is detected, like buffer overflow or loss of lock. Leads to automatic reset of the core. | 
+| Soft error | 1'b0 | Asserted, when there is an error in the transceiver protocol. Does not lead to a reset. |
+| Channel Up | 1'b1 | Asserted, when the complete initialization procedure is finished and the core is ready. |
+
+For further explanation of the status signals, take a look at the [IP Product Guide](https://docs.amd.com/r/en-US/pg074-aurora-64b66b/Introduction).
+
+The monitoring module also counts the number of transmissions in and out of the aurora kernel. When framing is enabled, the number of received frames and the number of received frames containings errors are counted as well.
+
+The counters can be reset with a soft reset, to prevent overflows and measure specific time frames. The values of all the counters can be read from the host code.
+
+### Reset
+
+The aurora core needs to be hold in reset for at least one second. This is achieved with a dedicated reset module. The monitor module is held in reset as long as the aurora core, so it does not count during the initialization phase.
+
+The software reset signals are coming from the AXI Control Register and are connected with the internal reset signals in the following way.
+
+![Reset Diagram](./images/reset_diagram.drawio.png)
 
 ### Configure Equalization Parameters
 
@@ -119,16 +139,11 @@ The status can be checked with the following function, which returns true if the
   }
 ```
 
-There are also functions for checking the configuration and more status signals. If you need them, take a look into the code. Following are some examples.
+There are also functions for checking the configuration and the status counters. If you need them, take a look into the code. Following is one example for the configuration and one for the status counters.
 
 ```
 if (aurora.has_framing()) {
     // dont forget to set the last and keep bit
-}
-
-uint32_t frames_with_errors = aurora.get_frames_with_errors();
-if (frames_with_errors > 0) {
-    // some bits have flipped during transmission
 }
 
 // get a print of the configuration of the core
@@ -139,6 +154,23 @@ if (aurora.get_fifo_rx_overflow_count() > 0) {
 }
 ```
 
+```
+if (aurora.get_frames_with_errors() > 0) {
+    // some bits have flipped during transmission
+}
+
+if (aurora.get_tx_count() != expected_count) {
+  // something went wrong
+}
+
+if (aurora.get_fifo_rx_overflow_count() > 0) {
+  // this should not happen, leads to data loss
+}
+
+aurora.reset_counter();
+// all counters are zero now
+```
+
 
 ### Testbenches
 
@@ -147,7 +179,6 @@ The verilog modules for flow control, monitoring, CRC frame counting and for the
 ```
   make run_nfc_tb
   make run_monitor_tb
-  make run_crc_counter_tb
   make configuration_tb
 ```
 
