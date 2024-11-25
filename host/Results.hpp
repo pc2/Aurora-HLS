@@ -305,8 +305,9 @@ public:
                   << std::setw(12) << "Max."
                   << std::setw(12) << "TX Count"
                   << std::setw(12) << "RX Count"
+                  << std::setw(12) << "Frame Count"
                   << std::endl
-                  << std::setw(106) << std::setfill('-') << "-"
+                  << std::setw(118) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -315,8 +316,9 @@ public:
             double latency_sum = 0.0;
             const double gigabits_per_iteration = 8 * config.message_sizes[r] / 1000000000.0;
 
-            uint32_t tx_count_sum = 0;
-            uint32_t rx_count_sum = 0;
+            uint64_t tx_count_sum = 0;
+            uint64_t rx_count_sum = 0;
+            uint64_t frame_count_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -329,6 +331,7 @@ public:
 
                 tx_count_sum += total_tx_count[i * config.repetitions + r];
                 rx_count_sum += total_rx_count[i * config.repetitions + r];
+                frame_count_sum += total_frames_received[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
             std::cout << std::setw(10) << config.message_sizes[r]
@@ -338,8 +341,9 @@ public:
                       << std::setw(12) << gigabits_per_iteration / latency_max
                       << std::setw(12) << gigabits_per_iteration / latency_avg
                       << std::setw(12) << gigabits_per_iteration / latency_min
-                      << std::setw(12) << tx_count_sum
-                      << std::setw(12) << rx_count_sum
+                      << std::setw(12) << tx_count_sum / config.iterations_per_message[r] / world_size
+                      << std::setw(12) << rx_count_sum / config.iterations_per_message[r] / world_size
+                      << std::setw(12) << frame_count_sum / config.iterations_per_message[r] / world_size
                       << std::endl;
         }
     }
