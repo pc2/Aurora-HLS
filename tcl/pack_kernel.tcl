@@ -40,7 +40,6 @@ add_files -norecurse -fileset sources_1 \
               ../ip_creation/axis_data_fifo_tx/axis_data_fifo_tx.xci \
               ../ip_creation/axis_dwidth_converter_rx/axis_dwidth_converter_rx.xci \
               ../ip_creation/axis_dwidth_converter_tx/axis_dwidth_converter_tx.xci \
-              ../ip_creation/ila_nfc/ila_nfc.xci \
        ]
 
 add_files -norecurse -fileset constrs_1 \
