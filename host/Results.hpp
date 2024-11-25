@@ -451,12 +451,17 @@ public:
     std::string get_commit_id()
     {
         std::string commit_id;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("git describe --always --tags --dirty", "r"), pclose);
+        FILE *pipe = popen("git describe --always --tags --dirty 2> /dev/null", "r");
         if (pipe) {
             char buf[128];
-            while (fgets(buf, 128, pipe.get()) != nullptr) {
+            while (fgets(buf, 128, pipe) != nullptr) {
                 commit_id += buf;
             }
+            if (pclose(pipe) != 0) {
+                return "none";
+            }
+        } else {
+            return "none";
         }
         if (!commit_id.empty() && commit_id.back() == '\n') {
             commit_id.pop_back();
