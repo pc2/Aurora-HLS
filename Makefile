@@ -64,8 +64,6 @@ endif
 
 XCLBIN_NAME := aurora_hls_test_$(TARGET).xclbin
 
-PROBE_NFC := 0
-
 # create the ips
 ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci: ./tcl/create_aurora_ip.tcl
 	mkdir -p ip_creation
@@ -116,10 +114,6 @@ RTL_SRC += ./ip_creation/axis_data_fifo_tx/axis_data_fifo_tx.xci
 RTL_SRC += ./ip_creation/axis_dwidth_converter_rx/axis_dwidth_converter_rx.xci
 RTL_SRC += ./ip_creation/axis_dwidth_converter_tx/axis_dwidth_converter_tx.xci
 
-ifeq ($(PROBE_NFC), 1)
-	RTL_SRC += ./ip_creation/ila_nfc/ila_nfc.xci
-endif
-
 RTL_SRC_0 := $(RTL_SRC) ./rtl/aurora_hls_0.v ./xdc/aurora_64b66b_0.xdc
 RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 
@@ -136,9 +130,6 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 	echo "" > $@
 	if [ $(USE_FRAMING) = 1 ]; then \
 		echo "\`define USE_FRAMING" >> $@; \
-	fi
-	if [ $(PROBE_NFC) = 1 ]; then \
-		echo "\`define PROBE_NFC" >> $@; \
 	fi
 	if [ $(DRAIN_AXI_ON_RESET) = 1 ]; then \
 		echo "\`define DRAIN_AXI_ON_RESET" >> $@; \
