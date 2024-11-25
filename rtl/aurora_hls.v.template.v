@@ -476,6 +476,11 @@ wire [31:0] fifo_tx_overflow_count;
 wire [31:0] tx_count;
 wire [31:0] rx_count;
 
+`ifdef USE_FRAMING
+wire [31:0] frames_received_u;
+wire [31:0] frames_with_errors_u;
+`endif
+
 aurora_hls_monitor aurora_hls_monitor_0 (
     .rst_u                      (monitor_reset_u),
     .clk_u                      (user_clk),
@@ -503,6 +508,12 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .rx_tready                  (rx_axis_tready),
     .fifo_tx_almost_full        (fifo_tx_almost_full),
     .fifo_tx_overflow_count     (fifo_tx_overflow_count),
+`ifdef USE_FRAMING
+    .crc_valid                  (crc_valid_u),
+    .crc_pass_fail_n            (crc_pass_fail_n_u),
+    .frames_received            (frames_received_u),
+    .frames_with_errors         (frames_with_errors_u),
+`endif
     .tx_count                   (tx_count),
     .rx_count                   (rx_count)
 );
@@ -620,6 +631,26 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_16 (
     .dest_out(fifo_rx_overflow_count)
 );
 
+`ifdef USE_FRAMING
+wire [31:0] frames_received;
+wire [31:0] frames_with_errors;
+
+xpm_cdc_array_single #(.WIDTH(32)) frames_received_sync (
+    .src_in     (frames_received_u),
+    .src_clk    (user_clk),
+    .dest_clk   (ap_clk),
+    .dest_out   (frames_received)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) frames_with_errors_sync (
+    .src_in     (frames_with_errors_u),
+    .src_clk    (user_clk),
+    .dest_clk   (ap_clk),
+    .dest_out   (frames_with_errors)
+);
+`endif
+
+
 wire [31:0] nfc_full_trigger_count_u;
 wire [31:0] nfc_empty_trigger_count_u; 
 
@@ -651,38 +682,6 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_1 (
     .dest_clk(ap_clk),
     .dest_out(nfc_empty_trigger_count)
 );
-
-`ifdef USE_FRAMING
-wire [31:0] frames_received_u;
-wire [31:0] frames_with_errors_u;
-
-aurora_hls_crc_counter aurora_hls_crc_counter_0 (
-    .clk                (user_clk),
-    .rst_n              (ap_rst_n_u),
-    .crc_valid          (crc_valid_u),
-    .crc_pass_fail_n    (crc_pass_fail_n_u),
-    .frames_received    (frames_received_u),
-    .frames_with_errors (frames_with_errors_u)
-);
-
-wire [31:0] frames_received;
-wire [31:0] frames_with_errors;
-
-xpm_cdc_array_single #(.WIDTH(32)) frames_received_sync (
-    .src_in     (frames_received_u),
-    .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
-    .dest_out   (frames_received)
-);
-
-xpm_cdc_array_single #(.WIDTH(32)) frames_with_errors_sync (
-    .src_in     (frames_with_errors_u),
-    .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
-    .dest_out   (frames_with_errors)
-);
-
-`endif
 
 wire [21:0] configuration;
 wire [31:0] fifo_thresholds;

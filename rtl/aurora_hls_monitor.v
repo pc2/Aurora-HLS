@@ -36,6 +36,12 @@ module aurora_hls_monitor(
     output reg [31:0] soft_err_count,
     output reg [31:0] channel_down_count,
     output reg [31:0] fifo_tx_overflow_count,
+`ifdef USE_FRAMING
+    input wire crc_valid,
+    input wire crc_pass_fail_n,
+    output reg [31:0] frames_received,
+    output reg [31:0] frames_with_errors,
+`endif
     input wire rst,
     input wire clk,
     input wire fifo_tx_almost_full,
@@ -88,6 +94,10 @@ always @(posedge clk_u) begin
         channel_down_count <= 0;
         fifo_rx_overflow_count <= 0;
         rx_full_triggered <= fifo_rx_almost_full;
+`ifdef USE_FRAMING
+        frames_received <= 0;
+        frames_with_errors <= 0;
+`endif
     end else begin
         if (aurora_status != CORE_STATUS_OK) begin
             if (!(aurora_status & GT_POWERGOOD_0)) begin
@@ -142,6 +152,15 @@ always @(posedge clk_u) begin
         else if (!fifo_rx_almost_full && rx_full_triggered) begin
             rx_full_triggered <= 1'b0;
         end
+        
+`ifdef USE_FRAMING
+        if (crc_valid) begin
+            frames_received <= frames_received + 1;
+            if (!crc_pass_fail_n) begin
+                frames_with_errors <= frames_with_errors + 1;
+            end
+        end
+`endif
     end
 end
 

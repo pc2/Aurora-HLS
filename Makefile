@@ -66,8 +66,6 @@ XCLBIN_NAME := aurora_hls_test_$(TARGET).xclbin
 
 PROBE_NFC := 1
 
-PROBE_CRC_COUNTER := 1
-
 # create the ips
 ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci: ./tcl/create_aurora_ip.tcl
 	mkdir -p ip_creation
@@ -99,11 +97,6 @@ PROBE_CRC_COUNTER := 1
 	rm -rf ip_creation/ila_nfc
 	vivado -mode batch -source $^ -tclargs $(PART)
 
-./ip_creation/ila_crc_counter/ila_crc_counter.xci: ./tcl/create_ila_crc_counter_ip.tcl
-	mkdir -p ip_creation
-	rm -rf ip_creation/ila_crc_counter
-	vivado -mode batch -source $^ -tclargs $(PART)
-
 # synth flags
 COMMFLAGS := --platform $(PLATFORM) --target $(TARGET) --save-temps --debug
 HLSCFLAGS := --compile $(COMMFLAGS) -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
@@ -115,7 +108,6 @@ RTL_SRC += ./rtl/aurora_hls_io.v
 RTL_SRC += ./rtl/aurora_hls_nfc.v
 RTL_SRC += ./rtl/aurora_hls_define.v
 RTL_SRC += ./rtl/aurora_hls_configuration.v
-RTL_SRC += ./rtl/aurora_hls_crc_counter.v
 RTL_SRC += ./rtl/aurora_hls_reset.v
 RTL_SRC += ./rtl/aurora_hls_monitor.v
 RTL_SRC += ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci 
@@ -126,9 +118,6 @@ RTL_SRC += ./ip_creation/axis_dwidth_converter_tx/axis_dwidth_converter_tx.xci
 
 ifeq ($(PROBE_NFC), 1)
 	RTL_SRC += ./ip_creation/ila_nfc/ila_nfc.xci
-endif
-ifeq ($(PROBE_CRC_COUNTER), 1)
-	RTL_SRC += ./ip_creation/ila_crc_counter/ila_crc_counter.xci
 endif
 
 RTL_SRC_0 := $(RTL_SRC) ./rtl/aurora_hls_0.v ./xdc/aurora_64b66b_0.xdc
@@ -150,9 +139,6 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 	fi
 	if [ $(PROBE_NFC) = 1 ]; then \
 		echo "\`define PROBE_NFC" >> $@; \
-	fi
-	if [ $(PROBE_CRC_COUNTER) = 1 ]; then \
-		echo "\`define PROBE_CRC_COUNTER" >> $@; \
 	fi
 	if [ $(DRAIN_AXI_ON_RESET) = 1 ]; then \
 		echo "\`define DRAIN_AXI_ON_RESET" >> $@; \
@@ -211,13 +197,13 @@ host: host_aurora_hls_test
 .PHONY: monitor_tb run_monitor_tb run_monitor_tb_gui
 
 xsim.dir/work/aurora_hls_monitor.sdb: ./rtl/aurora_hls_monitor.v
-	xvlog ./rtl/aurora_hls_monitor.v -d XSIM
+	xvlog ./rtl/aurora_hls_monitor.v -d XSIM -d USE_FRAMING
 
 xsim.dir/work/aurora_hls_monitor_tb.sdb: ./rtl/aurora_hls_monitor_tb.v
-	xvlog ./rtl/aurora_hls_monitor_tb.v -d XSIM
+	xvlog ./rtl/aurora_hls_monitor_tb.v -d XSIM -d USE_FRAMING
 
 xsim.dir/monitor_tb/xsimk: xsim.dir/work/aurora_hls_monitor.sdb xsim.dir/work/aurora_hls_monitor_tb.sdb
-	xelab -debug typical aurora_hls_monitor_tb -s monitor_tb
+	xelab -debug typical aurora_hls_monitor_tb -s monitor_tb -d USE_FRAMING
 
 monitor_tb: xsim.dir/monitor_tb/xsimk
 
@@ -264,25 +250,6 @@ run_configuration_tb: configuration_tb
 
 run_configuration_tb_gui: configuration_tb
 	xsim --gui configuration_tb
-
-.PHONY: crc_counter_tb run_crc_counter_tb run_crc_counter_tb_gui
-
-xsim.dir/work/aurora_hls_crc_counter.sdb: ./rtl/aurora_hls_crc_counter.v
-	xvlog ./rtl/aurora_hls_crc_counter.v
-
-xsim.dir/work/aurora_hls_crc_counter_tb.sdb: ./rtl/aurora_hls_crc_counter_tb.v
-	xvlog ./rtl/aurora_hls_crc_counter_tb.v
-
-xsim.dir/crc_counter_tb/xsimk: xsim.dir/work/aurora_hls_crc_counter.sdb xsim.dir/work/aurora_hls_crc_counter_tb.sdb
-	xelab -debug typical aurora_hls_crc_counter_tb -s crc_counter_tb
-
-crc_counter_tb: xsim.dir/crc_counter_tb/xsimk
-
-run_crc_counter_tb: crc_counter_tb
-	xsim --tclbatch tcl/run_crc_counter_tb.tcl crc_counter_tb --wdb crc_counter_tb.wdb
-
-run_crc_counter_tb_gui: crc_counter_tb
-	xsim --gui crc_counter_tb
 
 # run test
 test: host aurora_hls_test_sw_emu.xclbin
