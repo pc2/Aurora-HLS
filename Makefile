@@ -64,7 +64,7 @@ endif
 
 XCLBIN_NAME := aurora_hls_test_$(TARGET).xclbin
 
-PROBE_NFC := 1
+PROBE_NFC := 0
 
 # create the ips
 ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci: ./tcl/create_aurora_ip.tcl
