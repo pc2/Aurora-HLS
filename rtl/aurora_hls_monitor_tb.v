@@ -21,6 +21,8 @@ module aurora_hls_monitor_tb();
     reg clk_u;
     reg [12:0] aurora_status;
     reg fifo_rx_almost_full;
+    reg crc_valid;
+    reg crc_pass_fail_n;
 
     wire [31:0] gt_not_ready_0_count;
     wire [31:0] gt_not_ready_1_count;
@@ -36,6 +38,8 @@ module aurora_hls_monitor_tb();
     wire [31:0] soft_err_count;
     wire [31:0] channel_down_count;
     wire [31:0] fifo_rx_overflow_count;
+    wire [31:0] frames_received;
+    wire [31:0] frames_with_errors;
 
     reg rst;
     reg clk;
@@ -77,7 +81,11 @@ module aurora_hls_monitor_tb();
         .rx_tready(rx_tready),
         .fifo_tx_overflow_count(fifo_tx_overflow_count),
         .tx_count(tx_count),
-        .rx_count(rx_count)
+        .rx_count(rx_count),
+        .crc_valid(crc_valid),
+        .crc_pass_fail_n(crc_pass_fail_n),
+        .frames_received(frames_received),
+        .frames_with_errors(frames_with_errors)
     );
 
     initial begin
@@ -112,6 +120,8 @@ module aurora_hls_monitor_tb();
         $monitor("fifo_tx_overflow_count = %d", fifo_tx_overflow_count);
         $monitor("tx_count = %d", tx_count);
         $monitor("rx_count = %d", rx_count);
+        $monitor("frames_received = %d", frames_received);
+        $monitor("frames_with_errors = %d", frames_with_errors);
 
         errors = 0;
 
@@ -121,6 +131,8 @@ module aurora_hls_monitor_tb();
         tx_tvalid = 1'b0;
         tx_tready = 1'b0;
         rx_tvalid = 1'b0;
+        crc_valid = 1'b0;
+        crc_pass_fail_n = 1'b0;
 
         rst_u = 1'b1;
         rst = 1'b1;
@@ -142,7 +154,9 @@ module aurora_hls_monitor_tb();
             || fifo_rx_overflow_count != 0
             || fifo_tx_overflow_count != 0
             || tx_count != 0
-            || rx_count != 0) begin
+            || rx_count != 0
+            || frames_received != 0
+            || frames_with_errors != 0) begin
             $error(1, "reset did not work");
             errors = errors + 1;
         end
@@ -233,6 +247,30 @@ module aurora_hls_monitor_tb();
             errors = errors + 1;
         end
 
+        crc_valid = 1'b1;
+        crc_pass_fail_n = 1'b1;
+        repeat (4) begin
+            @(posedge clk_u);
+            crc_valid = 1'b1;
+        end
+        crc_pass_fail_n = 1'b0;
+        @(posedge clk_u);
+        crc_valid = 1'b0;
+        crc_pass_fail_n = 1'b1;
+        @(posedge clk_u);
+        crc_valid = 1'b1;
+        @(posedge clk_u);
+        crc_valid = 1'b0;
+
+        if (frames_received != 6) begin
+            $error(1, "wrong frame counter");
+            errors = errors + 1;
+        end
+        if (frames_with_errors != 1) begin
+            $error(1, "wrong error counter");
+            errors = errors + 1;
+        end
+
         fifo_tx_almost_full = 1'b1;
         @(posedge clk);
         fifo_tx_almost_full = 1'b0;
@@ -268,6 +306,8 @@ module aurora_hls_monitor_tb();
             $error(1, "rx count not correct");
         end
 
+
+ 
     end
 
 endmodule
