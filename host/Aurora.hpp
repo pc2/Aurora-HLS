@@ -139,6 +139,8 @@ public:
  
     Aurora() {}
 
+    // Configuration
+
     bool has_framing()
     {
         return has_tlast;
@@ -166,6 +168,8 @@ public:
         std::cout << "Equalization mode: " << rx_eq_mode_names[rx_eq_mode] << std::endl;
         std::cout << "Nyquist loss: " << (uint16_t)ins_loss_nyq << std::endl;
     }
+
+    // Current status signals
 
     uint32_t get_core_status()
     {
@@ -250,22 +254,6 @@ public:
             }
         }
     }
-
-    uint32_t get_status_not_ok_count()
-    {
-        return ip.read_register(STATUS_NOT_OK_COUNT_ADDRESS);
-    }
-
-    uint32_t get_fifo_rx_overflow_count()
-    {
-        return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);
-    }
-
-    uint32_t get_fifo_tx_overflow_count()
-    {
-        return ip.read_register(FIFO_TX_OVERFLOW_COUNT_ADDRESS);
-    }
-
     uint32_t get_fifo_status()
     {
         return ip.read_register(FIFO_STATUS_ADDRESS);
@@ -319,6 +307,23 @@ public:
                 std::cout << fifo_status_name[bit] << std::endl;
             }
         }
+    }
+
+    // Internal status counter
+
+    uint32_t get_status_not_ok_count()
+    {
+        return ip.read_register(STATUS_NOT_OK_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_rx_overflow_count()
+    {
+        return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_tx_overflow_count()
+    {
+        return ip.read_register(FIFO_TX_OVERFLOW_COUNT_ADDRESS);
     }
 
     uint32_t get_tx_count()
@@ -423,6 +428,8 @@ public:
             return -1;
         }
     }
+    
+    // Reset routines
 
     void reset_core()
     {
@@ -435,6 +442,8 @@ public:
         ip.write_register(COUNTER_RESET_ADDRESS, true);
         ip.write_register(COUNTER_RESET_ADDRESS, false);
     }
+
+    // Configuration
 
     bool has_tkeep;
     bool has_tlast;
