@@ -64,33 +64,14 @@ module aurora_hls_control_s_axi (
     input wire  [31:0]  nfc_full_trigger_count,
     input wire  [31:0]  nfc_empty_trigger_count,
     input wire  [31:0]  tx_count,
-    input wire  [31:0]  rx_count
+    input wire  [31:0]  rx_count,
+    input wire  [31:0]  nfc_latency_count
 `ifdef USE_FRAMING
    ,input wire  [31:0]  frames_received,
     input wire  [31:0]  frames_with_errors
 `endif
 );
 
-//------------------------Address Info-------------------
-// 0x00 : reserved
-// 0x04 : reserved
-// 0x08 : reserved
-// 0x0c : reserved
-// 0x10 : Configuration
-// 0x14 : FIFO thresholds (configuration)
-// 0x18 : Aurora status
-// 0x1c : Status not OK count
-// 0x20 : FIFO status
-// 0x24 : FIFO RX overflow count
-// 0x28 : FIFO TX overflow count
-// 0x2x : NFC full trigger count
-// 0x30 : NFC empty trigger count
-// 0x34 : Software-controlled reset (LSB, active high)
-// only with framing enabled:
-// 0x38 : Frames received
-// 0x3c : Frames with errors
-
-//------------------------Parameter----------------------
 localparam
     ADDR_CORE_RESET              = 12'h010,
     ADDR_COUNTER_RESET           = 12'h014,
@@ -103,24 +84,25 @@ localparam
     ADDR_FIFO_TX_OVERFLOW_COUNT  = 12'h030,
     ADDR_NFC_FULL_TRIGGER_COUNT  = 12'h034,
     ADDR_NFC_EMPTY_TRIGGER_COUNT = 12'h038,
-    ADDR_TX_COUNT                = 12'h03c,
-    ADDR_RX_COUNT                = 12'h040,
-    ADDR_GT_NOT_READY_0_COUNT    = 12'h044,
-    ADDR_GT_NOT_READY_1_COUNT    = 12'h048,
-    ADDR_GT_NOT_READY_2_COUNT    = 12'h04c,
-    ADDR_GT_NOT_READY_3_COUNT    = 12'h050,
-    ADDR_LINE_DOWN_0_COUNT       = 12'h054,
-    ADDR_LINE_DOWN_1_COUNT       = 12'h058,
-    ADDR_LINE_DOWN_2_COUNT       = 12'h05c,
-    ADDR_LINE_DOWN_3_COUNT       = 12'h060,
-    ADDR_PLL_NOT_LOCKED_COUNT    = 12'h064,
-    ADDR_MMCM_NOT_LOCKED_COUNT   = 12'h068,
-    ADDR_HARD_ERR_COUNT          = 12'h06c,
-    ADDR_SOFT_ERR_COUNT          = 12'h070,
-    ADDR_CHANNEL_DOWN_COUNT      = 12'h074,
+    ADDR_NFC_LATENCY_COUNT       = 12'h03c,
+    ADDR_TX_COUNT                = 12'h040,
+    ADDR_RX_COUNT                = 12'h044,
+    ADDR_GT_NOT_READY_0_COUNT    = 12'h048,
+    ADDR_GT_NOT_READY_1_COUNT    = 12'h04c,
+    ADDR_GT_NOT_READY_2_COUNT    = 12'h050,
+    ADDR_GT_NOT_READY_3_COUNT    = 12'h054,
+    ADDR_LINE_DOWN_0_COUNT       = 12'h058,
+    ADDR_LINE_DOWN_1_COUNT       = 12'h05c,
+    ADDR_LINE_DOWN_2_COUNT       = 12'h060,
+    ADDR_LINE_DOWN_3_COUNT       = 12'h064,
+    ADDR_PLL_NOT_LOCKED_COUNT    = 12'h068,
+    ADDR_MMCM_NOT_LOCKED_COUNT   = 12'h06c,
+    ADDR_HARD_ERR_COUNT          = 12'h070,
+    ADDR_SOFT_ERR_COUNT          = 12'h074,
+    ADDR_CHANNEL_DOWN_COUNT      = 12'h078,
 `ifdef USE_FRAMING
-    ADDR_FRAMES_RECEIVED         = 12'h078,
-    ADDR_FRAMES_WITH_ERRORS      = 12'h07c,
+    ADDR_FRAMES_RECEIVED         = 12'h07c,
+    ADDR_FRAMES_WITH_ERRORS      = 12'h080,
 `endif
     
     // registers write state machine
@@ -314,6 +296,9 @@ localparam
                 end
                 ADDR_NFC_EMPTY_TRIGGER_COUNT: begin
                     rdata <= nfc_empty_trigger_count;
+                end
+                ADDR_NFC_LATENCY_COUNT: begin
+                    rdata <= nfc_latency_count;
                 end
                 ADDR_TX_COUNT: begin
                     rdata <= tx_count;

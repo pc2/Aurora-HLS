@@ -121,18 +121,16 @@ int main(int argc, char *argv[])
                 if (world_rank == 0) {
                     std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
                 }
+                aurora.reset_counter();
                 aurora.print_fifo_status();
+                MPI_Barrier(MPI_COMM_WORLD);        
                 issue.start(); 
 
                 std::this_thread::sleep_for(std::chrono::seconds(10));
-                if (aurora.has_framing())
-                {
-                    std::cout << "Frames received before starting dump kernel: " << aurora.get_frames_received() << std::endl;
-                }
+                std::cout << "Receives before starting dump kernel: " << aurora.get_nfc_latency_count() << std::endl;
                 aurora.print_fifo_status();
             }
             MPI_Barrier(MPI_COMM_WORLD);        
-
             
             dump.start();
 
