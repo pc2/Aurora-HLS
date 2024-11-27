@@ -25,7 +25,7 @@ module aurora_hls_nfc_tb();
     wire s_axi_nfc_tvalid;
     wire [15:0] s_axi_nfc_tdata;
     reg rx_tvalid;
-    wire [31:0] full_trigger_count, empty_trigger_count;
+    wire [31:0] full_trigger_count, empty_trigger_count, latency_count;
 
     aurora_hls_nfc dut (
         .clk(clk),
@@ -37,7 +37,8 @@ module aurora_hls_nfc_tb();
         .s_axi_nfc_tdata(s_axi_nfc_tdata),
         .rx_tvalid(rx_tvalid),
         .full_trigger_count(full_trigger_count),
-        .empty_trigger_count(empty_trigger_count)
+        .empty_trigger_count(empty_trigger_count),
+        .latency_count(latency_count)
     );
 
     initial begin
@@ -54,6 +55,7 @@ module aurora_hls_nfc_tb();
         $monitor("s_axi_nfc_tdata = %d", s_axi_nfc_tdata);
         $monitor("full_trigger_count = %d", full_trigger_count);
         $monitor("empty_trigger_count = %d", empty_trigger_count);
+        $monitor("latency_count = %d", latency_count);
 
         errors = 4'h0;
 
@@ -88,11 +90,17 @@ module aurora_hls_nfc_tb();
         end
 
         s_axi_nfc_tready = 1'b1;
+        rx_tvalid = 1'b1;
         repeat (20) @(posedge clk);
         fifo_rx_prog_full = 1'b0;
         repeat (5) @(posedge clk);
         fifo_rx_prog_empty = 1'b1;
         repeat (2) @(posedge clk);
+
+        if (latency_count != 20) begin
+            $error(1, "latency counting not correct"); 
+            errors = errors + 1;
+        end
 
         if (s_axi_nfc_tvalid != 1'b1 || s_axi_nfc_tdata != 16'h0000) begin
             $error(1, "no xon signal");

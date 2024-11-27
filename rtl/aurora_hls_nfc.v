@@ -21,11 +21,13 @@ module aurora_hls_nfc (
     input wire  clk,
     input wire  fifo_rx_prog_full,
     input wire  fifo_rx_prog_empty,
+    input wire  rx_tvalid,
     input wire  s_axi_nfc_tready,
     output reg  s_axi_nfc_tvalid,
     output reg [0:15] s_axi_nfc_tdata,
     output reg [31:0] full_trigger_count,
-    output reg [31:0] empty_trigger_count
+    output reg [31:0] empty_trigger_count,
+    output reg [31:0] latency_count
 );
 
 localparam empty = 3'b000;
@@ -59,6 +61,7 @@ always @ (posedge clk) begin
         end
         empty_trigger_count <= 0;
         full_trigger_count <= 0;
+        latency_count <= 0;
     end
     empty_triggered: begin
         s_axi_nfc_tdata <= nfc_xon;
@@ -87,11 +90,15 @@ always @ (posedge clk) begin
         if (s_axi_nfc_tready) begin
             s_axi_nfc_tvalid <= 1'b0;
             next_state = full;
+            latency_count <= 0;
         end
     end
     full: begin
         if (!fifo_rx_prog_full) begin
             next_state = idle;
+        end
+        if (rx_tvalid) begin
+            latency_count <= latency_count + 1;
         end
     end
     idle: begin
