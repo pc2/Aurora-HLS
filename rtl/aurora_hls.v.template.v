@@ -653,21 +653,25 @@ xpm_cdc_array_single #(.WIDTH(32)) frames_with_errors_sync (
 
 wire [31:0] nfc_full_trigger_count_u;
 wire [31:0] nfc_empty_trigger_count_u; 
+wire [31:0] nfc_latency_count_u;
 
 aurora_hls_nfc aurora_hls_nfc_0 (
     .rst_n                  (ap_rst_n_u),
     .clk                    (user_clk),
     .fifo_rx_prog_full      (fifo_rx_prog_full_u),
     .fifo_rx_prog_empty     (fifo_rx_prog_empty_u),
+    .rx_tvalid              (m_axi_rx_tvalid_u),
     .s_axi_nfc_tready       (s_axi_nfc_tready_u),
     .s_axi_nfc_tvalid       (s_axi_nfc_tvalid_u),
     .s_axi_nfc_tdata        (s_axi_nfc_tdata_u),
     .full_trigger_count     (nfc_full_trigger_count_u),
-    .empty_trigger_count    (nfc_empty_trigger_count_u)
+    .empty_trigger_count    (nfc_empty_trigger_count_u),
+    .latency_count          (nfc_latency_count_u)
 );
 
 wire [31:0] nfc_full_trigger_count;
 wire [31:0] nfc_empty_trigger_count;
+wire [31:0] nfc_latency_count;
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_0 (
     .src_in(nfc_full_trigger_count_u),
@@ -681,6 +685,13 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_1 (
     .src_clk(user_clk),
     .dest_clk(ap_clk),
     .dest_out(nfc_empty_trigger_count)
+);
+
+xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_2 (
+    .src_in(nfc_latency_count_u),
+    .src_clk(user_clk),
+    .dest_clk(ap_clk),
+    .dest_out(nfc_latency_count)
 );
 
 wire [21:0] configuration;
@@ -734,6 +745,7 @@ aurora_hls_control_s_axi axi_control_slave (
   .nfc_empty_trigger_count  (nfc_empty_trigger_count),
   .tx_count                 (tx_count),
   .rx_count                 (rx_count),
+  .nfc_latency_count        (nfc_latency_count),
 `ifdef USE_FRAMING
   .frames_received          (frames_received),
   .frames_with_errors       (frames_with_errors),
