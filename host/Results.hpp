@@ -13,6 +13,7 @@ public:
     std::vector<uint32_t> local_fifo_tx_overflow_count;
     std::vector<uint32_t> local_nfc_full_trigger_count;
     std::vector<uint32_t> local_nfc_empty_trigger_count;
+    std::vector<uint32_t> local_nfc_latency_count;
     std::vector<uint32_t> local_tx_count;
     std::vector<uint32_t> local_rx_count;
     std::vector<uint32_t> local_gt_not_ready_0_count;
@@ -43,6 +44,7 @@ public:
     std::vector<uint32_t> total_fifo_tx_overflow_count;
     std::vector<uint32_t> total_nfc_full_trigger_count;
     std::vector<uint32_t> total_nfc_empty_trigger_count;
+    std::vector<uint32_t> total_nfc_latency_count;
     std::vector<uint32_t> total_tx_count;
     std::vector<uint32_t> total_rx_count;
     std::vector<uint32_t> total_gt_not_ready_0_count;
@@ -72,6 +74,7 @@ public:
         local_fifo_tx_overflow_count.resize(config.repetitions);
         local_nfc_full_trigger_count.resize(config.repetitions);
         local_nfc_empty_trigger_count.resize(config.repetitions);
+        local_nfc_latency_count.resize(config.repetitions);
         local_errors.resize(config.repetitions);
         local_frames_received.resize(config.repetitions);
         local_frames_with_errors.resize(config.repetitions);
@@ -111,6 +114,7 @@ public:
             local_fifo_tx_overflow_count[repetition] = aurora.get_fifo_tx_overflow_count();
             local_nfc_full_trigger_count[repetition] = aurora.get_nfc_full_trigger_count();
             local_nfc_empty_trigger_count[repetition] = aurora.get_nfc_empty_trigger_count();
+            local_nfc_latency_count[repetition] = aurora.get_nfc_latency_count();
 
             local_tx_count[repetition] = aurora.get_tx_count();
             local_rx_count[repetition] = aurora.get_rx_count();
@@ -160,6 +164,9 @@ public:
 
         total_nfc_empty_trigger_count.resize(config.repetitions * world_size);
         MPI_Gather(local_nfc_empty_trigger_count.data(), config.repetitions, MPI_UNSIGNED, total_nfc_empty_trigger_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+        total_nfc_latency_count.resize(config.repetitions * world_size);
+        MPI_Gather(local_nfc_latency_count.data(), config.repetitions, MPI_UNSIGNED, total_nfc_latency_count.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
         total_errors.resize(config.repetitions * world_size);
         MPI_Gather(local_errors.data(), config.repetitions, MPI_UNSIGNED, total_errors.data(), config.repetitions, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -293,21 +300,29 @@ public:
 
     void print_results()
     {
-        std::cout << std::setw(34) << "Latency (s)"
+        std::cout << std::setw(24) << "Config"
+                  << std::setw(36) << "Latency (s)"
                   << std::setw(36) << "Throughput (Gbit/s)"
+                  << std::setw(36) << "Counts per iteration"
+                  << std::setw(36) << "NFC"
                   << std::endl
-                  << std::setw(10) << "Bytes"
+                  << std::setw(12) << "Repetition"
+                  << std::setw(12) << "Iterations"
+                  << std::setw(12) << "Bytes"
                   << std::setw(12) << "Min."
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
                   << std::setw(12) << "Min."
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
-                  << std::setw(12) << "TX Count"
-                  << std::setw(12) << "RX Count"
-                  << std::setw(12) << "Frame Count"
+                  << std::setw(12) << "TX"
+                  << std::setw(12) << "RX"
+                  << std::setw(12) << "Frames"
+                  << std::setw(12) << "Triggered"
+                  << std::setw(12) << "Latency"
+                  << std::setw(12) << "TX Stalls"
                   << std::endl
-                  << std::setw(118) << std::setfill('-') << "-"
+                  << std::setw(178) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -319,6 +334,9 @@ public:
             uint64_t tx_count_sum = 0;
             uint64_t rx_count_sum = 0;
             uint64_t frame_count_sum = 0;
+            uint64_t nfc_full_triggered_sum = 0;
+            uint64_t nfc_latency_count_sum = 0;
+            uint64_t fifo_tx_stalls_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
                 latency_sum += latency;
@@ -332,9 +350,14 @@ public:
                 tx_count_sum += total_tx_count[i * config.repetitions + r];
                 rx_count_sum += total_rx_count[i * config.repetitions + r];
                 frame_count_sum += total_frames_received[i * config.repetitions + r];
+                nfc_full_triggered_sum += total_nfc_full_trigger_count[i * config.repetitions + r];
+                nfc_latency_count_sum += total_nfc_latency_count[i * config.repetitions + r];
+                fifo_tx_stalls_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
-            std::cout << std::setw(10) << config.message_sizes[r]
+            std::cout << std::setw(12) << r
+                      << std::setw(12) << config.iterations_per_message[r] * world_size
+                      << std::setw(12) << config.message_sizes[r]
                       << std::setw(12) << latency_min
                       << std::setw(12) << latency_avg
                       << std::setw(12) << latency_max
@@ -344,6 +367,9 @@ public:
                       << std::setw(12) << tx_count_sum / config.iterations_per_message[r] / world_size
                       << std::setw(12) << rx_count_sum / config.iterations_per_message[r] / world_size
                       << std::setw(12) << frame_count_sum / config.iterations_per_message[r] / world_size
+                      << std::setw(12) << nfc_full_triggered_sum
+                      << std::setw(12) << nfc_latency_count_sum
+                      << std::setw(12) << fifo_tx_stalls_sum
                       << std::endl;
         }
     }
@@ -356,9 +382,7 @@ public:
                   << std::setw(12) << "Bytes"
                   << std::setw(12) << "Frames"
                   << std::setw(12) << "FIFO RX"
-                  << std::setw(12) << "FIFO TX"
                   << std::setw(12) << "NFC On"
-                  << std::setw(12) << "NFC Off"
                   << std::setw(12) << "GT 0"
                   << std::setw(12) << "GT 1"
                   << std::setw(12) << "GT 2"
@@ -373,7 +397,7 @@ public:
                   << std::setw(12) << "Soft err"
                   << std::setw(12) << "Channel"
                   << std::endl
-                  << std::setw(252) << std::setfill('-') << "-"
+                  << std::setw(228) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -382,11 +406,8 @@ public:
             uint32_t frame_errors_sum = 0;
             uint32_t status_errors_sum = 0;
             uint32_t fifo_rx_errors_sum = 0;
-            uint32_t fifo_tx_errors_sum = 0;
             uint32_t nfc_full_trigger_sum = 0;
             uint32_t nfc_empty_trigger_sum = 0;
-            uint32_t tx_count_sum = 0;
-            uint32_t rx_count_sum = 0;
             uint32_t gt_not_ready_0_sum = 0;
             uint32_t gt_not_ready_1_sum = 0;
             uint32_t gt_not_ready_2_sum = 0;
@@ -407,11 +428,8 @@ public:
                 byte_errors_sum += total_errors[i * config.repetitions + r];
                 frame_errors_sum += total_frames_with_errors[i * config.repetitions + r];
                 fifo_rx_errors_sum += total_fifo_rx_overflow_count[i * config.repetitions + r];
-                fifo_tx_errors_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
                 nfc_full_trigger_sum += total_nfc_full_trigger_count[i * config.repetitions + r];
                 nfc_empty_trigger_sum += total_nfc_empty_trigger_count[i * config.repetitions + r];
-                tx_count_sum += total_tx_count[i * config.repetitions + r];
-                rx_count_sum += total_rx_count[i * config.repetitions + r];
                 gt_not_ready_0_sum += total_gt_not_ready_0_count[i * config.repetitions + r];
                 gt_not_ready_1_sum += total_gt_not_ready_1_count[i * config.repetitions + r];
                 gt_not_ready_2_sum += total_gt_not_ready_2_count[i * config.repetitions + r];
@@ -432,9 +450,7 @@ public:
                       << std::setw(12) << frame_errors_sum
                       << std::setw(12) << status_errors_sum
                       << std::setw(12) << fifo_rx_errors_sum
-                      << std::setw(12) << fifo_tx_errors_sum
-                      << std::setw(12) << nfc_full_trigger_sum
-                      << std::setw(12) << nfc_empty_trigger_sum
+                      << std::setw(12) << nfc_full_trigger_sum - nfc_empty_trigger_sum
                       << std::setw(12) << gt_not_ready_0_sum
                       << std::setw(12) << gt_not_ready_1_sum
                       << std::setw(12) << gt_not_ready_2_sum
@@ -514,6 +530,7 @@ public:
                    << total_fifo_tx_overflow_count[core * config.repetitions + r] << ","
                    << total_nfc_full_trigger_count[core * config.repetitions + r] << ","
                    << total_nfc_empty_trigger_count[core * config.repetitions + r] << ","
+                   << total_nfc_latency_count[core * config.repetitions + r] << ","
                    << total_errors[core * config.repetitions + r] << ","
                    << total_gt_not_ready_0_count[core * config.repetitions + r] << ","
                    << total_gt_not_ready_1_count[core * config.repetitions + r] << ","

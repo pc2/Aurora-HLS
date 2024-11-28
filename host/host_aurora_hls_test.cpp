@@ -121,7 +121,6 @@ int main(int argc, char *argv[])
                 if (world_rank == 0) {
                     std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
                 }
-                aurora.reset_counter();
                 aurora.print_fifo_status();
                 MPI_Barrier(MPI_COMM_WORLD);        
                 issue.start(); 
