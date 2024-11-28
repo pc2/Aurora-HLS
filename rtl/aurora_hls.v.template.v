@@ -486,6 +486,7 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .clk_u                      (user_clk),
     .aurora_status              (aurora_status_u),
     .fifo_rx_almost_full        (fifo_rx_almost_full_u),
+    .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
     .gt_not_ready_0_count       (gt_not_ready_0_count_u),
     .gt_not_ready_1_count       (gt_not_ready_1_count_u),
     .gt_not_ready_2_count       (gt_not_ready_2_count_u),
@@ -499,7 +500,12 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .hard_err_count             (hard_err_count_u),
     .soft_err_count             (soft_err_count_u),
     .channel_down_count         (channel_down_count_u),
-    .fifo_rx_overflow_count     (fifo_rx_overflow_count_u),
+`ifdef USE_FRAMING
+    .crc_valid                  (crc_valid_u),
+    .crc_pass_fail_n            (crc_pass_fail_n_u),
+    .frames_received            (frames_received_u),
+    .frames_with_errors         (frames_with_errors_u),
+`endif
     .rst                        (monitor_reset),
     .clk                        (ap_clk),
     .tx_tvalid                  (tx_axis_tvalid),
@@ -508,12 +514,6 @@ aurora_hls_monitor aurora_hls_monitor_0 (
     .rx_tready                  (rx_axis_tready),
     .fifo_tx_almost_full        (fifo_tx_almost_full),
     .fifo_tx_overflow_count     (fifo_tx_overflow_count),
-`ifdef USE_FRAMING
-    .crc_valid                  (crc_valid_u),
-    .crc_pass_fail_n            (crc_pass_fail_n_u),
-    .frames_received            (frames_received_u),
-    .frames_with_errors         (frames_with_errors_u),
-`endif
     .tx_count                   (tx_count),
     .rx_count                   (rx_count)
 );
@@ -657,6 +657,7 @@ wire [31:0] nfc_latency_count_u;
 
 aurora_hls_nfc aurora_hls_nfc_0 (
     .rst_n                  (ap_rst_n_u),
+    .counter_reset          (host_monitor_reset_u),
     .clk                    (user_clk),
     .fifo_rx_prog_full      (fifo_rx_prog_full_u),
     .fifo_rx_prog_empty     (fifo_rx_prog_empty_u),

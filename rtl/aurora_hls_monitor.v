@@ -35,7 +35,6 @@ module aurora_hls_monitor(
     output reg [31:0] hard_err_count,
     output reg [31:0] soft_err_count,
     output reg [31:0] channel_down_count,
-    output reg [31:0] fifo_tx_overflow_count,
 `ifdef USE_FRAMING
     input wire crc_valid,
     input wire crc_pass_fail_n,
@@ -49,6 +48,7 @@ module aurora_hls_monitor(
     input wire tx_tready,
     input wire rx_tvalid,
     input wire rx_tready,
+    output reg [31:0] fifo_tx_overflow_count,
     output reg [31:0] tx_count,
     output reg [31:0] rx_count
 );

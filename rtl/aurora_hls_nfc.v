@@ -18,6 +18,7 @@
 
 module aurora_hls_nfc (
     input wire  rst_n,
+    input wire  counter_reset,
     input wire  clk,
     input wire  fifo_rx_prog_full,
     input wire  fifo_rx_prog_empty,
@@ -90,7 +91,6 @@ always @ (posedge clk) begin
         if (s_axi_nfc_tready) begin
             s_axi_nfc_tvalid <= 1'b0;
             next_state = full;
-            latency_count <= 0;
         end
     end
     full: begin
@@ -116,6 +116,13 @@ always @ (posedge clk) begin
     end else begin
         current_state <= next_state;
     end
+
+    if (counter_reset) begin
+        empty_trigger_count <= 0;
+        full_trigger_count <= 0;
+        latency_count <= 0;
+    end
+
 end
 
 endmodule

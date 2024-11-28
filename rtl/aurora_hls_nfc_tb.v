@@ -18,6 +18,7 @@
 
 module aurora_hls_nfc_tb();
     reg rst_n;
+    reg counter_reset;
     reg clk;
     reg fifo_rx_prog_full;
     reg fifo_rx_prog_empty;
@@ -30,6 +31,7 @@ module aurora_hls_nfc_tb();
     aurora_hls_nfc dut (
         .clk(clk),
         .rst_n(rst_n),
+        .counter_reset(counter_reset),
         .fifo_rx_prog_full(fifo_rx_prog_full),
         .fifo_rx_prog_empty(fifo_rx_prog_empty),
         .s_axi_nfc_tready(s_axi_nfc_tready),
@@ -62,6 +64,7 @@ module aurora_hls_nfc_tb();
         fifo_rx_prog_full = 1'b0;
         fifo_rx_prog_empty = 1'b0;
         s_axi_nfc_tready = 1'b0;
+        counter_reset = 1'b0;
         rst_n = 1'b0;
         repeat (2) @(posedge clk);
 
@@ -107,7 +110,7 @@ module aurora_hls_nfc_tb();
             errors = errors + 1;
         end
 
-        if (full_trigger_count != 1 && empty_trigger_count != 1) begin
+        if (full_trigger_count != 1 || empty_trigger_count != 1) begin
             $error(1, "empty trigger counting not correct");
             errors = errors + 1;
         end
@@ -115,6 +118,13 @@ module aurora_hls_nfc_tb();
         repeat (4) @(posedge clk);
         fifo_rx_prog_empty = 1'b0;
 
+        counter_reset = 1'b1;
+        @(posedge clk);
+
+        if (full_trigger_count != 0 || empty_trigger_count != 0 || latency_count != 0) begin
+            $error(1, "counter reset not working");
+            errors = errors + 1;
+        end
     end
  
 endmodule
