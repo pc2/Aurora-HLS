@@ -300,29 +300,31 @@ public:
 
     void print_results()
     {
-        std::cout << std::setw(24) << "Config"
-                  << std::setw(36) << "Latency (s)"
-                  << std::setw(36) << "Throughput (Gbit/s)"
-                  << std::setw(36) << "Counts per iteration"
-                  << std::setw(36) << "NFC"
+        std::cout << std::setw(36) << "Config" << std::setw(25) << "|"
+                  << std::setw(24) << "Latency (s)" << std::setw(12) << "|"
+                  << std::setw(27) << "Throughput (Gbit/s)" << std::setw(9) << "|"
+                  << std::setw(27) << "Counts per iteration" << std::setw(9) << "|"
+                  << std::setw(24) << "Flow Control"
                   << std::endl
                   << std::setw(12) << "Repetition"
+                  << std::setw(12) << "Ranks"
                   << std::setw(12) << "Iterations"
+                  << std::setw(12) << "Frame Size"
                   << std::setw(12) << "Bytes"
-                  << std::setw(12) << "Min."
+                  << "|" << std::setw(11) << "Min."
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
-                  << std::setw(12) << "Min."
+                  << "|" << std::setw(11) << "Min."
                   << std::setw(12) << "Avg."
                   << std::setw(12) << "Max."
-                  << std::setw(12) << "TX"
+                  << "|" << std::setw(11) << "TX"
                   << std::setw(12) << "RX"
                   << std::setw(12) << "Frames"
-                  << std::setw(12) << "Triggered"
+                  << "|" << std::setw(11) << "Triggered"
                   << std::setw(12) << "Latency"
                   << std::setw(12) << "TX Stalls"
                   << std::endl
-                  << std::setw(178) << std::setfill('-') << "-"
+                  << std::setw(204) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -356,7 +358,9 @@ public:
             }
             double latency_avg = latency_sum / world_size;
             std::cout << std::setw(12) << r
-                      << std::setw(12) << config.iterations_per_message[r] * world_size
+                      << std::setw(12) << world_size
+                      << std::setw(12) << config.iterations_per_message[r]
+                      << std::setw(12) << config.frame_size
                       << std::setw(12) << config.message_sizes[r]
                       << std::setw(12) << latency_min
                       << std::setw(12) << latency_avg
@@ -377,12 +381,13 @@ public:
     void print_errors()
     {
         std::cout << std::endl 
+                  << std::setw(12) << "Repetition"
                   << std::setw(12) << "Bytes"
                   << std::setw(12) << "Failed"
                   << std::setw(12) << "Bytes"
                   << std::setw(12) << "Frames"
                   << std::setw(12) << "FIFO RX"
-                  << std::setw(12) << "NFC On"
+                  << std::setw(12) << "NFC"
                   << std::setw(12) << "GT 0"
                   << std::setw(12) << "GT 1"
                   << std::setw(12) << "GT 2"
@@ -397,7 +402,7 @@ public:
                   << std::setw(12) << "Soft err"
                   << std::setw(12) << "Channel"
                   << std::endl
-                  << std::setw(228) << std::setfill('-') << "-"
+                  << std::setw(240) << std::setfill('-') << "-"
                   << std::endl << std::setfill(' ');
 
         for (uint32_t r = 0; r < config.repetitions; r++) {
@@ -445,7 +450,8 @@ public:
                 channel_down_sum += total_channel_down_count[i * config.repetitions + r];
 
             }
-            std::cout << std::setw(12) << failed_transmissions_sum
+            std::cout << std::setw(12) << r
+                      << std::setw(12) << failed_transmissions_sum
                       << std::setw(12) << byte_errors_sum
                       << std::setw(12) << frame_errors_sum
                       << std::setw(12) << status_errors_sum
