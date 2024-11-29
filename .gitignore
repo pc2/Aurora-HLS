@@ -27,6 +27,7 @@ xsim.dir
 *.ltx
 *.csv
 !eval/*.csv
+eval/*.pdf
 eval/.ipynb_checkpoints
 *.protoinst
 *.vcd
