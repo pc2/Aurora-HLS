@@ -86,6 +86,7 @@ build:host:2.14:
 build:host:2.15:
   stage: build
   script:
+    - ml fpga/xilinx/xrt/2.15
     - make host
   artifacts:
     paths:
@@ -105,6 +106,7 @@ build:host:2.16:
 build:emulation_xclbin:
   stage: build
   script:
+    - ml fpga/xilinx/xrt/2.15
     - make xclbin TARGET=sw_emu
   artifacts:
     paths:
@@ -154,6 +156,7 @@ emu:xrt:
     - build:emulation_xclbin
   needs: ["build:emulation_xclbin", "build:host:2.15"]
   script:
+    - ml fpga/xilinx/xrt/2.15
     - env XCL_EMULATION_MODE=sw_emu srun -n 2 ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -m 1 -r 2 -i 10
 
 emu:hlslib_test:
@@ -182,7 +185,7 @@ synth:streaming:64:2.14:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
     - ml fpga/xilinx/xrt/2.14
-    - make xclbin USE_FRAMING=0
+    - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
@@ -197,7 +200,7 @@ synth:framing:64:2.14:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
     - ml fpga/xilinx/xrt/2.14
-    - make xclbin USE_FRAMING=1
+    - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
   only:
     - web 
@@ -211,7 +214,8 @@ synth:streaming:64:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    - make xclbin USE_FRAMING=0
+    - ml fpga/xilinx/xrt/2.15
+    - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
@@ -225,7 +229,8 @@ synth:framing:64:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
-    - make xclbin USE_FRAMING=1
+    - ml fpga/xilinx/xrt/2.15
+    - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
   only:
     - web 
@@ -240,7 +245,7 @@ synth:streaming:64:2.16:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
     - ml fpga/xilinx/xrt/2.16
-    - make xclbin USE_FRAMING=0
+    - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
@@ -255,7 +260,7 @@ synth:framing:64:2.16:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
     - ml fpga/xilinx/xrt/2.16
-    - make xclbin USE_FRAMING=1
+    - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
   only:
     - web 
@@ -299,6 +304,7 @@ synth:streaming:32:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
+    - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=32
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_32.xclbin
   only:
@@ -313,6 +319,7 @@ synth:framing:32:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SYNTH_SCHEDULER_PARAMETERS
   script:
+    - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=32
     - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_32.xclbin
   only:
@@ -392,6 +399,7 @@ run:N1:streaming:64:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
+    - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin
   only:
     - web 
@@ -487,6 +495,7 @@ run:nfc_test:streaming:64:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
+    - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n -l
   only:
     - web 
@@ -576,6 +585,7 @@ run:N1:streaming:32:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
+    - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin
   only:
     - web 
@@ -671,6 +681,7 @@ run:nfc_test:streaming:32:2.15:
   variables:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
+    - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
   only:
     - web 
@@ -747,6 +758,7 @@ benchmark:2.15:
   variables:
     SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_15
   script:
+    - ml fpga/xilinx/xrt/2.15
     - ./scripts/run_N1_over_all.sh -l -i 10
   only:
     - web 
