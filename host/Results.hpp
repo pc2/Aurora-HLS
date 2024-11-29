@@ -102,8 +102,8 @@ public:
 
         if (!emulation) {
             local_aurora_config = aurora.get_configuration();
+            aurora.reset_counter();
         }
-        aurora.reset_counter();
     }
 
     void update_counter(uint32_t repetition)
