@@ -67,11 +67,9 @@ When only the size in bytes and the width are given, the depth will be calculate
 
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
-The distance between full and programmable full should be large enough to catch the values, which are still transmitted, so no transmissions are lost. The distance between empty and programmable empty should be large enough, so the FIFO does not run empty while waiting for receiving new data. In the test setup on Noctua2 there are a maximum of 150 transmissions, which corresponds to a FIFO depth of 75. If you want to verify this, you can use the test case explained in "Test the example", which checks how many transmission are occuring, after stopping the transmision.
+The number of times the NFC module gets activated and deactivated is counted, as well as the number of transmissions occuring after stopping the transmission. This number needs to fit in the FIFO between the programmable full threshold and completely full. The full signal of the RX fifo is monitored and overruns are counted, which are happening, when there is not enough space, which leads to data loss. The counters can be read from the ip directly and can be used to tweak the configuration.
 
-Experiments on our infrastrucutre have shown, that a FIFO size of 65536 bytes is necessary to prevent overflows on the receiving side, which would lead to data loss.
-
-The number of times the NFC module gets activated and deactivated is monitored and reported in the final output of the test run. Also the full signal of the RX fifo is monitored and overruns are reported, because they are leading to fatal errors. The numbers can also be read from the ip directly.
+Experiments on our infrastrucutre have shown, that the size of the FIFO between full and programmable full needs to be 16384 bytes, totalling 65536 bytes for the full FIFO. This may need to be adjusted with longer connections. The total size may be decreased, with the risk of performance loss. Either caused by too fast switching between on and off and because of less space between programmable full and programmable empty, or by stalling the transmission because of too few space between empty and programmable empty. 
 
 ### Monitoring
 
@@ -149,9 +147,6 @@ if (aurora.has_framing()) {
 // get a print of the configuration of the core
 aurora.print_configuration();
 
-if (aurora.get_fifo_rx_overflow_count() > 0) {
-    // something went wrong
-}
 ```
 
 ```
@@ -174,7 +169,7 @@ aurora.reset_counter();
 
 ### Testbenches
 
-The verilog modules for flow control, monitoring, CRC frame counting and for the configuration have testbenches, which can be executed with:
+The verilog modules for flow control, monitoring and for the configuration have testbenches, which can be executed with:
 
 ```
   make run_nfc_tb
@@ -216,20 +211,17 @@ The host application offers the following parameters
 -a use_ack          Enables the acknowledgement between every iteration in the kernel
 -t timeout_ms       The timeout used for waiting on a channel and on finish for the HLS kernels
 -o device_id_offset Offset for selecting the FPGA device id
--w wait             Wait for enter after loading the xclbin
 -s semaphore        Lock the results file with atomic rename before writing to it
 
 ```
 
-The default behavior is to just transmit the data according to the parameters and calculate and print the average throughput. The results for each repetition are also written to a csv file. An exemplary analysis of the data can be found in a [jupyter notebook](./eval/eval.ipynb)
-
-The -w flag is needed for using chipscope on this design. After loading the bitstream the execution stops and waits for a press on enter. This enables to setup the debug_hw server before the execution starts.
-
-There are two more special test cases. The first one is testing the flowcontrol by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
+The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. An exemplary analysis of the data can be found in a [jupyter notebook](./eval/eval.ipynb)
 
 When scaling this test to multiple nodes, the -s flag can used to guarantee that only one job is writing to results file at once. Beware that the file must exist, otherwise the application will wait forever on it.
 
 By default, the first two ranks will choose the device with index 0, going up with the next ranks. This can be changed with specifying an offset, for this selection procedure. This is useful, for example, when only one specific device needs to be tested.
+
+There are two more special test cases. The first one is testing the flow control by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
 
 ### Latency test
 
@@ -267,13 +259,13 @@ The second is the so-called latency test, which tests different message sizes wi
 
 ### Noctua2
 
-There are scripts available for running on the [Noctua 2](https://pc2.uni-paderborn.de/hpc-services/available-systems/noctua2) cluster. A tested set of modules can be loaded with the following command.
+There are scripts available for running on the [Noctua 2](https://pc2.uni-paderborn.de/hpc-services/available-systems/noctua2) cluster. The used set of modules can be loaded with the following command.
 
 ```
   source env.sh
 ```
 
-There is one script for simple synthesis and one for synthesing one bitstream with streaming and one with framing. Both bitstreams are needed for running [over all frame sizes](./scripts/run_N1_over_framesizes.sh).
+There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. Streaming and framing bitstreams are needed for running [over all frame sizes](./scripts/run_N1_over_framesizes.sh).
 
 For quick testing, there are two scripts, which do a simple run on either 3 or 6 FPGAs (1 or 2 nodes).
 
