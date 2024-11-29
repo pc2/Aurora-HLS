@@ -43,20 +43,20 @@ tb:nfc:
       - nfc_tb.vcd
       - nfc_tb.wdb
 
-tb:crc_counter:
+tb:monitor:
   stage: testbench
   script:
-    - make run_crc_counter_tb
+    - make run_monitor_tb
   only:
     changes:
-      - rtl/aurora_hls_crc_counter.v
-      - rtl/aurora_hls_crc_counter_tb.v
-      - tcl/run_crc_counter_tb.tcl
+      - rtl/aurora_hls_monitor.v
+      - rtl/aurora_hls_monitor_tb.v
+      - tcl/run_monitor_tb.tcl
       - .gitlab-ci.yml
   artifacts:
     paths:
-      - crc_counter_tb.vcd
-      - crc_counter_tb.wdb
+      - monitor_tb.vcd
+      - monitor_tb.wdb
 
 tb:configuration:
   stage: testbench
@@ -114,6 +114,7 @@ build:emulation_xclbin:
 build:hlslib_test:
   stage: build
   script:
+    - source emulation/env.sh
     - cd emulation/test
     - mkdir build
     - cd build
@@ -131,6 +132,7 @@ build:hlslib_test:
 build:hlslib_example:
   stage: build
   script:
+    - source emulation/env.sh
     - cd emulation/example
     - mkdir build
     - cd build
@@ -160,6 +162,7 @@ emu:hlslib_test:
     - build:hlslib_test
   needs: ["build:hlslib_test"]
   script:
+    - source emulation/env.sh
     - cd emulation/test/build
     - ./aurora_emu_test
 
@@ -169,6 +172,7 @@ emu:hlslib_example:
     - build:hlslib_example
   needs: ["build:hlslib_example", "emu:hlslib_test"]
   script:
+    - source emulation/env.sh
     - cd emulation/example/build
     - ./aurora_emu_example
 
@@ -185,7 +189,7 @@ synth:streaming:64:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.14:
   stage: synth
@@ -200,7 +204,7 @@ synth:framing:64:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:64:2.15:
   stage: synth
@@ -214,7 +218,7 @@ synth:streaming:64:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.15:
   stage: synth
@@ -228,7 +232,7 @@ synth:framing:64:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:64:2.16:
   stage: synth
@@ -243,7 +247,7 @@ synth:streaming:64:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.16:
   stage: synth
@@ -258,7 +262,7 @@ synth:framing:64:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_64.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.14:
   stage: synth
@@ -273,7 +277,7 @@ synth:streaming:32:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.14:
   stage: synth
@@ -288,7 +292,7 @@ synth:framing:32:2.14:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.15:
   stage: synth
@@ -302,7 +306,7 @@ synth:streaming:32:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.15:
   stage: synth
@@ -316,7 +320,7 @@ synth:framing:32:2.15:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.16:
   stage: synth
@@ -331,7 +335,7 @@ synth:streaming:32:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_0_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.16:
   stage: synth
@@ -346,7 +350,7 @@ synth:framing:32:2.16:
   artifacts:
     paths:
       - aurora_hls_test_hw_1_32.xclbin
-  needs: ["tb:configuration", "tb:crc_counter", "tb:nfc", "emu:xrt"]
+  needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 
 run:N1:streaming:64:2.14:
