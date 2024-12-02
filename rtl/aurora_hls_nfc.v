@@ -28,7 +28,7 @@ module aurora_hls_nfc (
     output reg [0:15] s_axi_nfc_tdata,
     output reg [31:0] full_trigger_count,
     output reg [31:0] empty_trigger_count,
-    output reg [31:0] latency_count
+    output reg [31:0] max_latency
 );
 
 localparam empty = 3'b000;
@@ -45,6 +45,8 @@ reg [2:0] current_state, next_state;
 // default big endian
 reg [0:15] nfc_xoff = 16'hffff;
 reg [0:15] nfc_xon = 16'h0000;
+
+reg [31:0] latency_count;
 
 always @ (posedge clk) begin
     case(current_state)
@@ -63,6 +65,7 @@ always @ (posedge clk) begin
         empty_trigger_count <= 0;
         full_trigger_count <= 0;
         latency_count <= 0;
+        max_latency <= 0;
     end
     empty_triggered: begin
         s_axi_nfc_tdata <= nfc_xon;
@@ -86,18 +89,24 @@ always @ (posedge clk) begin
         s_axi_nfc_tvalid <= 1'b1;
         next_state = full_transmit;
         full_trigger_count <= full_trigger_count + 1;
+        latency_count <= 0;
     end
     full_transmit: begin
         if (s_axi_nfc_tready) begin
             s_axi_nfc_tvalid <= 1'b0;
             next_state = full;
         end
+        latency_count <= latency_count + 1;
     end
     full: begin
         if (!fifo_rx_prog_full) begin
             next_state = idle;
+            if (latency_count > max_latency) begin
+                max_latency <= latency_count;
+            end
+            latency_count <= 0;
         end
-        if (rx_tvalid) begin
+        else if (rx_tvalid) begin
             latency_count <= latency_count + 1;
         end
     end
@@ -121,6 +130,7 @@ always @ (posedge clk) begin
         empty_trigger_count <= 0;
         full_trigger_count <= 0;
         latency_count <= 0;
+        max_latency <= 0;
     end
 
 end

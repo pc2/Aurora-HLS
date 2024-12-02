@@ -667,7 +667,7 @@ aurora_hls_nfc aurora_hls_nfc_0 (
     .s_axi_nfc_tdata        (s_axi_nfc_tdata_u),
     .full_trigger_count     (nfc_full_trigger_count_u),
     .empty_trigger_count    (nfc_empty_trigger_count_u),
-    .latency_count          (nfc_latency_count_u)
+    .max_latency            (nfc_latency_count_u)
 );
 
 wire [31:0] nfc_full_trigger_count;

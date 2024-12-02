@@ -337,7 +337,7 @@ public:
             uint64_t rx_count_sum = 0;
             uint64_t frame_count_sum = 0;
             uint64_t nfc_full_triggered_sum = 0;
-            uint64_t nfc_latency_count_sum = 0;
+            uint64_t nfc_max_latency = 0;
             uint64_t fifo_tx_stalls_sum = 0;
             for (int32_t i = 0; i < world_size; i++) {
                 double latency = total_transmission_times[i * config.repetitions + r] / config.iterations_per_message[r];
@@ -353,7 +353,9 @@ public:
                 rx_count_sum += total_rx_count[i * config.repetitions + r];
                 frame_count_sum += total_frames_received[i * config.repetitions + r];
                 nfc_full_triggered_sum += total_nfc_full_trigger_count[i * config.repetitions + r];
-                nfc_latency_count_sum += total_nfc_latency_count[i * config.repetitions + r];
+                if (total_nfc_latency_count[i * config.repetitions + r] > nfc_max_latency) {
+                    nfc_max_latency = total_nfc_latency_count[i * config.repetitions + r]; 
+                }
                 fifo_tx_stalls_sum += total_fifo_tx_overflow_count[i * config.repetitions + r];
             }
             double latency_avg = latency_sum / world_size;
@@ -372,7 +374,7 @@ public:
                       << std::setw(12) << rx_count_sum / config.iterations_per_message[r] / world_size
                       << std::setw(12) << frame_count_sum / config.iterations_per_message[r] / world_size
                       << std::setw(12) << nfc_full_triggered_sum
-                      << std::setw(12) << nfc_latency_count_sum
+                      << std::setw(12) << nfc_max_latency
                       << std::setw(12) << fifo_tx_stalls_sum
                       << std::endl;
         }
