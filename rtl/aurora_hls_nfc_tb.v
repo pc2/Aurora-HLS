@@ -26,7 +26,7 @@ module aurora_hls_nfc_tb();
     wire s_axi_nfc_tvalid;
     wire [15:0] s_axi_nfc_tdata;
     reg rx_tvalid;
-    wire [31:0] full_trigger_count, empty_trigger_count, latency_count;
+    wire [31:0] full_trigger_count, empty_trigger_count, max_latency;
 
     aurora_hls_nfc dut (
         .clk(clk),
@@ -40,7 +40,7 @@ module aurora_hls_nfc_tb();
         .rx_tvalid(rx_tvalid),
         .full_trigger_count(full_trigger_count),
         .empty_trigger_count(empty_trigger_count),
-        .latency_count(latency_count)
+        .max_latency(max_latency)
     );
 
     initial begin
@@ -57,7 +57,7 @@ module aurora_hls_nfc_tb();
         $monitor("s_axi_nfc_tdata = %d", s_axi_nfc_tdata);
         $monitor("full_trigger_count = %d", full_trigger_count);
         $monitor("empty_trigger_count = %d", empty_trigger_count);
-        $monitor("latency_count = %d", latency_count);
+        $monitor("max_latency = %d", max_latency);
 
         errors = 4'h0;
 
@@ -100,7 +100,7 @@ module aurora_hls_nfc_tb();
         fifo_rx_prog_empty = 1'b1;
         repeat (2) @(posedge clk);
 
-        if (latency_count != 20) begin
+        if (max_latency != 23) begin
             $error(1, "latency counting not correct"); 
             errors = errors + 1;
         end
@@ -117,11 +117,21 @@ module aurora_hls_nfc_tb();
 
         repeat (4) @(posedge clk);
         fifo_rx_prog_empty = 1'b0;
+        repeat (5) @(posedge clk);
+        fifo_rx_prog_full = 1'b1;
+        repeat (30) @(posedge clk);
+        fifo_rx_prog_full = 1'b0;
+        repeat (4) @(posedge clk);
+
+        if (max_latency != 28) begin
+            $error(1, "latency max counting not correct"); 
+            errors = errors + 1;
+        end
 
         counter_reset = 1'b1;
         @(posedge clk);
 
-        if (full_trigger_count != 0 || empty_trigger_count != 0 || latency_count != 0) begin
+        if (full_trigger_count != 0 || empty_trigger_count != 0 || max_latency != 0) begin
             $error(1, "counter reset not working");
             errors = errors + 1;
         end
