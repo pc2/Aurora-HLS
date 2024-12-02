@@ -25,6 +25,9 @@
 
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
+#define LOCAL_BYTES 4096
+#define LOCAL_CHUNKS (LOCAL_BYTES / DATA_WIDTH_BYTES)
+
 extern "C"
 {
     void issue(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_output,
@@ -35,12 +38,22 @@ extern "C"
                     bool ack_enable,
                     hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream)
     {
-        int chunks = (byte_size / DATA_WIDTH_BYTES) + ((byte_size % DATA_WIDTH_BYTES) != 0);
+        int chunks = byte_size / DATA_WIDTH_BYTES;
+
+        ap_uint<DATA_WIDTH> data_local[LOCAL_CHUNKS];
+
+        for (int i = 0; i < LOCAL_CHUNKS; i++) {
+            #pragma HLS PIPELINE II = 1
+            if ((i * DATA_WIDTH_BYTES) < byte_size) {
+                data_local[i] = data_input[i];
+            }
+        }
+
         for (unsigned int n = 0; n < iterations; n++) {
             for (int i = 0; i < chunks; i++) {
                 #pragma HLS PIPELINE II = 1
                 ap_axiu<DATA_WIDTH, 0, 0, 0> temp;
-                temp.data = data_input[i];
+                temp.data = i < LOCAL_CHUNKS ? data_local[i] : data_input[i];
                 if (frame_size != 0) {
                     temp.last = (((i + 1) % frame_size) == 0) || ((i + 1) == chunks);
                     temp.keep = -1;
