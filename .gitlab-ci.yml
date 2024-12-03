@@ -468,7 +468,7 @@ run:nfc_test:streaming:64:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -654,7 +654,7 @@ run:nfc_test:streaming:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -668,7 +668,7 @@ run:nfc_test:framing:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -682,7 +682,7 @@ run:nfc_test:streaming:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -696,7 +696,7 @@ run:nfc_test:framing:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -710,7 +710,7 @@ run:nfc_test:streaming:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -724,7 +724,7 @@ run:nfc_test:framing:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n
+    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
