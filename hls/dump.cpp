@@ -25,46 +25,63 @@
 
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
-#define LOCAL_BYTES 4096
-#define LOCAL_CHUNKS (LOCAL_BYTES / DATA_WIDTH_BYTES)
-
 extern "C"
 {
-    void dump (hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_input,
-                    ap_uint<DATA_WIDTH> *data_output,
-                    unsigned int byte_size,
-                    unsigned int iterations,
-                    bool ack_enable,
-                    hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream)
+    void dump_data(
+        unsigned int iterations,
+        unsigned int chunks,
+        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_input,
+        hls::stream<ap_uint<DATA_WIDTH>> &data_stream,
+        bool ack_enable,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
+    )
     {
-        int chunks = byte_size / DATA_WIDTH_BYTES;
-
-        ap_uint<DATA_WIDTH> data_local[LOCAL_CHUNKS];
-
-    iterations:
+    dump_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
-        read:
+        dump_chunks:
             for (int i = 0; i < chunks; i++) {
 #pragma HLS PIPELINE II = 1
-                ap_axiu<DATA_WIDTH, 0, 0, 0> temp = data_input.read();
-                if (i < LOCAL_CHUNKS) {
-                    data_local[i] = temp.data;
-                } else {
-                    data_output[i] = temp.data; 
-                }
+                data_stream.write(data_input.read().data);
             }
             if (ack_enable) {
                 ap_axiu<1, 0, 0, 0> ack;
                 ack_stream.write(ack);
             }
         }
+    }
 
-        for (int i = 0; i < LOCAL_CHUNKS; i++) {
-            #pragma HLS PIPELINE II = 1
-            if ((i * DATA_WIDTH_BYTES) < byte_size) {
-                data_output[i] = data_local[i];
+    void write_data(
+        unsigned int iterations,
+        unsigned int chunks,
+        hls::stream<ap_uint<DATA_WIDTH>> &data_stream,
+        ap_uint<DATA_WIDTH> *data_output
+    )
+    {
+    write_iterations:
+        for (unsigned int n = 0; n < iterations; n++) {
+        write_chunks:
+            for (int i = 0; i < chunks; i++) {
+#pragma HLS PIPELINE II = 1
+                data_output[i] = data_stream.read();
             }
         }
+    }
+
+    void dump(
+        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_input,
+        ap_uint<DATA_WIDTH> *data_output,
+        unsigned int byte_size,
+        unsigned int iterations,
+        bool ack_enable,
+        hls::stream<ap_axiu<1, 0, 0, 0>> &ack_stream
+    )
+    {
+#pragma HLS dataflow
+        int chunks = byte_size / DATA_WIDTH_BYTES;
+        hls::stream<ap_uint<DATA_WIDTH>> data_stream;
+
+        dump_data(iterations, chunks, data_input, data_stream, ack_enable, ack_stream);
+        write_data(iterations, chunks, data_stream, data_output);
     }
 }
 
