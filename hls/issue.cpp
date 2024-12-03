@@ -25,7 +25,7 @@
 
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
-#define STREAM_DEPTH 8192
+#define STREAM_DEPTH 256
 
 extern "C"
 {
@@ -34,8 +34,7 @@ extern "C"
         unsigned int chunks,
         ap_uint<DATA_WIDTH> *data_input,
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> &data_stream
-    )
-    {
+    ) {
     read_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
         read_chunks:
@@ -53,9 +52,8 @@ extern "C"
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> &data_stream,
         hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_output,
         bool ack_enabled,
-        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
-    )
-    {
+        hls::stream<ap_axiu<1, 0, 0, 0>> &ack_stream
+    ) {
     issue_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
         issue_chunks:
@@ -83,8 +81,7 @@ extern "C"
         unsigned int iterations,
         bool ack_enable,
         hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
-    )
-    {
+    ) {
 #pragma HLS dataflow
         unsigned int chunks = byte_size / DATA_WIDTH_BYTES;
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> data_stream;
