@@ -25,44 +25,69 @@
 
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
-#define LOCAL_BYTES 4096
-#define LOCAL_CHUNKS (LOCAL_BYTES / DATA_WIDTH_BYTES)
-
 extern "C"
 {
-    void issue(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_output,
-                    ap_uint<DATA_WIDTH> *data_input,
-                    unsigned int byte_size,
-                    unsigned int frame_size,
-                    unsigned int iterations,
-                    bool ack_enable,
-                    hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream)
+    void read_data(
+        unsigned int iterations,
+        unsigned int chunks,
+        ap_uint<DATA_WIDTH> *data_input,
+        hls::stream<ap_uint<DATA_WIDTH>> &data_stream
+    )
     {
-        int chunks = byte_size / DATA_WIDTH_BYTES;
-
-        ap_uint<DATA_WIDTH> data_local[LOCAL_CHUNKS];
-
-        for (int i = 0; i < LOCAL_CHUNKS; i++) {
-            #pragma HLS PIPELINE II = 1
-            if ((i * DATA_WIDTH_BYTES) < byte_size) {
-                data_local[i] = data_input[i];
+    read_iterations:
+        for (unsigned int n = 0; n < iterations; n++) {
+        read_chunks:
+            for (unsigned int i = 0; i < chunks; i++) {
+                #pragma HLS PIPELINE II = 1
+                data_stream.write(data_input[i]);
             }
         }
+    }
 
+    void issue_data(
+        unsigned int iterations,
+        unsigned int chunks,
+        unsigned int frame_size,
+        hls::stream<ap_uint<DATA_WIDTH>> &data_stream,
+        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_output,
+        bool ack_enabled,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
+    )
+    {
+    issue_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
-            for (int i = 0; i < chunks; i++) {
+        issue_chunks:
+            for (unsigned int i = 0; i < chunks; i++) {
                 #pragma HLS PIPELINE II = 1
                 ap_axiu<DATA_WIDTH, 0, 0, 0> temp;
-                temp.data = i < LOCAL_CHUNKS ? data_local[i] : data_input[i];
+                temp.data = data_stream.read();
                 if (frame_size != 0) {
                     temp.last = (((i + 1) % frame_size) == 0) || ((i + 1) == chunks);
                     temp.keep = -1;
                 }
                 data_output.write(temp);
             }
-            if (ack_enable) {
+            if (ack_enabled) {
                 ap_axiu<1, 0, 0, 0> ack = ack_stream.read();
             }
-        }    
+        }
+    }
+
+    void issue(
+        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_output,
+        ap_uint<DATA_WIDTH> *data_input,
+        unsigned int byte_size,
+        unsigned int frame_size,
+        unsigned int iterations,
+        bool ack_enable,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
+    )
+    {
+#pragma HLS dataflow
+        unsigned int chunks = byte_size / DATA_WIDTH_BYTES;
+        hls::stream<ap_uint<DATA_WIDTH>> data_stream;
+
+        read_data(iterations, chunks, data_input, data_stream);
+        issue_data(iterations, chunks, frame_size, data_stream, data_output, ack_enable, ack_stream);
     }
 }
