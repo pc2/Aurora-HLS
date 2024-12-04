@@ -81,7 +81,6 @@ build:host:2.14:
   artifacts:
     paths:
       - ./host_aurora_hls_test
-  needs: []
 
 build:host:2.15:
   stage: build
@@ -91,7 +90,6 @@ build:host:2.15:
   artifacts:
     paths:
       - ./host_aurora_hls_test
-  needs: []
 
 build:host:2.16:
   stage: build
@@ -101,7 +99,6 @@ build:host:2.16:
   artifacts:
     paths:
       - ./host_aurora_hls_test
-  needs: []
 
 build:emulation_xclbin:
   stage: build
@@ -111,7 +108,6 @@ build:emulation_xclbin:
   artifacts:
     paths:
       - ./aurora_hls_test_sw_emu.xclbin
-  needs: []
 
 build:hlslib_test:
   stage: build
@@ -129,7 +125,6 @@ build:hlslib_test:
   artifacts:
     paths:
       - emulation/test/build/aurora_emu_test
-  needs: []
 
 build:hlslib_example:
   stage: build
@@ -147,7 +142,6 @@ build:hlslib_example:
   artifacts:
     paths:
       - emulation/example/build/aurora_emu_example
-  needs: []
 
 emu:xrt:
   stage: emulation
