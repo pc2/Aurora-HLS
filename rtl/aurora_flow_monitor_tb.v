@@ -16,7 +16,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module aurora_hls_monitor_tb();
+module aurora_flow_monitor_tb();
     reg rst_u;
     reg clk_u;
     reg [12:0] aurora_status;
@@ -53,7 +53,7 @@ module aurora_hls_monitor_tb();
     wire [31:0] tx_count;
     wire [31:0] rx_count;
 
-    aurora_hls_monitor dut (
+    aurora_flow_monitor dut (
         .clk_u(clk_u),
         .rst_u(rst_u),
         .aurora_status(aurora_status),
@@ -102,7 +102,7 @@ module aurora_hls_monitor_tb();
 
     initial begin
         $dumpfile("monitor_tb.vcd");
-        $dumpvars(0, aurora_hls_monitor);
+        $dumpvars(0, aurora_flow_monitor);
         $monitor("gt_not_ready_0_count = %d", gt_not_ready_0_count);
         $monitor("gt_not_ready_1_count = %d", gt_not_ready_1_count);
         $monitor("gt_not_ready_2_count = %d", gt_not_ready_2_count);

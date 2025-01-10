@@ -16,9 +16,9 @@
 //
 
 `default_nettype none
-`include "aurora_hls_define.v"
+`include "aurora_flow_define.v"
 
-module aurora_hls_control_s_axi (
+module aurora_flow_control_s_axi (
     input wire          ACLK,
     input wire          ARESETn,
     // AXI signals

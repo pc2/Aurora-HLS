@@ -19,6 +19,6 @@ do
     for width in 32 64
     do
         srun -n 1 ./scripts/reset.sh
-        srun -n 6 -l ./host_aurora_hls_test -p aurora_hls_test_hw_${mode}_${width}.xclbin -f 64 $@
+        srun -n 6 -l ./host_aurora_flow_test -p aurora_flow_test_hw_${mode}_${width}.xclbin -f 64 $@
     done
 done

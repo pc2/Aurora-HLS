@@ -16,7 +16,7 @@ public:
     float mega_bytes = 256;
     uint32_t device_id_offset = 0;
     uint32_t override_bytes_num = 0;
-    std::string xclbin_file = "aurora_hls_test_hw.xclbin";
+    std::string xclbin_file = "aurora_flow_test_hw.xclbin";
     uint32_t repetitions = 1;
     uint32_t iterations = 1;
     uint32_t frame_size = 1;

@@ -16,7 +16,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module aurora_hls_nfc (
+module aurora_flow_nfc (
     input wire  rst_n,
     input wire  counter_reset,
     input wire  clk,

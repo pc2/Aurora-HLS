@@ -16,7 +16,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module aurora_hls_monitor(
+module aurora_flow_monitor(
     input wire rst_u,
     input wire clk_u,
     input wire [12:0] aurora_status,

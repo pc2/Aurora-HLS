@@ -18,12 +18,12 @@ You can build the packaged kernel with the following command:
     make aurora
 ```
 
-This provides a kernel for each QSFP port. Pay attention to the numbers, because of constraints issues when using the same kernel for both QSFP ports, we need a different kernel for each QSFP port. Link `aurora_hls_0.xo` with QSFP port 0 and `aurora_hls_1.xo` with QSFP port 1.
+This provides a kernel for each QSFP port. Pay attention to the numbers, because of constraints issues when using the same kernel for both QSFP ports, we need a different kernel for each QSFP port. Link `aurora_flow_0.xo` with QSFP port 0 and `aurora_flow_1.xo` with QSFP port 1.
 
 
 Each kernel has one AXI stream for sending and one for receiving data. Connect them in your link script with the application kernels.
 
-An example link config for U280 can be found [here](./aurora_hls_test_hw.cfg).
+An example link config for U280 can be found [here](./aurora_flow_test_hw.cfg).
 
 ### Framing
 
@@ -49,7 +49,7 @@ The FIFOs on the transceiving and on the receiving side can be configured manual
 The threshold signals on the receiving side are relevant for the flow control, the threshold signals on the transmitting side serve no functional purpose except for status reporting. When there is a larger FIFO needed, it is sufficient and cleaner to add a FIFO to the AXI connection on the link level.
 
 ```
-stream_connect=issue_1.data_output:aurora_hls_1.tx_axis:256
+stream_connect=issue_1.data_output:aurora_flow_1.tx_axis:256
 ```
 
 All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
@@ -203,7 +203,7 @@ The host application offers the following parameters
 ```
 -m megabytes        Specify the amount of data to be transmitted in megabytes.
 -b bytes            Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
--p path             Path to the bitstream file. Default is "aurora_hls_test_hw.xclbin"
+-p path             Path to the bitstream file. Default is "aurora_flow_test_hw.xclbin"
 -r repetitions      Number of repetitions of the test.
 -i iterations       Number of iterations of the test inside the kernel
 -f frame_size       The size of the frame in framing mode. The size is measured in multiples of the datawidth
@@ -228,7 +228,7 @@ There are two more special test cases. The first one is testing the flow control
 The second is the so-called latency test, which tests different message sizes with different iterations. Enabling the latency test with the -l flag also sets the use_ack parameter to true. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes and not smaller than the frame size is tested. The acknowledgement synchronizes between every iteration of the issue and dump kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
 
 ```
-./host_aurora_hls_test -l -i 20 -f 1
+./host_aurora_flow_test -l -i 20 -f 1
 
   Repetition       Bytes  Iterations
 ------------------------------------

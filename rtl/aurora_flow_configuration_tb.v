@@ -16,18 +16,18 @@
 `timescale 1ns/1ps
 `default_nettype none
 
-module aurora_hls_configuration_tb();
+module aurora_flow_configuration_tb();
     wire [21:0] configuration;
     wire [31:0] fifo_thresholds;
 
-    aurora_hls_configuration dut (
+    aurora_flow_configuration dut (
         .configuration(configuration),
         .fifo_thresholds(fifo_thresholds)
     );
 
     initial begin
         $dumpfile("configuration_tb.vcd");
-        $dumpvars(0, aurora_hls_configuration_tb);
+        $dumpvars(0, aurora_flow_configuration_tb);
         $monitor("configuration = %b", configuration);
         $monitor("fifo_thresholds = %b", fifo_thresholds);
     end

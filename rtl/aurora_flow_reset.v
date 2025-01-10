@@ -16,7 +16,7 @@
  */
 `default_nettype none
 
-module aurora_hls_reset(
+module aurora_flow_reset(
     input wire init_clk,
     input wire ap_rst_n_i,
     output reg reset_pb_i,

@@ -15,9 +15,9 @@
  */
 `default_nettype none
 `timescale 1ns/1ps
-`include "aurora_hls_define.v"
+`include "aurora_flow_define.v"
 
-module aurora_hls_configuration(
+module aurora_flow_configuration(
     output wire [21:0] configuration,
     output wire [31:0] fifo_thresholds
 );
