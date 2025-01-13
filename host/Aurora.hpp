@@ -312,11 +312,6 @@ public:
 
     // Internal status counter
 
-    uint32_t get_status_not_ok_count()
-    {
-        return ip.read_register(STATUS_NOT_OK_COUNT_ADDRESS);
-    }
-
     uint32_t get_fifo_rx_overflow_count()
     {
         return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);

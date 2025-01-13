@@ -78,7 +78,6 @@ localparam
     ADDR_CONFIGURATION           = 12'h018,
     ADDR_FIFO_THRESHOLDS         = 12'h01c,
     ADDR_AURORA_STATUS           = 12'h020, 
-    ADDR_STATUS_NOT_OK_COUNT     = 12'h024,
     ADDR_FIFO_STATUS             = 12'h028,
     ADDR_FIFO_RX_OVERFLOW_COUNT  = 12'h02c,
     ADDR_FIFO_TX_OVERFLOW_COUNT  = 12'h030,
