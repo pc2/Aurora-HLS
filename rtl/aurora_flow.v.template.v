@@ -14,9 +14,9 @@
 // limitations under the License.
 //
 `default_nettype none
-`include "aurora_hls_define.v"
+`include "aurora_flow_define.v"
 
-module aurora_hls_@@@instance@@@ (
+module aurora_flow_@@@instance@@@ (
 // Platform axi/axis ports
     input wire           ap_clk,
     input wire           ap_rst_n,
@@ -176,7 +176,7 @@ wire            tx_axis_tready_raw;
     assign tx_axis_tready = tx_axis_tready_raw;
 `endif
 
-aurora_hls_reset aurora_hls_reset_0 (
+aurora_flow_reset aurora_flow_reset_0 (
     .init_clk(init_clk),
     .ap_rst_n_i(ap_rst_n_i),
     .reset_pb_i(reset_pb_i),
@@ -390,7 +390,7 @@ aurora_64b66b_0 aurora_64b66b_0_0 (
   .gt_powergood                 (gt_powergood_u)            // output wire [3 : 0] gt_powergood
 );
 
-aurora_hls_io aurora_hls_io_0 (
+aurora_flow_io aurora_flow_io_0 (
     .ap_clk                 (ap_clk),
     .ap_rst_n               (ap_rst_n_core),
     .user_clk               (user_clk),
@@ -481,7 +481,7 @@ wire [31:0] frames_received_u;
 wire [31:0] frames_with_errors_u;
 `endif
 
-aurora_hls_monitor aurora_hls_monitor_0 (
+aurora_flow_monitor aurora_flow_monitor_0 (
     .rst_u                      (monitor_reset_u),
     .clk_u                      (user_clk),
     .aurora_status              (aurora_status_u),
@@ -655,7 +655,7 @@ wire [31:0] nfc_full_trigger_count_u;
 wire [31:0] nfc_empty_trigger_count_u; 
 wire [31:0] nfc_latency_count_u;
 
-aurora_hls_nfc aurora_hls_nfc_0 (
+aurora_flow_nfc aurora_flow_nfc_0 (
     .rst_n                  (ap_rst_n_u),
     .counter_reset          (host_monitor_reset_u),
     .clk                    (user_clk),
@@ -698,12 +698,12 @@ xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_2 (
 wire [21:0] configuration;
 wire [31:0] fifo_thresholds;
 
-aurora_hls_configuration aurora_hls_configuration_0 (
+aurora_flow_configuration aurora_flow_configuration_0 (
     .configuration(configuration),
     .fifo_thresholds(fifo_thresholds)
 );
 
-aurora_hls_control_s_axi axi_control_slave (
+aurora_flow_control_s_axi axi_control_slave (
   .ACLK                     (ap_clk),
   .ARESETn                  (ap_rst_n),
   .AWADDR                   (s_axi_control_awaddr),

@@ -131,7 +131,7 @@ public:
     std::string create_name_from_instance(uint32_t instance)
     {
         char name[100];
-        snprintf(name, 100, "aurora_hls_%u:{aurora_hls_%u}", instance, instance);
+        snprintf(name, 100, "aurora_flow_%u:{aurora_flow_%u}", instance, instance);
         return std::string(name);
     }
 

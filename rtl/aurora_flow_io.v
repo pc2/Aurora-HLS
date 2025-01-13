@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 `default_nettype none
-`include "aurora_hls_define.v"
+`include "aurora_flow_define.v"
 
-module aurora_hls_io (
+module aurora_flow_io (
     input wire          ap_clk,
     input wire          ap_rst_n,
     input wire          user_clk,

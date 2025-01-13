@@ -19,7 +19,7 @@ ECHO=@echo
 .PHONY: aurora host xclbin clean
 
 # most important target
-aurora: aurora_hls_0.xo aurora_hls_1.xo
+aurora: aurora_flow_0.xo aurora_flow_1.xo
 
 CXX=mpicxx
 
@@ -62,7 +62,7 @@ else
 	HAS_TLAST := 0
 endif
 
-XCLBIN_NAME := aurora_hls_test_$(TARGET).xclbin
+XCLBIN_NAME := aurora_flow_test_$(TARGET).xclbin
 
 # create the ips
 ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci: ./tcl/create_aurora_ip.tcl
@@ -101,32 +101,32 @@ HLSCFLAGS := --compile $(COMMFLAGS) -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
 LINKFLAGS := --link --optimize 3 $(COMMFLAGS)
 
 # collect the RTL source code
-RTL_SRC := ./rtl/aurora_hls_control_s_axi.v
-RTL_SRC += ./rtl/aurora_hls_io.v
-RTL_SRC += ./rtl/aurora_hls_nfc.v
-RTL_SRC += ./rtl/aurora_hls_define.v
-RTL_SRC += ./rtl/aurora_hls_configuration.v
-RTL_SRC += ./rtl/aurora_hls_reset.v
-RTL_SRC += ./rtl/aurora_hls_monitor.v
+RTL_SRC := ./rtl/aurora_flow_control_s_axi.v
+RTL_SRC += ./rtl/aurora_flow_io.v
+RTL_SRC += ./rtl/aurora_flow_nfc.v
+RTL_SRC += ./rtl/aurora_flow_define.v
+RTL_SRC += ./rtl/aurora_flow_configuration.v
+RTL_SRC += ./rtl/aurora_flow_reset.v
+RTL_SRC += ./rtl/aurora_flow_monitor.v
 RTL_SRC += ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci 
 RTL_SRC += ./ip_creation/axis_data_fifo_rx/axis_data_fifo_rx.xci
 RTL_SRC += ./ip_creation/axis_data_fifo_tx/axis_data_fifo_tx.xci
 RTL_SRC += ./ip_creation/axis_dwidth_converter_rx/axis_dwidth_converter_rx.xci
 RTL_SRC += ./ip_creation/axis_dwidth_converter_tx/axis_dwidth_converter_tx.xci
 
-RTL_SRC_0 := $(RTL_SRC) ./rtl/aurora_hls_0.v ./xdc/aurora_64b66b_0.xdc
-RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
+RTL_SRC_0 := $(RTL_SRC) ./rtl/aurora_flow_0.v ./xdc/aurora_64b66b_0.xdc
+RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_flow_1.v ./xdc/aurora_64b66b_1.xdc
 
 # some verilog templating
-./rtl/aurora_hls_0.v: ./rtl/aurora_hls.v.template.v
-	cp ./rtl/aurora_hls.v.template.v ./rtl/aurora_hls_0.v
-	sed -i 's/@@@instance@@@/0/g' ./rtl/aurora_hls_0.v
+./rtl/aurora_flow_0.v: ./rtl/aurora_flow.v.template.v
+	cp ./rtl/aurora_flow.v.template.v ./rtl/aurora_flow_0.v
+	sed -i 's/@@@instance@@@/0/g' ./rtl/aurora_flow_0.v
 
-./rtl/aurora_hls_1.v: ./rtl/aurora_hls.v.template.v
-	cp ./rtl/aurora_hls.v.template.v ./rtl/aurora_hls_1.v
-	sed -i 's/@@@instance@@@/1/g' ./rtl/aurora_hls_1.v
+./rtl/aurora_flow_1.v: ./rtl/aurora_flow.v.template.v
+	cp ./rtl/aurora_flow.v.template.v ./rtl/aurora_flow_1.v
+	sed -i 's/@@@instance@@@/1/g' ./rtl/aurora_flow_1.v
 
-./rtl/aurora_hls_define.v:
+./rtl/aurora_flow_define.v:
 	echo "" > $@
 	if [ $(USE_FRAMING) = 1 ]; then \
 		echo "\`define USE_FRAMING" >> $@; \
@@ -146,15 +146,15 @@ RTL_SRC_1 := $(RTL_SRC) ./rtl/aurora_hls_1.v ./xdc/aurora_64b66b_1.xdc
 	echo "\`define RX_EQ_MODE \"$(RX_EQ_MODE)\"" >> $@
 	echo "\`define INS_LOSS_NYQ $(INS_LOSS_NYQ)" >> $@
 
-aurora_hls_0.xo: $(RTL_SRC_0) ./tcl/pack_kernel.tcl
-	rm -rf aurora_hls_0_project
-	mkdir aurora_hls_0_project
-	cd aurora_hls_0_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 0
+aurora_flow_0.xo: $(RTL_SRC_0) ./tcl/pack_kernel.tcl
+	rm -rf aurora_flow_0_project
+	mkdir aurora_flow_0_project
+	cd aurora_flow_0_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 0
 
-aurora_hls_1.xo: $(RTL_SRC_1) ./tcl/pack_kernel.tcl
-	rm -rf aurora_hls_1_project
-	mkdir aurora_hls_1_project
-	cd aurora_hls_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1
+aurora_flow_1.xo: $(RTL_SRC_1) ./tcl/pack_kernel.tcl
+	rm -rf aurora_flow_1_project
+	mkdir aurora_flow_1_project
+	cd aurora_flow_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1
 
 # build example bitstream
 dump_$(TARGET).xo: ./hls/dump.cpp
@@ -163,11 +163,11 @@ dump_$(TARGET).xo: ./hls/dump.cpp
 issue_$(TARGET).xo: ./hls/issue.cpp
 	v++ $(HLSCFLAGS) --temp_dir _x_issue --kernel issue --output $@ $^
 	
-aurora_hls_test_hw.xclbin: aurora issue_$(TARGET).xo dump_$(TARGET).xo aurora_hls_test_$(TARGET).cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_hls_$(TARGET) --config aurora_hls_test_$(TARGET).cfg --output $@ aurora_hls_0.xo aurora_hls_1.xo dump_$(TARGET).xo issue_$(TARGET).xo
+aurora_flow_test_hw.xclbin: aurora issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo dump_$(TARGET).xo issue_$(TARGET).xo
 
-aurora_hls_test_sw_emu.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_hls_test_$(TARGET).cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_hls_$(TARGET) --config aurora_hls_test_$(TARGET).cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
+aurora_flow_test_sw_emu.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
 
 xclbin: $(XCLBIN_NAME)
 
@@ -178,23 +178,23 @@ CXXFLAGS += -fopenmp
 LDFLAGS := -L$(XILINX_XRT)/lib
 LDFLAGS += $(LDFLAGS) -lxrt_coreutil
 
-host_aurora_hls_test: ./host/host_aurora_hls_test.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
-	$(CXX) -o host_aurora_hls_test $< $(CXXFLAGS) $(LDFLAGS)
+host_aurora_flow_test: ./host/host_aurora_flow_test.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
+	$(CXX) -o host_aurora_flow_test $< $(CXXFLAGS) $(LDFLAGS)
 
-host: host_aurora_hls_test
+host: host_aurora_flow_test
 
 # verilog testbenches
 
 .PHONY: monitor_tb run_monitor_tb run_monitor_tb_gui
 
-xsim.dir/work/aurora_hls_monitor.sdb: ./rtl/aurora_hls_monitor.v
-	xvlog ./rtl/aurora_hls_monitor.v -d XSIM -d USE_FRAMING
+xsim.dir/work/aurora_flow_monitor.sdb: ./rtl/aurora_flow_monitor.v
+	xvlog ./rtl/aurora_flow_monitor.v -d XSIM -d USE_FRAMING
 
-xsim.dir/work/aurora_hls_monitor_tb.sdb: ./rtl/aurora_hls_monitor_tb.v
-	xvlog ./rtl/aurora_hls_monitor_tb.v -d XSIM -d USE_FRAMING
+xsim.dir/work/aurora_flow_monitor_tb.sdb: ./rtl/aurora_flow_monitor_tb.v
+	xvlog ./rtl/aurora_flow_monitor_tb.v -d XSIM -d USE_FRAMING
 
-xsim.dir/monitor_tb/xsimk: xsim.dir/work/aurora_hls_monitor.sdb xsim.dir/work/aurora_hls_monitor_tb.sdb
-	xelab -debug typical aurora_hls_monitor_tb -s monitor_tb -d USE_FRAMING
+xsim.dir/monitor_tb/xsimk: xsim.dir/work/aurora_flow_monitor.sdb xsim.dir/work/aurora_flow_monitor_tb.sdb
+	xelab -debug typical aurora_flow_monitor_tb -s monitor_tb -d USE_FRAMING
 
 monitor_tb: xsim.dir/monitor_tb/xsimk
 
@@ -206,14 +206,14 @@ run_monitor_tb_gui: monitor_tb
 
 .PHONY: nfc_tb run_nfc_tb run_nfc_tb_gui
 
-xsim.dir/work/aurora_hls_nfc.sdb: ./rtl/aurora_hls_nfc.v
-	xvlog ./rtl/aurora_hls_nfc.v -d XSIM
+xsim.dir/work/aurora_flow_nfc.sdb: ./rtl/aurora_flow_nfc.v
+	xvlog ./rtl/aurora_flow_nfc.v -d XSIM
 
-xsim.dir/work/aurora_hls_nfc_tb.sdb: ./rtl/aurora_hls_nfc_tb.v
-	xvlog ./rtl/aurora_hls_nfc_tb.v -d XSIM
+xsim.dir/work/aurora_flow_nfc_tb.sdb: ./rtl/aurora_flow_nfc_tb.v
+	xvlog ./rtl/aurora_flow_nfc_tb.v -d XSIM
 
-xsim.dir/nfc_tb/xsimk: xsim.dir/work/aurora_hls_nfc.sdb xsim.dir/work/aurora_hls_nfc_tb.sdb
-	xelab -debug typical aurora_hls_nfc_tb -s nfc_tb
+xsim.dir/nfc_tb/xsimk: xsim.dir/work/aurora_flow_nfc.sdb xsim.dir/work/aurora_flow_nfc_tb.sdb
+	xelab -debug typical aurora_flow_nfc_tb -s nfc_tb
 
 nfc_tb: xsim.dir/nfc_tb/xsimk
 
@@ -225,14 +225,14 @@ run_nfc_tb_gui: nfc_tb
 
 .PHONY: configuration_tb run_configuration_tb run_configuration_tb_gui
 
-xsim.dir/work/aurora_hls_configuration.sdb: ./rtl/aurora_hls_configuration.v ./rtl/aurora_hls_define.v
-	xvlog ./rtl/aurora_hls_configuration.v
+xsim.dir/work/aurora_flow_configuration.sdb: ./rtl/aurora_flow_configuration.v ./rtl/aurora_flow_define.v
+	xvlog ./rtl/aurora_flow_configuration.v
 
-xsim.dir/work/aurora_hls_configuration_tb.sdb: ./rtl/aurora_hls_configuration_tb.v
-	xvlog ./rtl/aurora_hls_configuration_tb.v
+xsim.dir/work/aurora_flow_configuration_tb.sdb: ./rtl/aurora_flow_configuration_tb.v
+	xvlog ./rtl/aurora_flow_configuration_tb.v
 
-xsim.dir/configuration_tb/xsimk: xsim.dir/work/aurora_hls_configuration.sdb xsim.dir/work/aurora_hls_configuration_tb.sdb
-	xelab -debug typical aurora_hls_configuration_tb -s configuration_tb
+xsim.dir/configuration_tb/xsimk: xsim.dir/work/aurora_flow_configuration.sdb xsim.dir/work/aurora_flow_configuration_tb.sdb
+	xelab -debug typical aurora_flow_configuration_tb -s configuration_tb
 
 configuration_tb: xsim.dir/configuration_tb/xsimk
 
@@ -243,8 +243,8 @@ run_configuration_tb_gui: configuration_tb
 	xsim --gui configuration_tb
 
 # run test
-test: host aurora_hls_test_sw_emu.xclbin
-	XCL_EMULATION_MODE=sw_emu ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin
+test: host aurora_flow_test_sw_emu.xclbin
+	XCL_EMULATION_MODE=sw_emu ./host_aurora_flow_test -p aurora_flow_test_sw_emu.xclbin
 
 clean:
 	git clean -Xdf

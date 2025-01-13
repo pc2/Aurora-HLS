@@ -16,7 +16,7 @@
 `default_nettype none
 `timescale 1ns/1ps
 
-module aurora_hls_nfc_tb();
+module aurora_flow_nfc_tb();
     reg rst_n;
     reg counter_reset;
     reg clk;
@@ -28,7 +28,7 @@ module aurora_hls_nfc_tb();
     reg rx_tvalid;
     wire [31:0] full_trigger_count, empty_trigger_count, max_latency;
 
-    aurora_hls_nfc dut (
+    aurora_flow_nfc dut (
         .clk(clk),
         .rst_n(rst_n),
         .counter_reset(counter_reset),
@@ -52,7 +52,7 @@ module aurora_hls_nfc_tb();
 
     initial begin
         $dumpfile("nfc_tb.vcd");
-        $dumpvars(0, aurora_hls_nfc);
+        $dumpvars(0, aurora_flow_nfc);
         $monitor("s_axi_nfc_tvalid = %d", s_axi_nfc_tvalid);
         $monitor("s_axi_nfc_tdata = %d", s_axi_nfc_tdata);
         $monitor("full_trigger_count = %d", full_trigger_count);

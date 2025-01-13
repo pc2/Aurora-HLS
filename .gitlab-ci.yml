@@ -34,8 +34,8 @@ tb:nfc:
     - make run_nfc_tb
   only:
     changes:
-      - rtl/aurora_hls_nfc.v
-      - rtl/aurora_hls_nfc_tb.v
+      - rtl/aurora_flow_nfc.v
+      - rtl/aurora_flow_nfc_tb.v
       - tcl/run_nfc_tb.tcl
       - .gitlab-ci.yml
   artifacts:
@@ -49,8 +49,8 @@ tb:monitor:
     - make run_monitor_tb
   only:
     changes:
-      - rtl/aurora_hls_monitor.v
-      - rtl/aurora_hls_monitor_tb.v
+      - rtl/aurora_flow_monitor.v
+      - rtl/aurora_flow_monitor_tb.v
       - tcl/run_monitor_tb.tcl
       - .gitlab-ci.yml
   artifacts:
@@ -64,8 +64,8 @@ tb:configuration:
     - make run_configuration_tb
   only:
     changes:
-      - rtl/aurora_hls_configuration.v
-      - rtl/aurora_hls_configuration_tb.v
+      - rtl/aurora_flow_configuration.v
+      - rtl/aurora_flow_configuration_tb.v
       - tcl/run_configuration_tb.tcl
       - .gitlab-ci.yml
   artifacts:
@@ -80,7 +80,7 @@ build:host:2.14:
     - make host
   artifacts:
     paths:
-      - ./host_aurora_hls_test
+      - ./host_aurora_flow_test
   needs: []
 
 build:host:2.15:
@@ -90,7 +90,7 @@ build:host:2.15:
     - make host
   artifacts:
     paths:
-      - ./host_aurora_hls_test
+      - ./host_aurora_flow_test
   needs: []
 
 build:host:2.16:
@@ -100,7 +100,7 @@ build:host:2.16:
     - make host
   artifacts:
     paths:
-      - ./host_aurora_hls_test
+      - ./host_aurora_flow_test
   needs: []
 
 build:emulation_xclbin:
@@ -110,7 +110,7 @@ build:emulation_xclbin:
     - make xclbin TARGET=sw_emu
   artifacts:
     paths:
-      - ./aurora_hls_test_sw_emu.xclbin
+      - ./aurora_flow_test_sw_emu.xclbin
   needs: []
 
 build:hlslib_test:
@@ -157,7 +157,7 @@ emu:xrt:
   needs: ["build:emulation_xclbin", "build:host:2.15"]
   script:
     - ml fpga/xilinx/xrt/2.15
-    - env XCL_EMULATION_MODE=sw_emu srun -n 2 ./host_aurora_hls_test -p aurora_hls_test_sw_emu.xclbin -m 1 -r 2 -i 10
+    - env XCL_EMULATION_MODE=sw_emu srun -n 2 ./host_aurora_flow_test -p aurora_flow_test_sw_emu.xclbin -m 1 -r 2 -i 10
 
 emu:hlslib_test:
   stage: emulation
@@ -186,12 +186,12 @@ synth:streaming:64:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_64.xclbin
+      - aurora_flow_test_hw_0_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.14:
@@ -201,12 +201,12 @@ synth:framing:64:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_64.xclbin
+      - aurora_flow_test_hw_1_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:64:2.15:
@@ -216,12 +216,12 @@ synth:streaming:64:2.15:
   script:
     - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_64.xclbin
+      - aurora_flow_test_hw_0_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.15:
@@ -231,12 +231,12 @@ synth:framing:64:2.15:
   script:
     - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_64.xclbin
+      - aurora_flow_test_hw_1_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:64:2.16:
@@ -246,12 +246,12 @@ synth:streaming:64:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_64.xclbin
+      - aurora_flow_test_hw_0_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:64:2.16:
@@ -261,12 +261,12 @@ synth:framing:64:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=64
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_64.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_64.xclbin
+      - aurora_flow_test_hw_1_64.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.14:
@@ -276,12 +276,12 @@ synth:streaming:32:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_32.xclbin
+      - aurora_flow_test_hw_0_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.14:
@@ -291,12 +291,12 @@ synth:framing:32:2.14:
   script:
     - ml fpga/xilinx/xrt/2.14
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_32.xclbin
+      - aurora_flow_test_hw_1_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.15:
@@ -306,12 +306,12 @@ synth:streaming:32:2.15:
   script:
     - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_32.xclbin
+      - aurora_flow_test_hw_0_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.15:
@@ -321,12 +321,12 @@ synth:framing:32:2.15:
   script:
     - ml fpga/xilinx/xrt/2.15
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_32.xclbin
+      - aurora_flow_test_hw_1_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:streaming:32:2.16:
@@ -336,12 +336,12 @@ synth:streaming:32:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - make xclbin USE_FRAMING=0 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_0_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_0_32.xclbin
+      - aurora_flow_test_hw_0_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 synth:framing:32:2.16:
@@ -351,12 +351,12 @@ synth:framing:32:2.16:
   script:
     - ml fpga/xilinx/xrt/2.16
     - make xclbin USE_FRAMING=1 FIFO_WIDTH=32
-    - cp aurora_hls_test_hw.xclbin aurora_hls_test_hw_1_32.xclbin
+    - cp aurora_flow_test_hw.xclbin aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
     paths:
-      - aurora_hls_test_hw_1_32.xclbin
+      - aurora_flow_test_hw_1_32.xclbin
   needs: ["tb:configuration", "tb:monitor", "tb:nfc", "emu:xrt"]
 
 
@@ -366,7 +366,7 @@ run:N1:streaming:64:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
@@ -383,7 +383,7 @@ run:N1:framing:64:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
@@ -400,7 +400,7 @@ run:N1:streaming:64:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
@@ -417,7 +417,7 @@ run:N1:framing:64:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
@@ -434,7 +434,7 @@ run:N1:streaming:64:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin
   only:
     - web 
   artifacts:
@@ -451,7 +451,7 @@ run:N1:framing:64:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin
   only:
     - web 
   artifacts:
@@ -468,7 +468,7 @@ run:nfc_test:streaming:64:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -482,7 +482,7 @@ run:nfc_test:framing:64:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -496,7 +496,7 @@ run:nfc_test:streaming:64:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -510,7 +510,7 @@ run:nfc_test:framing:64:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -524,7 +524,7 @@ run:nfc_test:streaming:64:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -538,7 +538,7 @@ run:nfc_test:framing:64:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_64.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_64.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -552,7 +552,7 @@ run:N1:streaming:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
@@ -569,7 +569,7 @@ run:N1:framing:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
@@ -586,7 +586,7 @@ run:N1:streaming:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
@@ -603,7 +603,7 @@ run:N1:framing:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
@@ -620,7 +620,7 @@ run:N1:streaming:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin
   only:
     - web 
   artifacts:
@@ -637,7 +637,7 @@ run:N1:framing:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin
   only:
     - web 
   artifacts:
@@ -654,7 +654,7 @@ run:nfc_test:streaming:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -668,7 +668,7 @@ run:nfc_test:framing:32:2.14:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -682,7 +682,7 @@ run:nfc_test:streaming:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -696,7 +696,7 @@ run:nfc_test:framing:32:2.15:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -710,7 +710,7 @@ run:nfc_test:streaming:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_0_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_0_32.xclbin -n -l
   only:
     - web 
   dependencies:
@@ -724,7 +724,7 @@ run:nfc_test:framing:32:2.16:
     SCHEDULER_PARAMETERS: $SHORT_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_N1.sh -p aurora_hls_test_hw_1_32.xclbin -n -l
+    - ./scripts/run_N1.sh -p aurora_flow_test_hw_1_32.xclbin -n -l
   only:
     - web 
   dependencies:
