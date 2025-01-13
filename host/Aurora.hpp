@@ -312,16 +312,6 @@ public:
 
     // Internal status counter
 
-    uint32_t get_fifo_rx_overflow_count()
-    {
-        return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);
-    }
-
-    uint32_t get_fifo_tx_overflow_count()
-    {
-        return ip.read_register(FIFO_TX_OVERFLOW_COUNT_ADDRESS);
-    }
-
     uint32_t get_tx_count()
     {
         return ip.read_register(TX_COUNT_ADDRESS);
@@ -330,6 +320,16 @@ public:
     uint32_t get_rx_count()
     {
         return ip.read_register(RX_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_tx_overflow_count()
+    {
+        return ip.read_register(FIFO_TX_OVERFLOW_COUNT_ADDRESS);
+    }
+
+    uint32_t get_fifo_rx_overflow_count()
+    {
+        return ip.read_register(FIFO_RX_OVERFLOW_COUNT_ADDRESS);
     }
 
     uint32_t get_nfc_full_trigger_count()
@@ -428,6 +428,34 @@ public:
         } else {
             return -1;
         }
+    }
+
+    void print_counters()
+    {
+        std::cout << "TX: " << get_tx_count() << std::endl;
+        std::cout << "RX: " << get_rx_count() << std::endl;
+        if (has_framing()) {
+            std::cout << "Frames receveived: " << get_frames_received();
+            std::cout << "Frames with errors: " << get_frames_with_errors();
+        }
+        std::cout << "TX Overflow: " << get_fifo_tx_overflow_count() << std::endl;
+        std::cout << "RX Overflow: " << get_fifo_rx_overflow_count() << std::endl;
+        std::cout << "NFC On:  " << get_nfc_full_trigger_count() << std::endl;
+        std::cout << "NFC Off:  " << get_nfc_empty_trigger_count() << std::endl;
+        std::cout << "NFC Latency: " << get_nfc_latency_count() << std::endl;
+        std::cout << "GT Not Ready: " << get_gt_not_ready_0_count() << " "
+                                      << get_gt_not_ready_1_count() << " "
+                                      << get_gt_not_ready_2_count() << " "
+                                      << get_gt_not_ready_3_count() << std::endl;
+        std::cout << "Line Down: " << get_line_down_0_count() << " "
+                                   << get_line_down_1_count() << " "
+                                   << get_line_down_2_count() << " "
+                                   << get_line_down_2_count() << std::endl;
+        std::cout << "PLL not locked: " << get_pll_not_locked_count() << std::endl;
+        std::cout << "MMCM not locked: " << get_mmcm_not_locked_count() << std::endl;
+        std::cout << "Hard error: " << get_hard_err_count() << std::endl;
+        std::cout << "Soft error: " << get_soft_err_count() << std::endl;
+        std::cout << "Channel down: " << get_channel_down_count() << std::endl;
     }
     
     // Reset routines
