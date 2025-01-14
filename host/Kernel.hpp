@@ -19,7 +19,7 @@ public:
 
         run.set_arg(1, data_bo);
         run.set_arg(2, config.message_sizes[repetition]);
-        run.set_arg(3, config.frame_size);
+        run.set_arg(3, config.frame_sizes[repetition]);
         run.set_arg(4, config.iterations_per_message[repetition]);
         run.set_arg(5, config.test_mode);
     }

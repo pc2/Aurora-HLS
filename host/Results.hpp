@@ -362,7 +362,7 @@ public:
             std::cout << std::setw(12) << r
                       << std::setw(12) << world_size
                       << std::setw(12) << config.iterations_per_message[r]
-                      << std::setw(12) << config.frame_size
+                      << std::setw(12) << config.frame_sizes[r]
                       << std::setw(12) << config.message_sizes[r]
                       << std::setw(12) << latency_min
                       << std::setw(12) << latency_avg
@@ -527,7 +527,7 @@ public:
                    << total_aurora_config[core] << ","
                    << r << ","
                    << config.test_mode << ","
-                   << config.frame_size << ","
+                   << config.frame_sizes[r] << ","
                    << config.message_sizes[r] << ","
                    << config.iterations_per_message[r] << ","
                    << config.test_nfc << ","

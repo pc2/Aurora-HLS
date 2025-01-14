@@ -14,11 +14,9 @@ public:
     const char *optstring = "m:o:b:p:i:r:f:nalt:ws";
     // Defaults
     uint32_t device_id_offset = 0;
-    uint32_t override_bytes_num = 0;
     std::string xclbin_file = "aurora_flow_test_hw.xclbin";
     uint32_t repetitions = 1;
     uint32_t iterations = 1;
-    uint32_t frame_size = 1;
     bool test_nfc = false;
     uint32_t test_mode = 0;
     bool latency_measuring = false;
@@ -28,8 +26,11 @@ public:
     // default for now
     bool randomize_data = true;
 
+    uint32_t max_frame_size = 128;
     uint32_t max_num_bytes = 1048576;
+
     std::vector<uint32_t> message_sizes;
+    std::vector<uint32_t> frame_sizes;
     std::vector<uint32_t> iterations_per_message;
     std::vector<std::vector<char>> data;
 
@@ -51,7 +52,7 @@ public:
             } else if (opt == 'i' && optarg) {
                 iterations = (uint32_t)(std::stoi(std::string(optarg)));
             } else if (opt == 'f' && optarg) {
-                frame_size = (uint32_t)(std::stoi(std::string(optarg)));
+                max_frame_size = (uint32_t)(std::stoi(std::string(optarg)));
             } else if (opt == 'n') {
                 test_nfc = true;
             } else if (opt == 'l') {
@@ -82,7 +83,7 @@ public:
             exit(1);
         }
         if (!has_framing) {
-            frame_size = 0;
+            max_frame_size = 0;
         }
         
         if (latency_measuring) {
@@ -91,25 +92,25 @@ public:
                 std::cout << "Error: number of bytes must be a power of two for measuring the latency" << std::endl;
                 exit(1);
             }
-            if (has_framing && ((frame_size & (frame_size - 1)) != 0)) {
+            if (has_framing && ((max_frame_size & (max_frame_size - 1)) != 0)) {
                 std::cout << "Error: frame size must be a power of two for measuring the latency" << std::endl;
                 exit(1);
             }
-            // removing all message sizes smaller than channel width and frame size
-            repetitions = log2(max_num_bytes) + 1 - log2(fifo_width);
-            if (frame_size > 0) {
-                repetitions -= log2(frame_size);
-            }
         }
+        // removing all message sizes smaller than channel width
+        repetitions = log2(max_num_bytes) + 1 - log2(fifo_width);
         message_sizes.resize(repetitions);
+        frame_sizes.resize(repetitions);
         iterations_per_message.resize(repetitions);
         if (latency_measuring) {
             uint32_t num_bytes = max_num_bytes;
+            const uint32_t max_frame_size_bytes = max_frame_size * fifo_width;
             double max_throughput = 12500000000.0;
             double expected_latency = iterations * (num_bytes / max_throughput);
             for (uint32_t i = repetitions; i > 0; i--) {
                 message_sizes[i - 1] = num_bytes;
                 iterations_per_message[i - 1] = iterations;
+                frame_sizes[i - 1] = max_frame_size_bytes <= num_bytes ? max_frame_size : (num_bytes / fifo_width);
                 num_bytes >>= 1;
                 // estimate number of iterations for next repetition
                 double estimated_latency = iterations * (num_bytes / max_throughput);
@@ -121,6 +122,7 @@ public:
         } else {
             for (uint32_t i = 0; i < repetitions; i++) {
                 message_sizes[i] = max_num_bytes;
+                frame_sizes[i] = max_frame_size;
                 iterations_per_message[i] = iterations;
             }
         }
@@ -141,8 +143,8 @@ public:
         } else {
             std::cout << "Unsupported mode without verification" << std::endl; 
         }
-        if (frame_size > 0) {
-            std::cout << "Frame size: " << frame_size << std::endl;
+        if (max_frame_size > 0) {
+            std::cout << "Frame size: " << max_frame_size << std::endl;
         }
         if (randomize_data) {
             std::cout << "Random data" << std::endl; 
@@ -157,14 +159,16 @@ public:
             std::cout << std::setw(12) << "Repetition"
                       << std::setw(12) << "Bytes"
                       << std::setw(12) << "Iterations"
+                      << std::setw(12) << "Frame Size"
                       << std::endl
-                      << std::setw(36) << std::setfill('-') << "-"
+                      << std::setw(48) << std::setfill('-') << "-"
                       << std::endl << std::setfill(' ');
 
             for (uint32_t i = 0; i < repetitions; i++) {
                 std::cout << std::setw(12) << i
                           << std::setw(12) << message_sizes[i]
                           << std::setw(12) << iterations_per_message[i]
+                          << std::setw(12) << frame_sizes[i]
                           << std::endl;
             }
         } else {
