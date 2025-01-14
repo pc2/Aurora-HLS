@@ -34,8 +34,9 @@ extern "C"
         unsigned int chunks,
         hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_input,
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> &data_stream,
-        bool ack_enable,
-        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
+        unsigned int ack_mode,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& loopback_ack_stream,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& pair_ack_stream
     ) {
     dump_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
@@ -44,9 +45,11 @@ extern "C"
 #pragma HLS PIPELINE II = 1
                 data_stream.write(data_input.read().data);
             }
-            if (ack_enable) {
-                ap_axiu<1, 0, 0, 0> ack;
-                ack_stream.write(ack);
+            ap_axiu<1, 0, 0, 0> ack;
+            if (ack_mode == 0) {
+                loopback_ack_stream.write(ack);
+            } else if (ack_mode == 1) {
+                pair_ack_stream.write(ack); 
             }
         }
     }
@@ -72,14 +75,15 @@ extern "C"
         ap_uint<DATA_WIDTH> *data_output,
         unsigned int byte_size,
         unsigned int iterations,
-        bool ack_enable,
-        hls::stream<ap_axiu<1, 0, 0, 0>> &ack_stream
+        unsigned int ack_mode,
+        hls::stream<ap_axiu<1, 0, 0, 0>> &loopback_ack_stream,
+        hls::stream<ap_axiu<1, 0, 0, 0>> &pair_ack_stream
     ) {
 #pragma HLS dataflow
         int chunks = byte_size / DATA_WIDTH_BYTES;
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> data_stream;
 
-        dump_data(iterations, chunks, data_input, data_stream, ack_enable, ack_stream);
+        dump_data(iterations, chunks, data_input, data_stream, ack_mode, loopback_ack_stream, pair_ack_stream);
         write_data(iterations, chunks, data_stream, data_output);
     }
 }

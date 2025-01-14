@@ -62,6 +62,22 @@ void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank,
     }
 }
 
+std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_size)
+{
+    char *slurm_job_id = std::getenv("SLURM_JOB_ID");
+    std::vector<std::vector<char>> data;
+    data.resize(world_size);
+    for (uint32_t r = 0; r < world_size; r++) {
+        unsigned int seed = (slurm_job_id == NULL) ? r : (r + ((unsigned int)std::stoi(slurm_job_id)));
+        srand(seed);
+        data[r].resize(num_bytes);
+        for (uint32_t b = 0; b < num_bytes; b++) {
+            data[r][b] = rand() % 256;
+        }
+    }
+    return data;
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
@@ -106,9 +122,11 @@ int main(int argc, char *argv[])
         std::cout << "with " << world_size << " instances" << std::endl;
     }
 
+    std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, world_size);
+
     // create kernel objects
-    IssueKernel issue(instance, device, xclbin_uuid, config);
-    DumpKernel dump(instance, device, xclbin_uuid, config);
+    IssueKernel issue(world_rank, device, xclbin_uuid, config, data[world_rank]);
+    DumpKernel dump(world_rank, device, xclbin_uuid, config);
 
     Results results(config, aurora, emulation, device, world_size);
 
@@ -153,7 +171,20 @@ int main(int argc, char *argv[])
 
             results.local_transmission_times[r] = get_wtime() - start_time;
             dump.write_back();
-            results.local_errors[r] = dump.compare_data(issue.data.data(), r);
+            if (config.test_mode < 3) {
+                uint32_t issue_rank = world_rank;
+                if (config.test_mode == 1) {
+                    // pair
+                    issue_rank = (world_rank % 2) == 0 ? world_rank + 1 : world_rank - 1;
+                } else if (config.test_mode == 2) {
+                    // ring
+                    issue_rank = (world_rank % 2) == 0 ? ((uint32_t)world_rank + world_size - 1) % world_size : ((uint32_t)world_rank + 1) % world_size;
+                }
+                results.local_errors[r] = dump.compare_data(data[issue_rank].data(), r);
+            } else {
+                // no validation
+                results.local_errors[r] = 0;
+            }
         } catch (const std::runtime_error &e) {
             std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
             results.local_failed_transmissions[r] = 3;

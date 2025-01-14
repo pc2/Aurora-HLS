@@ -526,6 +526,7 @@ public:
                    << core << ","
                    << total_aurora_config[core] << ","
                    << r << ","
+                   << config.test_mode << ","
                    << config.frame_size << ","
                    << config.message_sizes[r] << ","
                    << config.iterations_per_message[r] << ","

@@ -1,28 +1,14 @@
 class IssueKernel
 {
 public:
-    IssueKernel(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : instance(instance), config(config)
+    IssueKernel(uint32_t rank, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config, std::vector<char> &data) : rank(rank), config(config)
     {
         char name[100];
-        snprintf(name, 100, "issue:{issue_%u}", instance);
+        snprintf(name, 100, "issue:{issue_%u}", rank % 2);
         kernel = xrt::kernel(device, xclbin_uuid, name);
-
 
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
 
-        data.resize(config.max_num_bytes);
-
-        char *slurm_job_id = std::getenv("SLURM_JOB_ID");
-        unsigned int seed;
-        if (slurm_job_id == NULL)
-            seed = time(NULL);
-        else {
-            seed = (unsigned int)std::stoi(slurm_job_id);
-        }
-        srand(seed);
-        for (uint32_t i = 0; i < config.max_num_bytes; i++) {
-            data[i] = (config.randomize_data ? rand() : i) % 256;
-        }
         data_bo.write(data.data());
         data_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   }
@@ -35,7 +21,7 @@ public:
         run.set_arg(2, config.message_sizes[repetition]);
         run.set_arg(3, config.frame_size);
         run.set_arg(4, config.iterations_per_message[repetition]);
-        run.set_arg(5, config.use_ack);
+        run.set_arg(5, config.test_mode);
     }
 
     void start()
@@ -53,7 +39,7 @@ private:
     xrt::bo data_bo;
     xrt::kernel kernel;
     xrt::run run;
-    uint32_t instance;
+    uint32_t rank;
     Configuration &config;
 };
 
@@ -61,10 +47,10 @@ class DumpKernel
 {
 public:
 
-    DumpKernel(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : instance(instance), config(config)
+    DumpKernel(uint32_t rank, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : rank(rank), config(config)
     {
         char name[100];
-        snprintf(name, 100, "dump:{dump_%u}", instance);
+        snprintf(name, 100, "dump:{dump_%u}", rank % 2);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
 
@@ -81,7 +67,7 @@ public:
         run.set_arg(1, data_bo);
         run.set_arg(2, config.message_sizes[repetition]);
         run.set_arg(3, config.iterations_per_message[repetition]);
-        run.set_arg(4, config.use_ack);
+        run.set_arg(4, config.test_mode);
     }
 
     void start()
@@ -113,7 +99,7 @@ public:
         }
         if (err_num) {
             std::cout << "Data verification FAIL" << std::endl;
-            std::cout << "for Dump Kernel " << instance << std::endl;
+            std::cout << "for Dump Kernel " << rank << std::endl;
             std::cout << "in repetition " << repetition << std::endl;
             std::cout << "Total mismatched bytes: " << err_num << std::endl;
             std::cout << "Ratio: " << (double)err_num/(double) config.message_sizes[repetition] << std::endl;
@@ -127,7 +113,7 @@ private:
     xrt::bo data_bo;
     xrt::kernel kernel;
     xrt::run run;
-    uint32_t instance;
+    uint32_t rank;
     Configuration &config;
 };
 

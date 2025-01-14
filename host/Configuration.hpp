@@ -13,7 +13,6 @@ class Configuration
 public:
     const char *optstring = "m:o:b:p:i:r:f:nalt:ws";
     // Defaults
-    float mega_bytes = 256;
     uint32_t device_id_offset = 0;
     uint32_t override_bytes_num = 0;
     std::string xclbin_file = "aurora_flow_test_hw.xclbin";
@@ -21,7 +20,7 @@ public:
     uint32_t iterations = 1;
     uint32_t frame_size = 1;
     bool test_nfc = false;
-    bool use_ack = false;
+    uint32_t test_mode = 0;
     bool latency_measuring = false;
     uint32_t timeout_ms = 10000; // 10 seconds
     bool wait = false;
@@ -29,9 +28,10 @@ public:
     // default for now
     bool randomize_data = true;
 
-    uint32_t max_num_bytes = 0;
+    uint32_t max_num_bytes = 1048576;
     std::vector<uint32_t> message_sizes;
     std::vector<uint32_t> iterations_per_message;
+    std::vector<std::vector<char>> data;
 
     Configuration(int argc, char **argv)
     {
@@ -39,11 +39,11 @@ public:
 
         while ((opt = getopt(argc, argv, optstring)) != -1) {
             if ((opt == 'm') && optarg) {
-                mega_bytes = (uint32_t)(std::stod(std::string(optarg)));
+                test_mode = (uint32_t)(std::stoi(std::string(optarg))); 
             } else if ((opt == 'o') && optarg) {
                 device_id_offset = (uint32_t)(std::stoi(std::string(optarg)));
             } else if ((opt == 'b') && optarg) {
-                override_bytes_num = (uint32_t)(std::stoi(std::string(optarg)));
+                max_num_bytes = (uint32_t)(std::stoi(std::string(optarg)));
             } else if ((opt == 'p') && optarg) {
                 xclbin_file = std::string(optarg);
             } else if (opt == 'r' && optarg) {
@@ -54,10 +54,7 @@ public:
                 frame_size = (uint32_t)(std::stoi(std::string(optarg)));
             } else if (opt == 'n') {
                 test_nfc = true;
-            } else if (opt == 'a') {
-                use_ack = true;
             } else if (opt == 'l') {
-                use_ack = true;
                 latency_measuring = true;
             } else if (opt == 't' && optarg) {
                 timeout_ms = (uint32_t)(std::stoi(std::string(optarg)));
@@ -68,11 +65,6 @@ public:
             }
         }
 
-        if (floor(mega_bytes) == 0 || floor(mega_bytes) != mega_bytes) {
-            std::cerr << "Error: argument m must be integer and greater than zero";
-            exit(1);
-        }
-
         if (xclbin_file == "") {
             std::cerr << "Error: no bitstream file passed" << std::endl;
             exit(1);
@@ -81,13 +73,6 @@ public:
         if (test_nfc) {
             // add initial wait to timeout
             timeout_ms += 10000;
-        }
-
-        max_num_bytes = mega_bytes * 1024 * 1024;
-
-        if (override_bytes_num > 0) {
-            max_num_bytes = override_bytes_num; 
-            mega_bytes = max_num_bytes / 1024.0 / 1024.0;
         }
     }
 
@@ -145,9 +130,17 @@ public:
     {
         std::cout << std::endl;
         std::cout << "------------------------ aurora test ------------------------" << std::endl;
-        std::cout << "Transfer size: " << mega_bytes << " MB" << std::endl;
-        std::cout << "Number of bytes: " << max_num_bytes << std::endl; 
+        std::cout << "Number of transferred bytes: " << max_num_bytes << std::endl; 
         std::cout << "Selected bitstream: " << xclbin_file << std::endl;
+        if (test_mode == 0) {
+            std::cout << "Loopback mode with ack" << std::endl;
+        } else if (test_mode == 1) {
+            std::cout << "Pair mode with ack" << std::endl; 
+        } else if (test_mode == 2) {
+            std::cout << "Ring mode without ack" << std::endl; 
+        } else {
+            std::cout << "Unsupported mode without verification" << std::endl; 
+        }
         if (frame_size > 0) {
             std::cout << "Frame size: " << frame_size << std::endl;
         }
@@ -175,9 +168,6 @@ public:
                           << std::endl;
             }
         } else {
-            if (use_ack) {
-                std::cout << "Using ack" << std::endl;
-            }
             std::cout << iterations << " iterations" << std::endl;
         }
         std::cout << repetitions << " repetitions" << std::endl;

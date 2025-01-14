@@ -51,8 +51,9 @@ extern "C"
         unsigned int frame_size,
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> &data_stream,
         hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_output,
-        bool ack_enabled,
-        hls::stream<ap_axiu<1, 0, 0, 0>> &ack_stream
+        unsigned int ack_mode,
+        hls::stream<ap_axiu<1, 0, 0, 0>> &loopback_ack_stream,
+        hls::stream<ap_axiu<1, 0, 0, 0>> &pair_ack_stream
     ) {
     issue_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
@@ -67,8 +68,10 @@ extern "C"
                 }
                 data_output.write(temp);
             }
-            if (ack_enabled) {
-                ap_axiu<1, 0, 0, 0> ack = ack_stream.read();
+            if (ack_mode == 0) {
+                ap_axiu<1, 0, 0, 0> ack = loopback_ack_stream.read();
+            } else if (ack_mode == 1) {
+                ap_axiu<1, 0, 0, 0> ack = pair_ack_stream.read();
             }
         }
     }
@@ -79,14 +82,15 @@ extern "C"
         unsigned int byte_size,
         unsigned int frame_size,
         unsigned int iterations,
-        bool ack_enable,
-        hls::stream<ap_axiu<1, 0, 0, 0>>& ack_stream
+        unsigned int ack_mode,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& loopback_ack_stream,
+        hls::stream<ap_axiu<1, 0, 0, 0>>& pair_ack_stream
     ) {
 #pragma HLS dataflow
         unsigned int chunks = byte_size / DATA_WIDTH_BYTES;
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> data_stream;
 
         read_data(iterations, chunks, data_input, data_stream);
-        issue_data(iterations, chunks, frame_size, data_stream, data_output, ack_enable, ack_stream);
+        issue_data(iterations, chunks, frame_size, data_stream, data_output, ack_mode, loopback_ack_stream, pair_ack_stream);
     }
 }
