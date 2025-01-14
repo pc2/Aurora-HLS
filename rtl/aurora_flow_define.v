@@ -1,9 +1,0 @@
-
-`define HAS_TKEEP 0
-`define HAS_TLAST 0
-`define FIFO_WIDTH 64
-`define RX_FIFO_DEPTH 1024
-`define RX_FIFO_PROG_FULL 512
-`define RX_FIFO_PROG_EMPTY 128
-`define RX_EQ_MODE "LPM"
-`define INS_LOSS_NYQ 8
