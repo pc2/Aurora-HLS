@@ -11,9 +11,10 @@
 class Configuration
 {
 public:
-    const char *optstring = "m:o:b:p:i:r:f:nalt:ws";
+    const char *optstring = "m:d:b:p:i:r:f:nalt:ws";
     // Defaults
-    uint32_t device_id_offset = 0;
+    uint32_t device_id = 0;
+    uint32_t num_instances = 6;
     std::string xclbin_file = "aurora_flow_test_hw.xclbin";
     uint32_t repetitions = 1;
     uint32_t iterations = 1;
@@ -29,6 +30,7 @@ public:
     uint32_t max_frame_size = 128;
     uint32_t max_num_bytes = 1048576;
 
+    std::vector<uint32_t> instances;
     std::vector<uint32_t> message_sizes;
     std::vector<uint32_t> frame_sizes;
     std::vector<uint32_t> iterations_per_message;
@@ -41,8 +43,9 @@ public:
         while ((opt = getopt(argc, argv, optstring)) != -1) {
             if ((opt == 'm') && optarg) {
                 test_mode = (uint32_t)(std::stoi(std::string(optarg))); 
-            } else if ((opt == 'o') && optarg) {
-                device_id_offset = (uint32_t)(std::stoi(std::string(optarg)));
+            } else if ((opt == 'd') && optarg) {
+                device_id = (uint32_t)(std::stoi(std::string(optarg)));
+                num_instances = 2;
             } else if ((opt == 'b') && optarg) {
                 max_num_bytes = (uint32_t)(std::stoi(std::string(optarg)));
             } else if ((opt == 'p') && optarg) {
@@ -74,6 +77,11 @@ public:
         if (test_nfc) {
             // add initial wait to timeout
             timeout_ms += 10000;
+        }
+
+        instances.resize(num_instances);
+        for (uint32_t i = 0; i < num_instances; i++) {
+            instances[i] = i + (2 * device_id);
         }
     }
 

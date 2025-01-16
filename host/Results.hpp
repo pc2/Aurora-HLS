@@ -144,6 +144,7 @@ public:
             aurora.reset_counter();
         }
    }
+    /*
 
     void gather()
     {
@@ -233,6 +234,7 @@ public:
         total_aurora_config.resize(world_size);
         MPI_Gather(&local_aurora_config, 1, MPI_UNSIGNED, total_aurora_config.data(), 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     }
+*/
 
     // The following functions should be called only from rank 0 after the gather
 

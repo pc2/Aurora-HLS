@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <vector>
 #include <thread>
-#include <mpi.h>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -36,7 +35,7 @@ void wait_for_enter()
     std::cout << "waiting for enter.." << std::endl;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
-
+/*
 void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank, int world_size)
 {
     bool local_core_ok;
@@ -61,6 +60,7 @@ void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank,
         }
     }
 }
+*/
 
 std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_size)
 {
@@ -82,31 +82,23 @@ int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
  
-    MPI_Init(&argc, &argv);
-
-    int world_size , world_rank;
-    MPI_Comm_size(MPI_COMM_WORLD , &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD , &world_rank);
-
-    MPI_Comm node_comm;
-    MPI_Comm_split_type(MPI_COMM_WORLD, OMPI_COMM_TYPE_NODE, 0, MPI_INFO_NULL, &node_comm);
-
-    int node_rank, node_size;
-    MPI_Comm_rank(node_comm, &node_rank);
-    MPI_Comm_size(node_comm, &node_size);
-
     bool emulation = (std::getenv("XCL_EMULATION_MODE") != nullptr);
 
-    uint32_t device_id = emulation ? 0 : (((node_rank / 2) + config.device_id_offset) % 3);
+    for (uint32_t instance = 0; instance < config.num_instances; instance += 2)  {
+        uint32_t device_id = emulation ? 0 : (instance / 2);
+        std::cout << "programming device " << device_id << std::endl;
 
-    uint32_t instance = node_rank % 2;
+        xrt::device device = xrt::device(device_id);
 
-    xrt::device device = xrt::device(device_id);
-    xrt::uuid xclbin_uuid = device.load_xclbin(config.xclbin_file);
+        std::cout << "programmed device << " << device.get_info<xrt::info::device::bdf>() << std::endl;
+
+        xrt::uuid xclbin_uuid = device.load_xclbin(config.xclbin_file);
+    }
 
     if (config.wait) {
         wait_for_enter();
     }
+    /*
 
     Aurora aurora;
     if (!emulation) {
@@ -227,5 +219,6 @@ int main(int argc, char *argv[])
 
     MPI_Finalize();
     return results.has_errors();
+    */
 }
 

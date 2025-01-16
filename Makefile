@@ -21,7 +21,7 @@ ECHO=@echo
 # most important target
 aurora: aurora_flow_0.xo aurora_flow_1.xo
 
-CXX=mpicxx
+CXX=c++
 
 # change here to test different boards
 PART := xcu280-fsvh2892-2L-e
