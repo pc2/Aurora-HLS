@@ -11,7 +11,7 @@
 class Configuration
 {
 public:
-    const char *optstring = "m:d:b:p:i:r:f:nalt:ws";
+    const char *optstring = "m:d:b:p:i:r:f:nalt:wsc";
     // Defaults
     uint32_t device_id = 0;
     uint32_t num_instances = 6;
@@ -24,6 +24,7 @@ public:
     uint32_t timeout_ms = 10000; // 10 seconds
     bool wait = false;
     bool semaphore = false;
+    bool check_status = false;
     // default for now
     bool randomize_data = true;
 
@@ -66,6 +67,8 @@ public:
                 wait = true;
             } else if (opt == 's') {
                 semaphore = true; 
+            } else if (opt == 'c') {
+                check_status = true;
             }
         }
 

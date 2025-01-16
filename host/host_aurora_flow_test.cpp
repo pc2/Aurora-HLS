@@ -30,37 +30,12 @@
 #include "Results.hpp"
 #include "Kernel.hpp"
 
+// can be used for chipscoping
 void wait_for_enter()
 {
     std::cout << "waiting for enter.." << std::endl;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
-/*
-void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank, int world_size)
-{
-    bool local_core_ok;
-
-    // barrier so timeout is working for all configurations 
-    MPI_Barrier(MPI_COMM_WORLD);
-    local_core_ok = aurora.core_status_ok(3000);
-
-    bool core_ok[world_size];
-    MPI_Gather(&local_core_ok, 1, MPI_CXX_BOOL, core_ok, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
-
-    if (world_rank == 0) {
-        int errors = 0;       
-        for (int i = 0; i < world_size; i++) {
-            if (!core_ok[i]) {
-                std::cout << "problem with core " << i % 2 << " on rank " << i << std::endl;
-                errors += 1;
-            }
-        }
-        if (errors) {
-            MPI_Abort(MPI_COMM_WORLD, errors);
-        }
-    }
-}
-*/
 
 std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_size)
 {
@@ -84,30 +59,58 @@ int main(int argc, char *argv[])
  
     bool emulation = (std::getenv("XCL_EMULATION_MODE") != nullptr);
 
-    for (uint32_t instance = 0; instance < config.num_instances; instance += 2)  {
-        uint32_t device_id = emulation ? 0 : (instance / 2);
-        std::cout << "programming device " << device_id << std::endl;
+    std::vector<uint32_t> device_ids(config.num_instances / 2);
+    std::vector<std::string> device_bdfs(config.num_instances / 2);
+    std::vector<xrt::device> devices(config.num_instances / 2);
+    std::vector<xrt::uuid> xclbin_uuids(config.num_instances / 2);
 
-        xrt::device device = xrt::device(device_id);
+    for (uint32_t i = 0; i < config.num_instances / 2 ; i++)  {
+        // TODO check emulation behavior
+        device_ids[i] = emulation ? 0 : (i + config.device_id);
 
-        std::cout << "programmed device << " << device.get_info<xrt::info::device::bdf>() << std::endl;
+        std::cout << "programming device " << device_ids[i] << std::endl;
 
-        xrt::uuid xclbin_uuid = device.load_xclbin(config.xclbin_file);
+        devices[i] = xrt::device(device_ids[i]);
+
+        xclbin_uuids[i] = devices[i].load_xclbin(config.xclbin_file);
+
+        device_bdfs[i] = devices[i].get_info<xrt::info::device::bdf>();
+
+        std::cout << "programmed device " << device_bdfs[i] << std::endl;
     }
 
     if (config.wait) {
         wait_for_enter();
     }
-    /*
+    std::vector<Aurora> auroras(config.num_instances);
 
-    Aurora aurora;
-    if (!emulation) {
-        aurora = Aurora(instance, device, xclbin_uuid);
-        check_core_status_global(aurora, config.timeout_ms, world_rank, world_size);
-        config.finish_setup(aurora.fifo_width, aurora.has_framing(), emulation);
-    } else {
+    if (emulation) {
         config.finish_setup(64, false, emulation);
+    } else {
+        std::vector<bool> statuses(config.num_instances);
+        for (uint32_t i = 0; i < config.num_instances; i++) {
+            auroras[i] = Aurora(i % 2, devices[i / 2], xclbin_uuids[i / 2]);
+            statuses[i] = auroras[i].core_status_ok(3000);
+            if (!statuses[i]) {
+                std::cout << "problem with core " << i % 2 
+                    << " on device " << device_bdfs[i / 2] 
+                    << " with id " << device_ids[i / 2] << std::endl;
+            }
+        }
+        for (bool ok: statuses) {
+            if (!ok) exit(EXIT_FAILURE);
+        }
+
+        std::cout << "All links are ready" << std::endl;
+
+        if (config.check_status) {
+            exit(EXIT_SUCCESS);
+        }
+
+        config.finish_setup(auroras[0].fifo_width, auroras[0].has_framing(), emulation);
     }
+
+    /*
 
     if (world_rank == 0) {
         config.print();
