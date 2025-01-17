@@ -53,11 +53,28 @@ std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_
     return data;
 }
 
+uint32_t mode_map(uint32_t instance, uint32_t num_instances, uint32_t mode)
+{
+    if (mode == 0) {
+        return instance;
+    } else if (mode == 1) {
+        return (instance % 2) == 0 ? instance + 1 : instance - 1;
+    } else if (mode == 2) {
+        return (instance % 2) == 0 ? ((instance + num_instances - 1) % num_instances) : ((instance + 1) % num_instances);
+    } else {
+        throw std::invalid_argument("Invalid test mode");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
  
     bool emulation = (std::getenv("XCL_EMULATION_MODE") != nullptr);
+
+    if (emulation) {
+        config.finish_setup(64, false, emulation);
+    }
 
     std::vector<uint32_t> device_ids(config.num_instances / 2);
     std::vector<std::string> device_bdfs(config.num_instances / 2);
@@ -84,9 +101,7 @@ int main(int argc, char *argv[])
     }
     std::vector<Aurora> auroras(config.num_instances);
 
-    if (emulation) {
-        config.finish_setup(64, false, emulation);
-    } else {
+    if (!emulation) {
         std::vector<bool> statuses(config.num_instances);
         for (uint32_t i = 0; i < config.num_instances; i++) {
             auroras[i] = Aurora(i % 2, devices[i / 2], xclbin_uuids[i / 2]);
@@ -118,95 +133,80 @@ int main(int argc, char *argv[])
     std::vector<IssueKernel> issue_kernels(config.num_instances);
     std::vector<DumpKernel> dump_kernels(config.num_instances);
     for (uint32_t i = 0; i < config.num_instances; i++) {
-        issue_kernels[i] = IssueKernel(i, devices[i / 2], xclbin_uuids[i / 2], config, data[i]);
-        dump_kernels[i] = DumpKernel(i, devices[i / 2], xclbin_uuids[i / 2], config);
+        issue_kernels[i] = IssueKernel(config.instances[i], devices[i / 2], xclbin_uuids[i / 2], config, data[i]);
+        dump_kernels[i] = DumpKernel(config.instances[i], devices[i / 2], xclbin_uuids[i / 2], config);
+        std::cout << "instance " << config.instances[i] << std::endl;
     }
 
     Results results(config, auroras, emulation, device_bdfs);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
-        try {
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                issue_kernels[i].prepare_repetition(r);
-                dump_kernels[i].prepare_repetition(r);
-            }
+        for (uint32_t i = 0; i < config.num_instances; i++) {
+            uint32_t i_recv = mode_map(i, config.num_instances, config.test_mode);
+            IssueKernel &send = issue_kernels[i];
+            DumpKernel &recv = dump_kernels[i_recv];
+            Aurora &recv_aurora = auroras[i_recv];
+            std::cout << i << " to " << i_recv << std::endl;
+            try {
+                send.prepare_repetition(r);
+                recv.prepare_repetition(r);
+                if (config.test_nfc) {
+                    std::cout << "Testing NFC: waiting 3 seconds before starting the dump kernel" << std::endl;
+                    if (!emulation) {
+                        recv_aurora.print_fifo_status();
+                    }
+                    send.start(); 
 
-            if (config.test_nfc) {
-                std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
-                for (uint32_t i = 0; i < config.num_instances; i++) {
-                    auroras[i].print_fifo_status();
-                    issue_kernels[i].start(); 
+                    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+                    if (!emulation) {
+                        std::cout << "Receives on instance " << i << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
+                        recv_aurora.print_fifo_status();
+                    }
                 }
 
-                std::this_thread::sleep_for(std::chrono::seconds(10));
-                for (uint32_t i = 0; i < config.num_instances; i++) {
-                    std::cout << "Receives on instance " << i << ": " << auroras[i].get_nfc_latency_count() << std::endl;
-                    auroras[i].print_fifo_status();
+                recv.start();
+
+                double start_time = get_wtime();
+
+                if (!config.test_nfc) {
+                    send.start();
                 }
-            }
-            
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                dump_kernels[i].start();
-            }
 
-            double start_time = get_wtime();
-
-            if (!config.test_nfc) {
-                for (uint32_t i = 0; i < config.num_instances; i++) {
-                    issue_kernels[i].start();
-                }
-            }
-
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                if (dump_kernels[i].timeout()) {
-                    std::cout << "Dump " << i << " timeout" << std::endl;
+                if (recv.timeout()) {
+                    std::cout << "Recv " << i << " timeout" << std::endl;
                     results.failed_transmissions[i][r] = 1;
                 } else {
                     results.failed_transmissions[i][r] = 0;
                 }
-            }
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                if (issue_kernels[i].timeout()) {
-                    std::cout << "Issue " << i << " timeout" << std::endl;
+
+                if (send.timeout()) {
+                    std::cout << "Send " << i << " timeout" << std::endl;
                     results.failed_transmissions[i][r] = 2;
                 }
-            }
 
-            double end_time = get_wtime();
+                double end_time = get_wtime();
 
-            for (uint32_t i = 0; i < config.num_instances; i++) {
                 results.transmission_times[i][r] = end_time - start_time;
-            }
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                dump_kernels[i].write_back();
-            }
-            for (uint32_t i = 0; i < config.num_instances; i++) {
+
+                recv.write_back();
+
                 if (config.test_mode < 3) {
-                    uint32_t issue_rank = i;
-                    if (config.test_mode == 1) {
-                        // pair
-                        issue_rank = (i % 2) == 0 ? i + 1 : i - 1;
-                    } else if (config.test_mode == 2) {
-                        // ring
-                        issue_rank = (i % 2) == 0 ? (i + config.num_instances - 1) % config.num_instances : (i + 1) % config.num_instances;
-                    }
-                    results.errors[i][r] = dump_kernels[i].compare_data(data[issue_rank].data(), r);
+                    results.errors[i][r] = recv.compare_data(data[i].data(), r);
                 } else {
                     // no validation
                     results.errors[i][r] = 0;
                 }
+            } catch (const std::runtime_error &e) {
+                std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
+                results.failed_transmissions[i][r] = 3;
+            } catch (const std::exception &e) {
+                std::cout << "caught unexpected error at repetition " << r << ": " << e.what() << std::endl;
+                results.failed_transmissions[i][r] = 4;
+            } catch (...) {
+                std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
+                results.failed_transmissions[i][r] = 5;
             }
-        } catch (const std::runtime_error &e) {
-            std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
-            results.failed_transmissions[0][r] = 3;
-        } catch (const std::exception &e) {
-            std::cout << "caught unexpected error at repetition " << r << ": " << e.what() << std::endl;
-            results.failed_transmissions[0][r] = 4;
-        } catch (...) {
-            std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
-            results.failed_transmissions[0][r] = 5;
-        }
-        for (uint32_t i = 0; i < config.num_instances; i++) {
             results.update_counter(i, r);
         }
     }

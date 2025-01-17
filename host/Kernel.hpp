@@ -1,10 +1,10 @@
 class IssueKernel
 {
 public:
-    IssueKernel(uint32_t rank, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config, std::vector<char> &data) : rank(rank), config(config)
+    IssueKernel(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config, std::vector<char> &data) : instance(instance), config(config)
     {
         char name[100];
-        snprintf(name, 100, "issue:{issue_%u}", rank % 2);
+        snprintf(name, 100, "issue:{issue_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
@@ -41,7 +41,7 @@ private:
     xrt::bo data_bo;
     xrt::kernel kernel;
     xrt::run run;
-    uint32_t rank;
+    uint32_t instance;
     Configuration config;
 };
 
@@ -49,12 +49,11 @@ class DumpKernel
 {
 public:
 
-    DumpKernel(uint32_t rank, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : rank(rank), config(config)
+    DumpKernel(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : instance(instance), config(config)
     {
         char name[100];
-        snprintf(name, 100, "dump:{dump_%u}", rank % 2);
+        snprintf(name, 100, "dump:{dump_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
-
 
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
 
@@ -102,7 +101,7 @@ public:
         }
         if (err_num) {
             std::cout << "Data verification FAIL" << std::endl;
-            std::cout << "for Dump Kernel " << rank << std::endl;
+            std::cout << "for Dump Kernel " << instance << std::endl;
             std::cout << "in repetition " << repetition << std::endl;
             std::cout << "Total mismatched bytes: " << err_num << std::endl;
             std::cout << "Ratio: " << (double)err_num/(double) config.message_sizes[repetition] << std::endl;
@@ -116,7 +115,7 @@ private:
     xrt::bo data_bo;
     xrt::kernel kernel;
     xrt::run run;
-    uint32_t rank;
+    uint32_t instance;
     Configuration config;
 };
 

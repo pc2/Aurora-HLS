@@ -96,12 +96,26 @@ public:
     void finish_setup(uint32_t fifo_width, bool has_framing, bool emulation) {
         if ((max_num_bytes % fifo_width ) != 0) {
             std::cout << "Error: number of bytes must be multiple of the fifo width " << fifo_width << std::endl;
-            exit(1);
+            exit(EXIT_FAILURE);
         }
+
+        if (emulation) {
+            if (test_mode == 0) {
+                xclbin_file = "aurora_flow_test_sw_emu_loopback.xclbin";
+            } else if (test_mode == 1) {
+                xclbin_file = "aurora_flow_test_sw_emu_pair.xclbin";
+            } else if (test_mode == 2) {
+                xclbin_file = "aurora_flow_test_sw_emu_ring.xclbin";
+            } else {
+                std::cout << "Error: unsupported test mode for emulation" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        
         if (!has_framing) {
             max_frame_size = 0;
         }
-        
+
         if (latency_measuring) {
             // check for power of two
             if (((max_num_bytes & (max_num_bytes - 1)) != 0)) {
