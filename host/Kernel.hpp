@@ -11,7 +11,9 @@ public:
 
         data_bo.write(data.data());
         data_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-  }
+    }
+
+    IssueKernel() {}
 
     void prepare_repetition(uint32_t repetition)
     {
@@ -40,7 +42,7 @@ private:
     xrt::kernel kernel;
     xrt::run run;
     uint32_t rank;
-    Configuration &config;
+    Configuration config;
 };
 
 class DumpKernel
@@ -57,8 +59,9 @@ public:
         data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
 
         data.resize(config.max_num_bytes);
-
     }
+
+    DumpKernel() {}
 
     void prepare_repetition(uint32_t repetition)
     {
@@ -114,6 +117,6 @@ private:
     xrt::kernel kernel;
     xrt::run run;
     uint32_t rank;
-    Configuration &config;
+    Configuration config;
 };
 

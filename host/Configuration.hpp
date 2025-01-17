@@ -25,8 +25,6 @@ public:
     bool wait = false;
     bool semaphore = false;
     bool check_status = false;
-    // default for now
-    bool randomize_data = true;
 
     uint32_t max_frame_size = 128;
     uint32_t max_num_bytes = 1048576;
@@ -74,7 +72,12 @@ public:
 
         if (xclbin_file == "") {
             std::cerr << "Error: no bitstream file passed" << std::endl;
-            exit(1);
+            exit(EXIT_FAILURE);
+        }
+
+        if (test_mode == 2 && num_instances == 2) {
+            std::cout << "ring test mode is incompatible with single device selection" << std::endl;
+            exit(EXIT_FAILURE);
         }
 
         if (test_nfc) {
@@ -87,6 +90,8 @@ public:
             instances[i] = i + (2 * device_id);
         }
     }
+
+    Configuration() {}
 
     void finish_setup(uint32_t fifo_width, bool has_framing, bool emulation) {
         if ((max_num_bytes % fifo_width ) != 0) {
@@ -109,7 +114,9 @@ public:
             }
         }
         // removing all message sizes smaller than channel width
-        repetitions = log2(max_num_bytes) + 1 - log2(fifo_width);
+        if (latency_measuring) {
+            repetitions = log2(max_num_bytes) + 1 - log2(fifo_width);
+        }
         message_sizes.resize(repetitions);
         frame_sizes.resize(repetitions);
         iterations_per_message.resize(repetitions);
@@ -141,10 +148,13 @@ public:
 
     void print()
     {
-        std::cout << std::endl;
-        std::cout << "------------------------ aurora test ------------------------" << std::endl;
-        std::cout << "Number of transferred bytes: " << max_num_bytes << std::endl; 
+        std::cout << "------------------------ AuroraFlow Test ------------------------" << std::endl;
         std::cout << "Selected bitstream: " << xclbin_file << std::endl;
+        if (check_status) {
+            std::cout << "Checking link status" << std::endl;
+            return;
+        }
+        std::cout << "Max. number of transferred bytes: " << max_num_bytes << std::endl; 
         if (test_mode == 0) {
             std::cout << "Loopback mode with ack" << std::endl;
         } else if (test_mode == 1) {
@@ -155,12 +165,7 @@ public:
             std::cout << "Unsupported mode without verification" << std::endl; 
         }
         if (max_frame_size > 0) {
-            std::cout << "Frame size: " << max_frame_size << std::endl;
-        }
-        if (randomize_data) {
-            std::cout << "Random data" << std::endl; 
-        } else {
-            std::cout << "Ascending data" << std::endl; 
+            std::cout << "Max. frame size: " << max_frame_size << std::endl;
         }
         if (test_nfc) {
             std::cout << "Testing NFC interface" << std::endl;
@@ -183,10 +188,14 @@ public:
                           << std::endl;
             }
         } else {
+            std::cout << repetitions << " repetitions" << std::endl;
             std::cout << iterations << " iterations" << std::endl;
         }
-        std::cout << repetitions << " repetitions" << std::endl;
         std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
+        std::cout << num_instances << " instances" << std::endl;
+        if (semaphore) {
+            std::cout << "Locking results.csv for parallel writing" << std::endl;
+        }
     }
 
 };
