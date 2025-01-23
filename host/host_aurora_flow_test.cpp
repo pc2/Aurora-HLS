@@ -66,6 +66,19 @@ uint32_t mode_map(uint32_t instance, uint32_t num_instances, uint32_t mode)
     }
 }
 
+std::string bdf_map(uint32_t device_id, bool emulation)
+{
+    if (device_id == 0) {
+        return "0000:a1:00.1";
+    } else if (device_id == 1) {
+        return "0000:81:00.1";
+    } else if (device_id == 2) {
+        return "0000:01:00.1";
+    } else {
+        throw std::invalid_argument("Invalid device id");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
@@ -85,15 +98,16 @@ int main(int argc, char *argv[])
         // TODO check emulation behavior
         device_ids[i] = emulation ? 0 : (i + config.device_id);
 
-        std::cout << "programming device " << device_ids[i] << std::endl;
+        device_bdfs[i] = bdf_map(device_ids[i], emulation);
 
-        devices[i] = xrt::device(device_ids[i]);
+        if (emulation) {
+            devices[i] = xrt::device(0);
+        } else {
+            std::cout << "programming device " << device_bdfs[i] << std::endl;
+            devices[i] = xrt::device(device_bdfs[i]);
+        }
 
         xclbin_uuids[i] = devices[i].load_xclbin(config.xclbin_file);
-
-        device_bdfs[i] = devices[i].get_info<xrt::info::device::bdf>();
-
-        std::cout << "programmed device " << device_bdfs[i] << std::endl;
     }
 
     if (config.wait) {
@@ -133,9 +147,8 @@ int main(int argc, char *argv[])
     std::vector<IssueKernel> issue_kernels(config.num_instances);
     std::vector<DumpKernel> dump_kernels(config.num_instances);
     for (uint32_t i = 0; i < config.num_instances; i++) {
-        issue_kernels[i] = IssueKernel(config.instances[i], devices[i / 2], xclbin_uuids[i / 2], config, data[i]);
-        dump_kernels[i] = DumpKernel(config.instances[i], devices[i / 2], xclbin_uuids[i / 2], config);
-        std::cout << "instance " << config.instances[i] << std::endl;
+        issue_kernels[i] = IssueKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
+        dump_kernels[i] = DumpKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config);
     }
 
     Results results(config, auroras, emulation, device_bdfs);
@@ -146,7 +159,6 @@ int main(int argc, char *argv[])
             IssueKernel &send = issue_kernels[i];
             DumpKernel &recv = dump_kernels[i_recv];
             Aurora &recv_aurora = auroras[i_recv];
-            std::cout << i << " to " << i_recv << std::endl;
             try {
                 send.prepare_repetition(r);
                 recv.prepare_repetition(r);
@@ -160,7 +172,7 @@ int main(int argc, char *argv[])
                     std::this_thread::sleep_for(std::chrono::seconds(3));
 
                     if (!emulation) {
-                        std::cout << "Receives on instance " << i << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
+                        std::cout << "Receives on instance " << i_recv << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
                         recv_aurora.print_fifo_status();
                     }
                 }
@@ -174,7 +186,7 @@ int main(int argc, char *argv[])
                 }
 
                 if (recv.timeout()) {
-                    std::cout << "Recv " << i << " timeout" << std::endl;
+                    std::cout << "Recv " << i_recv << " timeout" << std::endl;
                     results.failed_transmissions[i][r] = 1;
                 } else {
                     results.failed_transmissions[i][r] = 0;

@@ -85,10 +85,6 @@ public:
             timeout_ms += 10000;
         }
 
-        instances.resize(num_instances);
-        for (uint32_t i = 0; i < num_instances; i++) {
-            instances[i] = i + (2 * device_id);
-        }
     }
 
     Configuration() {}
@@ -112,6 +108,12 @@ public:
             }
         }
         
+        instances.resize(num_instances);
+        for (uint32_t i = 0; i < num_instances; i++) {
+            uint32_t i_inst = i + (2 * device_id);
+            instances[i] = emulation ? i_inst : i_inst % 2;
+        }
+
         if (!has_framing) {
             max_frame_size = 0;
         }

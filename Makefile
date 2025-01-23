@@ -177,7 +177,7 @@ aurora_flow_test_sw_emu_ring.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora
 
 xclbin: $(XCLBIN_NAME)
 
-xclbin_sw_emu: aurora_flow_test_sw_emu_loopback.xclbin aurora_flow_test_sw_emu_pair.xclbin aurora_flow_test_sw_emu_ring.xclbin
+xclbin_emu: aurora_flow_test_$(TARGET)_loopback.xclbin aurora_flow_test_$(TARGET)_pair.xclbin aurora_flow_test_$(TARGET)_ring.xclbin
 
 # host build for example
 CXXFLAGS += -std=c++17 -Wall -g
