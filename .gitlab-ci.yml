@@ -107,10 +107,10 @@ build:emulation_xclbin:
   stage: build
   script:
     - ml fpga/xilinx/xrt/2.15
-    - make xclbin TARGET=sw_emu
+    - make xclbin_emu TARGET=sw_emu
   artifacts:
     paths:
-      - ./aurora_flow_test_sw_emu.xclbin
+      - ./aurora_flow_test_sw_emu_loopback.xclbin
   needs: []
 
 build:hlslib_test:
@@ -157,7 +157,7 @@ emu:xrt:
   needs: ["build:emulation_xclbin", "build:host:2.15"]
   script:
     - ml fpga/xilinx/xrt/2.15
-    - env XCL_EMULATION_MODE=sw_emu srun -n 2 ./host_aurora_flow_test -p aurora_flow_test_sw_emu.xclbin -m 1 -r 2 -i 10
+    - env XCL_EMULATION_MODE=sw_emu ./host_aurora_flow_test -m 0 -r 2 -i 10 
 
 emu:hlslib_test:
   stage: emulation

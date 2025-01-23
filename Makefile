@@ -169,15 +169,15 @@ aurora_flow_test_hw.xclbin: aurora issue_$(TARGET).xo dump_$(TARGET).xo aurora_f
 aurora_flow_test_sw_emu_loopback.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_loopback.cfg
 	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_loopback.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
 
-aurora_flow_test_sw_emu_pair.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_pair.cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_pair.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
+#aurora_flow_test_sw_emu_pair.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_pair.cfg
+#	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_pair.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
 
-aurora_flow_test_sw_emu_ring.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_ring.cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_ring.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
+#aurora_flow_test_sw_emu_ring.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_ring.cfg
+#	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_ring.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
 
 xclbin: $(XCLBIN_NAME)
 
-xclbin_emu: aurora_flow_test_$(TARGET)_loopback.xclbin aurora_flow_test_$(TARGET)_pair.xclbin aurora_flow_test_$(TARGET)_ring.xclbin
+xclbin_emu: aurora_flow_test_$(TARGET)_loopback.xclbin
 
 # host build for example
 CXXFLAGS += -std=c++17 -Wall -g
