@@ -1,4 +1,4 @@
-﻿# Using Aurora for direct point-to-point communications
+﻿# Using AuroraFlow for direct point-to-point communications
 
 ## Introduction
 
@@ -19,7 +19,6 @@ You can build the packaged kernel with the following command:
 ```
 
 This provides a kernel for each QSFP port. Pay attention to the numbers, because of constraints issues when using the same kernel for both QSFP ports, we need a different kernel for each QSFP port. Link `aurora_flow_0.xo` with QSFP port 0 and `aurora_flow_1.xo` with QSFP port 1.
-
 
 Each kernel has one AXI stream for sending and one for receiving data. Connect them in your link script with the application kernels.
 
@@ -54,7 +53,6 @@ stream_connect=issue_1.data_output:aurora_flow_1.tx_axis:256
 
 All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
 
-
 By default the FIFO and therefore the streams for input and output have a width of 64 bytes. This is the width which is also needed to reach the maximum throughput of 100Gbit/s. If you have a special application which needs another width, this is also configurable. When configuring the width to 32, the internal datawidth converter is skipped, which leads to a small reduction in resources and latency. When the application has an output which is less than the 32 bytes per cycle, this is the preferred option. The linking step automatically adds a datawidth converter when two axi streams of different sizes are connected. But this is only recommended for upscaling, when connecting a larger stream to an input of 32, the total possible throughput will be reduced.
 
 ```
@@ -67,9 +65,9 @@ When only the size in bytes and the width are given, the depth will be calculate
 
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
-The number of times the NFC module gets activated and deactivated is counted, as well as the maximum number of transmissions occuring after stopping the transmission. This number needs to fit in the FIFO between the programmable full threshold and completely full. The full signal of the RX fifo is monitored and overruns are counted, which are happening, when there is not enough space, which leads to data loss. The counters can be read from the ip directly and can be used to tweak the configuration.
+The number of times the NFC module gets activated and deactivated is counted, as well as the maximum number of transmissions occuring after stopping the transmission. This number needs to fit in the FIFO between the programmable full threshold and completely full. The full signal of the RX fifo is monitored and overruns are counted. These are happening, when there is not enough space, which leads to data loss. The counters can be read from the ip directly and can be used to tweak the configuration.
 
-Experiments on our infrastrucutre have shown, that the size of the FIFO between full and programmable full needs to be 16384 bytes, totalling 65536 bytes for the full FIFO. This may need to be adjusted with longer connections. The total size may be decreased, with the risk of performance loss. Either caused by too fast switching between on and off and because of less space between programmable full and programmable empty, or by stalling the transmission because of too few space between empty and programmable empty. 
+Experiments on our infrastrucutre have shown, that the size of the FIFO between full and programmable full needs to be 16384 bytes, totalling 65536 bytes for the full FIFO. This may need to be adjusted with longer connections. The total size of the FIFO may be decreased, with the risk of performance loss. Either caused by too fast switching between on and off and because of less space between programmable full and programmable empty, or by stalling the transmission because of too few space between empty and programmable empty. 
 
 ### Monitoring
 
@@ -179,7 +177,7 @@ The verilog modules for flow control, monitoring and for the configuration have 
 
 ## Example design
 
-The example design is inspired by the original Xilinx example and contains a simple issue and a simple dump kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. When using MPI every rank controls one qsfp port, so it scales to three FPGAs on one node with 6 ranks, for example.
+The example design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. It is configured for our infrastructure with 3 FPGAs.
 
 ### Build the example
 
@@ -190,7 +188,7 @@ You can build the example design with the following commands.
   make xclbin
 ```
 
-It is also possible to build a design for software emulation. But this skips the aurora kernels and just connects the issue with the dump kernels and is only used for verifying the correctness of the HLS kernels and the host code.
+It is also possible to build a design for software emulation. But this skips the aurora kernels and just connects the send with the recv kernels and is only used for verifying the correctness of the HLS kernels and the host code.
 
 ```
   make xclbin TARGET=sw_emu
@@ -200,6 +198,7 @@ It is also possible to build a design for software emulation. But this skips the
 ### Test the example
 
 The host application offers the following parameters
+TODO: print actual help output
 ```
 -m megabytes        Specify the amount of data to be transmitted in megabytes.
 -b bytes            Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
@@ -215,13 +214,17 @@ The host application offers the following parameters
 
 ```
 
-The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. An exemplary analysis of the data can be found in a [jupyter notebook](./eval/eval.ipynb)
+The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. The results can be analyzed with a [script](./eval/eval.jl)
 
 When scaling this test to multiple nodes, the -s flag can used to guarantee that only one job is writing to results file at once. Beware that the file must exist, otherwise the application will wait forever on it.
 
-By default, the first two ranks will choose the device with index 0, going up with the next ranks. This can be changed with specifying an offset, for this selection procedure. This is useful, for example, when only one specific device needs to be tested.
+By default, the example will run on all 3 FPGAs. This can be changed with specifying an device id, when only one specific device needs to be tested. The id is mapped to the device bdf and is not consistent with the device id used by XRT, because they are different depending on the version.
 
-There are two more special test cases. The first one is testing the flow control by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
+TODO: 
+check test
+topo modes
+
+There are two more special test cases. The first one is testing the flow control by starting the recv kernel 10 seconds later than the send kernel, which is enabled by the -n flag.
 
 ### Latency test
 
@@ -259,13 +262,16 @@ The second is the so-called latency test, which tests different message sizes wi
 
 ### Noctua2
 
+
 There are scripts available for running on the [Noctua 2](https://pc2.uni-paderborn.de/hpc-services/available-systems/noctua2) cluster. The used set of modules can be loaded with the following command.
 
 ```
   source env.sh
 ```
 
-There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. Streaming and framing bitstreams are needed for running [over all frame sizes](./scripts/run_N1_over_framesizes.sh).
+TODO: update with topologies
+
+There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. With all synthesized configurations available, you can test them with one [script](./scripts/run_over_all_configs.sh).
 
 For quick testing, there are two scripts, which do a simple run on either 3 or 6 FPGAs (1 or 2 nodes).
 
@@ -277,4 +283,4 @@ There is also a helper script which runs a given script for every available FPGA
 ./scripts/for_every_node.sh ./scripts/run_N1_over_framesizes.sh
 ```
 
-<p align="center"><sup>Copyright&copy; 2023-2024 Gerrit Pape (papeg@mail.upb.de)</sup></p>
+<p align="center"><sup>Copyright&copy; 2023-2025 Gerrit Pape (papeg@mail.upb.de)</sup></p>
