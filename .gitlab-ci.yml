@@ -1148,7 +1148,7 @@ benchmark:2.14:
     SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_14
   script:
     - ml fpga/xilinx/xrt/2.14
-    - ./scripts/run_over_all.sh -l -i 10
+    - ./scripts/run_over_all_configs.sh -l -i 20 -b 268435456
   only:
     - web 
   artifacts:
@@ -1168,7 +1168,7 @@ benchmark:2.15:
     SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_15
   script:
     - ml fpga/xilinx/xrt/2.15
-    - ./scripts/run_over_all.sh -l -i 10
+    - ./scripts/run_over_all_configs.sh -l -i 20 -b 268435456
   only:
     - web 
   artifacts:
@@ -1188,7 +1188,7 @@ benchmark:2.16:
     SCHEDULER_PARAMETERS: $LONG_RUN_SCHEDULER_PARAMETERS_2_16
   script:
     - ml fpga/xilinx/xrt/2.16
-    - ./scripts/run_over_all.sh -l -i 10
+    - ./scripts/run_over_all_configs.sh -l -i 20 -b 268435456
   only:
     - web 
   artifacts:

@@ -18,15 +18,12 @@ fi
 
 for frame_size in 4 16 32 128
 do 
-    ./scripts/reset.sh
     ./host_aurora_flow_test -m 1 -p aurora_flow_test_hw_1_64.xclbin -f $frame_size $@
 done
 
-./scripts/reset.sh
 ./host_aurora_flow_test -m 1 -p aurora_flow_test_hw_0_32.xclbin -f 0 $@
 
 for frame_size in 4 16 32 128
 do 
-    ./scripts/reset.sh
     ./host_aurora_flow_test -m 1 -p aurora_flow_test_hw_1_32.xclbin -f $frame_size $@
 done
