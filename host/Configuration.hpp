@@ -170,7 +170,6 @@ public:
 
     void print()
     {
-        std::cout << "------------------------ AuroraFlow Test ------------------------" << std::endl;
         std::cout << "Selected bitstream: " << xclbin_path << std::endl;
         if (check_status) {
             std::cout << "Checking link status" << std::endl;

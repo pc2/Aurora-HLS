@@ -140,6 +140,10 @@ int main(int argc, char *argv[])
     }
 
     config.print();
+    if (!emulation) {
+        std::cout << "Aurora core has framing " << (auroras[0].has_framing() ? "enabled" : "disabled")
+                  << " and input width of " << auroras[0].fifo_width << " bytes" << std::endl;
+    }
 
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, config.num_instances);
 
@@ -172,7 +176,6 @@ int main(int argc, char *argv[])
                     std::this_thread::sleep_for(std::chrono::seconds(3));
 
                     if (!emulation) {
-                        std::cout << "Receives on instance " << i_recv << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
                         recv_aurora.print_fifo_status();
                     }
                 }
@@ -198,6 +201,10 @@ int main(int argc, char *argv[])
                 }
 
                 double end_time = get_wtime();
+
+                if (!emulation && config.nfc_test) {
+                    std::cout << "Receives on instance " << i_recv << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
+                }
 
                 results.transmission_times[i][r] = end_time - start_time;
 
