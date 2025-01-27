@@ -7,6 +7,7 @@ stages:
   - benchmark
 
 variables:
+  GIT_SUBMODULE_STRATEGY: recursive
   ACCOUNT: "hpc-prf-cifi"
   SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 4 --mem 16g"
   SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
