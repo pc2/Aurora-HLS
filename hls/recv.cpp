@@ -22,7 +22,6 @@
 #define DATA_WIDTH_BYTES 64
 #endif
 
-
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
 #define STREAM_DEPTH 256

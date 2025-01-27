@@ -144,11 +144,11 @@ int main(int argc, char *argv[])
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, config.num_instances);
 
     // create kernel objects
-    std::vector<IssueKernel> issue_kernels(config.num_instances);
-    std::vector<DumpKernel> dump_kernels(config.num_instances);
+    std::vector<SendKernel> issue_kernels(config.num_instances);
+    std::vector<RecvKernel> recv_kernels(config.num_instances);
     for (uint32_t i = 0; i < config.num_instances; i++) {
-        issue_kernels[i] = IssueKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
-        dump_kernels[i] = DumpKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config);
+        issue_kernels[i] = SendKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
+        recv_kernels[i] = RecvKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config);
     }
 
     Results results(config, auroras, emulation, device_bdfs);
@@ -156,8 +156,8 @@ int main(int argc, char *argv[])
     for (uint32_t r = 0; r < config.repetitions; r++) {
         for (uint32_t i = 0; i < config.num_instances; i++) {
             uint32_t i_recv = mode_map(i, config.num_instances, config.test_mode);
-            IssueKernel &send = issue_kernels[i];
-            DumpKernel &recv = dump_kernels[i_recv];
+            SendKernel &send = issue_kernels[i];
+            RecvKernel &recv = recv_kernels[i_recv];
             Aurora &recv_aurora = auroras[i_recv];
             try {
                 send.prepare_repetition(r);

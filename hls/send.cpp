@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 Xilinx, Inc.
- *           2023-2024 Gerrit Pape (papeg@mail.upb.de)
+ * Copyright 2023-2025 Gerrit Pape (papeg@mail.upb.de)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +44,7 @@ extern "C"
         }
     }
 
-    void issue_data(
+    void send_data(
         unsigned int iterations,
         unsigned int chunks,
         unsigned int frame_size,
@@ -55,9 +54,9 @@ extern "C"
         hls::stream<ap_axiu<1, 0, 0, 0>> &loopback_ack_stream,
         hls::stream<ap_axiu<1, 0, 0, 0>> &pair_ack_stream
     ) {
-    issue_iterations:
+    send_iterations:
         for (unsigned int n = 0; n < iterations; n++) {
-        issue_chunks:
+        send_chunks:
             for (unsigned int i = 0; i < chunks; i++) {
                 #pragma HLS PIPELINE II = 1
                 ap_axiu<DATA_WIDTH, 0, 0, 0> temp;
@@ -76,7 +75,7 @@ extern "C"
         }
     }
 
-    void issue(
+    void send(
         hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& data_output,
         ap_uint<DATA_WIDTH> *data_input,
         unsigned int byte_size,
@@ -91,6 +90,6 @@ extern "C"
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> data_stream;
 
         read_data(iterations, chunks, data_input, data_stream);
-        issue_data(iterations, chunks, frame_size, data_stream, data_output, ack_mode, loopback_ack_stream, pair_ack_stream);
+        send_data(iterations, chunks, frame_size, data_stream, data_output, ack_mode, loopback_ack_stream, pair_ack_stream);
     }
 }

@@ -62,8 +62,6 @@ else
 	HAS_TLAST := 0
 endif
 
-XCLBIN_NAME := aurora_flow_test_$(TARGET).xclbin
-
 # create the ips
 ./ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci: ./tcl/create_aurora_ip.tcl
 	mkdir -p ip_creation
@@ -157,31 +155,25 @@ aurora_flow_1.xo: $(RTL_SRC_1) ./tcl/pack_kernel.tcl
 	cd aurora_flow_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1
 
 # build example bitstream
-dump_$(TARGET).xo: ./hls/dump.cpp
-	v++ $(HLSCFLAGS) --temp_dir _x_dump --kernel dump --output $@ $^
+recv_$(TARGET).xo: ./hls/recv.cpp
+	v++ $(HLSCFLAGS) --temp_dir _x_recv --kernel recv --output $@ $^
 
-issue_$(TARGET).xo: ./hls/issue.cpp
-	v++ $(HLSCFLAGS) --temp_dir _x_issue --kernel issue --output $@ $^
+send_$(TARGET).xo: ./hls/send.cpp
+	v++ $(HLSCFLAGS) --temp_dir _x_send --kernel send --output $@ $^
 	
-aurora_flow_test_hw.xclbin: aurora issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo dump_$(TARGET).xo issue_$(TARGET).xo
+aurora_flow_test_hw.xclbin: aurora send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo recv_$(TARGET).xo send_$(TARGET).xo
 
-aurora_flow_test_sw_emu_loopback.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_loopback.cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_loopback.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
+aurora_flow_test_sw_emu_loopback.xclbin: send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET)_loopback.cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_loopback.cfg --output $@ recv_$(TARGET).xo send_$(TARGET).xo
 
-#aurora_flow_test_sw_emu_pair.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_pair.cfg
-#	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_pair.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
-
-#aurora_flow_test_sw_emu_ring.xclbin: issue_$(TARGET).xo dump_$(TARGET).xo aurora_flow_test_$(TARGET)_ring.cfg
-#	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_ring.cfg --output $@ dump_$(TARGET).xo issue_$(TARGET).xo
-
-xclbin: $(XCLBIN_NAME)
+xclbin : aurora_flow_test_$(TARGET).xclbin
 
 xclbin_emu: aurora_flow_test_$(TARGET)_loopback.xclbin
 
 # host build for example
 CXXFLAGS += -std=c++17 -Wall -g
-CXXFLAGS += -I$(XILINX_XRT)/include
+CXXFLAGS += -I$(XILINX_XRT)/include -I./cxxopts/include
 CXXFLAGS += -fopenmp
 LDFLAGS := -L$(XILINX_XRT)/lib
 LDFLAGS += $(LDFLAGS) -lxrt_coreutil -luuid
