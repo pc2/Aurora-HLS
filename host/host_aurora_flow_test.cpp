@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
             devices[i] = xrt::device(device_bdfs[i]);
         }
 
-        xclbin_uuids[i] = devices[i].load_xclbin(config.xclbin_file);
+        xclbin_uuids[i] = devices[i].load_xclbin(config.xclbin_path);
     }
 
     if (config.wait) {
@@ -162,8 +162,8 @@ int main(int argc, char *argv[])
             try {
                 send.prepare_repetition(r);
                 recv.prepare_repetition(r);
-                if (config.test_nfc) {
-                    std::cout << "Testing NFC: waiting 3 seconds before starting the dump kernel" << std::endl;
+                if (config.nfc_test) {
+                    std::cout << "Testing NFC: waiting 3 seconds before starting the recv kernel" << std::endl;
                     if (!emulation) {
                         recv_aurora.print_fifo_status();
                     }
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 
                 double start_time = get_wtime();
 
-                if (!config.test_nfc) {
+                if (!config.nfc_test) {
                     send.start();
                 }
 
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
     if (total_failed_transmissions) {
         std::cout << total_failed_transmissions << " failed transmissions" << std::endl;
     } else {
-        if (config.test_nfc) {
+        if (config.nfc_test) {
             std::cout << "NFC test passed" << std::endl;
         } else {
             uint32_t total_byte_errors = results.total_byte_errors();

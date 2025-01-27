@@ -175,9 +175,9 @@ The verilog modules for flow control, monitoring and for the configuration have 
   make configuration_tb
 ```
 
-## Example design
+## Test design
 
-The example design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. It is configured for our infrastructure with 3 FPGAs.
+The test design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. It is configured for our infrastructure with 3 FPGAs and supports three different topologies.
 
 ### Build the example
 
@@ -195,23 +195,38 @@ It is also possible to build a design for software emulation. But this skips the
 ```
 
 
-### Test the example
+### Usage
 
-The host application offers the following parameters
-TODO: print actual help output
 ```
--m megabytes        Specify the amount of data to be transmitted in megabytes.
--b bytes            Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
--p path             Path to the bitstream file. Default is "aurora_flow_test_hw.xclbin"
--r repetitions      Number of repetitions of the test.
--i iterations       Number of iterations of the test inside the kernel
--f frame_size       The size of the frame in framing mode. The size is measured in multiples of the datawidth
--n test_nfc         Enables the NFC test
--a use_ack          Enables the acknowledgement between every iteration in the kernel
--t timeout_ms       The timeout used for waiting on a channel and on finish for the HLS kernels
--o device_id_offset Offset for selecting the FPGA device id
--s semaphore        Lock the results file with atomic rename before writing to it
+Test program for AuroraFlow
+Usage:
+  host_aurora_flow_test [OPTION...]
 
+  -d, --device_id arg    Device ID according to linkscript (default: 0)
+  -p, --xclbin_path arg  Path to xclbin file (default:
+                         aurora_flow_test_hw.xclbin)
+  -r, --repetitions arg  Repetitions. Will be discarded, when used with -l
+                         (default: 1)
+  -i, --iterations arg   Iterations in one repetition. Will be scaled up,
+                         when used with -l (default: 1)
+  -f, --frame_size arg   Maximum frame size. In multiple of the input width
+                         (default: 128)
+  -b, --num_bytes arg    Maximum number of bytes transferred per iteration.
+                         Must be a multiple of the input width (default:
+                         1048576)
+  -m, --test_mode arg    Topology. 0 for loopback, 1 for pair and 2 for
+                         ring (default: 0)
+  -c, --check_status     Check if the link is up and exit
+  -n, --nfc_test         NFC Test. Recv Kernel will be started 3 seconds
+                         later then the Send kernel.
+  -l, --latency_test     Creates one repetition for every message size, up
+                         to the maximum
+  -s, --semaphore        Locks the results file. Needed for parallel
+                         evaluation
+  -t, --timeout_ms arg   Timeout in ms (default: 10000)
+  -w, --wait             Wait for enter after loading bitstream. Needed for
+                         chipscope
+  -h, --help             Print usage
 ```
 
 The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. The results can be analyzed with a [script](./eval/eval.jl)
@@ -220,44 +235,44 @@ When scaling this test to multiple nodes, the -s flag can used to guarantee that
 
 By default, the example will run on all 3 FPGAs. This can be changed with specifying an device id, when only one specific device needs to be tested. The id is mapped to the device bdf and is not consistent with the device id used by XRT, because they are different depending on the version.
 
-TODO: 
-check test
-topo modes
+By specifying -c the program will just check, if the links are up and exits.
+
+The program supports three different topologies. Every FPGA connected in loopback (-m 0), the two FPGAs of one node connected as pair (-m 1) or all three FPGAs connected in a ring, where port 1 connects to port 0 of the next FPGA. A custom topology can be used with a higher mode number, but there is no data validation in this case.
 
 There are two more special test cases. The first one is testing the flow control by starting the recv kernel 10 seconds later than the send kernel, which is enabled by the -n flag.
 
 ### Latency test
 
-The second is the so-called latency test, which tests different message sizes with different iterations. Enabling the latency test with the -l flag also sets the use_ack parameter to true. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes and not smaller than the frame size is tested. The acknowledgement synchronizes between every iteration of the issue and dump kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
+The second is the so-called latency test, which tests different message sizes with different iterations. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes is used. The frame size is reduced, when necessary. The acknowledgement synchronizes between every iteration of the send and recv kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The acknoledgement is only available with the loopback and the pair topology. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
 
 ```
-./host_aurora_flow_test -l -i 20 -f 1
+./host_aurora_flow_test -l -i 10 -f 128
 
-  Repetition       Bytes  Iterations
-------------------------------------
-           0          64     1405867
-           1         128     1198316
-           2         256      995838
-           3         512      801484
-           4        1024      619564
-           5        2048      455570
-           6        4096      315462
-           7        8192      204084
-           8       16384      123084
-           9       32768       69664
-          10       65536       37534
-          11      131072       19569
-          12      262144       10005
-          13      524288        5061
-          14     1048576        2545
-          15     2097152        1277
-          16     4194304         640
-          17     8388608         320
-          18    16777216         160
-          19    33554432          80
-          20    67108864          40
-          21   134217728          20
-          22   268435456          10
+  Repetition       Bytes  Iterations  Frame Size
+------------------------------------------------
+           0          64     1405867           1
+           1         128     1198316           2
+           2         256      995838           4
+           3         512      801484           8
+           4        1024      619564          16
+           5        2048      455570          32
+           6        4096      315462          64
+           7        8192      204084         128
+           8       16384      123084         128
+           9       32768       69664         128
+          10       65536       37534         128
+          11      131072       19569         128
+          12      262144       10005         128
+          13      524288        5061         128
+          14     1048576        2545         128
+          15     2097152        1277         128
+          16     4194304         640         128
+          17     8388608         320         128
+          18    16777216         160         128
+          19    33554432          80         128
+          20    67108864          40         128
+          21   134217728          20         128
+          22   268435456          10         128
 ```
 
 ### Noctua2
@@ -269,18 +284,18 @@ There are scripts available for running on the [Noctua 2](https://pc2.uni-paderb
   source env.sh
 ```
 
-TODO: update with topologies
+There are scripts available for configuring the three topologies [loopback](./scripts/configure_loopback.sh), [pair](./scripts/configure_pair.sh) and [ring](./scripts/configure_ring.sh). They also include a link to a visualisation.
 
 There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. With all synthesized configurations available, you can test them with one [script](./scripts/run_over_all_configs.sh).
 
-For quick testing, there are two scripts, which do a simple run on either 3 or 6 FPGAs (1 or 2 nodes).
+For quick testing, there are three scripts which configure each topology and set the right mode parameter.
 
 The scripts are passing all parameters to the test run.
 
-There is also a helper script which runs a given script for every available FPGA node. You can use it with scripts which are running on one node.
+There is also a helper script which runs a given script for every available FPGA node.
 
 ```
-./scripts/for_every_node.sh ./scripts/run_N1_over_framesizes.sh
+./scripts/for_every_node.sh ./scripts/run_over_all_configs.sh
 ```
 
 <p align="center"><sup>Copyright&copy; 2023-2025 Gerrit Pape (papeg@mail.upb.de)</sup></p>

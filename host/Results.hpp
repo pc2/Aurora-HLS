@@ -455,7 +455,7 @@ public:
                    << config.frame_sizes[r] << ","
                    << config.message_sizes[r] << ","
                    << config.iterations_per_message[r] << ","
-                   << config.test_nfc << ","
+                   << config.nfc_test << ","
                    << transmission_times[i][r] << ","
                    << rx_count[i][r] << ","
                    << tx_count[i][r] << ","
