@@ -1,4 +1,4 @@
-﻿# Using Aurora for direct point-to-point communications
+﻿# Using AuroraFlow for direct point-to-point communications
 
 ## Introduction
 
@@ -19,7 +19,6 @@ You can build the packaged kernel with the following command:
 ```
 
 This provides a kernel for each QSFP port. Pay attention to the numbers, because of constraints issues when using the same kernel for both QSFP ports, we need a different kernel for each QSFP port. Link `aurora_flow_0.xo` with QSFP port 0 and `aurora_flow_1.xo` with QSFP port 1.
-
 
 Each kernel has one AXI stream for sending and one for receiving data. Connect them in your link script with the application kernels.
 
@@ -49,11 +48,10 @@ The FIFOs on the transceiving and on the receiving side can be configured manual
 The threshold signals on the receiving side are relevant for the flow control, the threshold signals on the transmitting side serve no functional purpose except for status reporting. When there is a larger FIFO needed, it is sufficient and cleaner to add a FIFO to the AXI connection on the link level.
 
 ```
-stream_connect=issue_1.data_output:aurora_flow_1.tx_axis:256
+stream_connect=send_1.data_output:aurora_flow_1.tx_axis:256
 ```
 
 All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".
-
 
 By default the FIFO and therefore the streams for input and output have a width of 64 bytes. This is the width which is also needed to reach the maximum throughput of 100Gbit/s. If you have a special application which needs another width, this is also configurable. When configuring the width to 32, the internal datawidth converter is skipped, which leads to a small reduction in resources and latency. When the application has an output which is less than the 32 bytes per cycle, this is the preferred option. The linking step automatically adds a datawidth converter when two axi streams of different sizes are connected. But this is only recommended for upscaling, when connecting a larger stream to an input of 32, the total possible throughput will be reduced.
 
@@ -67,9 +65,9 @@ When only the size in bytes and the width are given, the depth will be calculate
 
 The built-in flow control logic uses the programmable threshold status flags of the receiving FIFO to tell the sender side to stop transmission, when the full threshold is reached. The receiving side requests to start transmission again, when the empty threshold is reached. 
 
-The number of times the NFC module gets activated and deactivated is counted, as well as the maximum number of transmissions occuring after stopping the transmission. This number needs to fit in the FIFO between the programmable full threshold and completely full. The full signal of the RX fifo is monitored and overruns are counted, which are happening, when there is not enough space, which leads to data loss. The counters can be read from the ip directly and can be used to tweak the configuration.
+The number of times the NFC module gets activated and deactivated is counted, as well as the maximum number of transmissions occuring after stopping the transmission. This number needs to fit in the FIFO between the programmable full threshold and completely full. The full signal of the RX fifo is monitored and overruns are counted. These are happening, when there is not enough space, which leads to data loss. The counters can be read from the ip directly and can be used to tweak the configuration.
 
-Experiments on our infrastrucutre have shown, that the size of the FIFO between full and programmable full needs to be 16384 bytes, totalling 65536 bytes for the full FIFO. This may need to be adjusted with longer connections. The total size may be decreased, with the risk of performance loss. Either caused by too fast switching between on and off and because of less space between programmable full and programmable empty, or by stalling the transmission because of too few space between empty and programmable empty. 
+Experiments on our infrastrucutre have shown, that the size of the FIFO between full and programmable full needs to be 16384 bytes, totalling 65536 bytes for the full FIFO. This may need to be adjusted with longer connections. The total size of the FIFO may be decreased, with the risk of performance loss. Either caused by too fast switching between on and off and because of less space between programmable full and programmable empty, or by stalling the transmission because of too few space between empty and programmable empty. 
 
 ### Monitoring
 
@@ -177,9 +175,9 @@ The verilog modules for flow control, monitoring and for the configuration have 
   make configuration_tb
 ```
 
-## Example design
+## Test design
 
-The example design is inspired by the original Xilinx example and contains a simple issue and a simple dump kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. When using MPI every rank controls one qsfp port, so it scales to three FPGAs on one node with 6 ranks, for example.
+The test design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. The host code is tailored to our infrastructure, with 3 FPGAs per node and supports three different topologies.
 
 ### Build the example
 
@@ -190,74 +188,95 @@ You can build the example design with the following commands.
   make xclbin
 ```
 
-It is also possible to build a design for software emulation. But this skips the aurora kernels and just connects the issue with the dump kernels and is only used for verifying the correctness of the HLS kernels and the host code.
+It is also possible to build a design for software emulation. But this skips the aurora kernels and just connects the send with the recv kernels and is only used for verifying the correctness of the HLS kernels and the host code.
 
 ```
   make xclbin TARGET=sw_emu
 ```
 
 
-### Test the example
-
-The host application offers the following parameters
-```
--m megabytes        Specify the amount of data to be transmitted in megabytes.
--b bytes            Specify the amount of data to by transmitted in bytes. This overrides the megabytes seting
--p path             Path to the bitstream file. Default is "aurora_flow_test_hw.xclbin"
--r repetitions      Number of repetitions of the test.
--i iterations       Number of iterations of the test inside the kernel
--f frame_size       The size of the frame in framing mode. The size is measured in multiples of the datawidth
--n test_nfc         Enables the NFC test
--a use_ack          Enables the acknowledgement between every iteration in the kernel
--t timeout_ms       The timeout used for waiting on a channel and on finish for the HLS kernels
--o device_id_offset Offset for selecting the FPGA device id
--s semaphore        Lock the results file with atomic rename before writing to it
+### Usage
 
 ```
+Test program for AuroraFlow
+Usage:
+  host_aurora_flow_test [OPTION...]
 
-The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. An exemplary analysis of the data can be found in a [jupyter notebook](./eval/eval.ipynb)
+  -d, --device_id arg    Device ID according to linkscript (default: 0)
+  -p, --xclbin_path arg  Path to xclbin file (default:
+                         aurora_flow_test_hw.xclbin)
+  -r, --repetitions arg  Repetitions. Will be discarded, when used with -l
+                         (default: 1)
+  -i, --iterations arg   Iterations in one repetition. Will be scaled up,
+                         when used with -l (default: 1)
+  -f, --frame_size arg   Maximum frame size. In multiple of the input width
+                         (default: 128)
+  -b, --num_bytes arg    Maximum number of bytes transferred per iteration.
+                         Must be a multiple of the input width (default:
+                         1048576)
+  -m, --test_mode arg    Topology. 0 for loopback, 1 for pair and 2 for
+                         ring (default: 0)
+  -c, --check_status     Check if the link is up and exit
+  -n, --nfc_test         NFC Test. Recv Kernel will be started 3 seconds
+                         later then the Send kernel.
+  -l, --latency_test     Creates one repetition for every message size, up
+                         to the maximum
+  -s, --semaphore        Locks the results file. Needed for parallel
+                         evaluation
+  -t, --timeout_ms arg   Timeout in ms (default: 10000)
+  -w, --wait             Wait for enter after loading bitstream. Needed for
+                         chipscope
+  -h, --help             Print usage
+```
+
+The default behavior is to just transmit the data according to the parameters and calculate and print the results and errors. The results for each repetition are also written to a csv file. The results can be analyzed with a [script](./eval/eval.jl)
 
 When scaling this test to multiple nodes, the -s flag can used to guarantee that only one job is writing to results file at once. Beware that the file must exist, otherwise the application will wait forever on it.
 
-By default, the first two ranks will choose the device with index 0, going up with the next ranks. This can be changed with specifying an offset, for this selection procedure. This is useful, for example, when only one specific device needs to be tested.
+By default, the example will run on all 3 FPGAs. This can be changed with specifying an device id, when only one specific device needs to be tested. The id is mapped to the device bdf and is not consistent with the device id used by XRT, because they are different depending on the version.
 
-There are two more special test cases. The first one is testing the flow control by starting the dump kernel 10 seconds later than the issue kernel, which is enabled by the -n flag.
+By specifying -c the program will just check, if the links are up and exits.
+
+The program supports three different topologies. Every FPGA connected in loopback (-m 0), the two FPGAs of one node connected as pair (-m 1) or all three FPGAs connected in a ring, where port 1 connects to port 0 of the next FPGA. A custom topology can be used with a higher mode number, but there is no data validation in this case.
+
+There are two more special test cases. The first one is testing the flow control by starting the recv kernel 10 seconds later than the send kernel, which is enabled by the -n flag.
 
 ### Latency test
 
-The second is the so-called latency test, which tests different message sizes with different iterations. Enabling the latency test with the -l flag also sets the use_ack parameter to true. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes and not smaller than the frame size is tested. The acknowledgement synchronizes between every iteration of the issue and dump kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
+The second is the so-called latency test, which tests different message sizes with different iterations. The number of repetitions are calculated, so that every possible message sizes in powers of two up to the given number of bytes is used. The frame size is reduced, when necessary. The acknowledgement synchronizes between every iteration of the send and recv kernel, so that the actual transfer time is measurable. Otherwise this would just behave as a larger message size. The acknoledgement is only available with the loopback and the pair topology. The given number of iterations is the base for the largest message and is increased with smaller message sizes, so that every repetition has roughly the same execution time. The following is an example for the largest possible messagesize and the smallest possible framesize.
 
 ```
-./host_aurora_flow_test -l -i 20 -f 1
+./host_aurora_flow_test -l -i 10 -f 128
 
-  Repetition       Bytes  Iterations
-------------------------------------
-           0          64     1405867
-           1         128     1198316
-           2         256      995838
-           3         512      801484
-           4        1024      619564
-           5        2048      455570
-           6        4096      315462
-           7        8192      204084
-           8       16384      123084
-           9       32768       69664
-          10       65536       37534
-          11      131072       19569
-          12      262144       10005
-          13      524288        5061
-          14     1048576        2545
-          15     2097152        1277
-          16     4194304         640
-          17     8388608         320
-          18    16777216         160
-          19    33554432          80
-          20    67108864          40
-          21   134217728          20
-          22   268435456          10
+  Repetition       Bytes  Iterations  Frame Size
+------------------------------------------------
+           0          64     1405867           1
+           1         128     1198316           2
+           2         256      995838           4
+           3         512      801484           8
+           4        1024      619564          16
+           5        2048      455570          32
+           6        4096      315462          64
+           7        8192      204084         128
+           8       16384      123084         128
+           9       32768       69664         128
+          10       65536       37534         128
+          11      131072       19569         128
+          12      262144       10005         128
+          13      524288        5061         128
+          14     1048576        2545         128
+          15     2097152        1277         128
+          16     4194304         640         128
+          17     8388608         320         128
+          18    16777216         160         128
+          19    33554432          80         128
+          20    67108864          40         128
+          21   134217728          20         128
+          22   268435456          10         128
 ```
 
 ### Noctua2
+
 
 There are scripts available for running on the [Noctua 2](https://pc2.uni-paderborn.de/hpc-services/available-systems/noctua2) cluster. The used set of modules can be loaded with the following command.
 
@@ -265,16 +284,18 @@ There are scripts available for running on the [Noctua 2](https://pc2.uni-paderb
   source env.sh
 ```
 
-There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. Streaming and framing bitstreams are needed for running [over all frame sizes](./scripts/run_N1_over_framesizes.sh).
+There are scripts available for configuring the three topologies [loopback](./scripts/configure_loopback.sh), [pair](./scripts/configure_pair.sh) and [ring](./scripts/configure_ring.sh). They also include a link to a visualisation.
 
-For quick testing, there are two scripts, which do a simple run on either 3 or 6 FPGAs (1 or 2 nodes).
+There is one script for [simple synthesis](./scripts/synth.sh) and one for synthesing [all configurations](./scripts/synth_all.sh) with datawidth converter enabled or disabled and framing or streaming enabled. With all synthesized configurations available, you can test them with one [script](./scripts/run_over_all_configs.sh).
+
+For quick testing, there are three scripts which configure each topology and set the right mode parameter: [loopback](./scripts/run_loopback.sh), [pair](./scripts/run_pair.sh) and [ring](./scripts/run_ring.sh).
 
 The scripts are passing all parameters to the test run.
 
-There is also a helper script which runs a given script for every available FPGA node. You can use it with scripts which are running on one node.
+There is also a helper script which runs a given script for every available FPGA node.
 
 ```
-./scripts/for_every_node.sh ./scripts/run_N1_over_framesizes.sh
+./scripts/for_every_node.sh ./scripts/run_over_all_configs.sh
 ```
 
-<p align="center"><sup>Copyright&copy; 2023-2024 Gerrit Pape (papeg@mail.upb.de)</sup></p>
+<p align="center"><sup>Copyright&copy; 2023-2025 Gerrit Pape (papeg@mail.upb.de)</sup></p>

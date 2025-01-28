@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <vector>
 #include <thread>
-#include <mpi.h>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -31,35 +30,11 @@
 #include "Results.hpp"
 #include "Kernel.hpp"
 
+// can be used for chipscoping
 void wait_for_enter()
 {
     std::cout << "waiting for enter.." << std::endl;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-}
-
-void check_core_status_global(Aurora &aurora, size_t timeout_ms, int world_rank, int world_size)
-{
-    bool local_core_ok;
-
-    // barrier so timeout is working for all configurations 
-    MPI_Barrier(MPI_COMM_WORLD);
-    local_core_ok = aurora.core_status_ok(3000);
-
-    bool core_ok[world_size];
-    MPI_Gather(&local_core_ok, 1, MPI_CXX_BOOL, core_ok, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
-
-    if (world_rank == 0) {
-        int errors = 0;       
-        for (int i = 0; i < world_size; i++) {
-            if (!core_ok[i]) {
-                std::cout << "problem with core " << i % 2 << " on rank " << i << std::endl;
-                errors += 1;
-            }
-        }
-        if (errors) {
-            MPI_Abort(MPI_COMM_WORLD, errors);
-        }
-    }
 }
 
 std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_size)
@@ -78,154 +53,217 @@ std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t world_
     return data;
 }
 
+uint32_t mode_map(uint32_t instance, uint32_t num_instances, uint32_t mode)
+{
+    if (mode == 0) {
+        return instance;
+    } else if (mode == 1) {
+        return (instance % 2) == 0 ? instance + 1 : instance - 1;
+    } else if (mode == 2) {
+        return (instance % 2) == 0 ? ((instance + num_instances - 1) % num_instances) : ((instance + 1) % num_instances);
+    } else {
+        throw std::invalid_argument("Invalid test mode");
+    }
+}
+
+std::string bdf_map(uint32_t device_id, bool emulation)
+{
+    if (device_id == 0) {
+        return "0000:a1:00.1";
+    } else if (device_id == 1) {
+        return "0000:81:00.1";
+    } else if (device_id == 2) {
+        return "0000:01:00.1";
+    } else {
+        throw std::invalid_argument("Invalid device id");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
  
-    MPI_Init(&argc, &argv);
-
-    int world_size , world_rank;
-    MPI_Comm_size(MPI_COMM_WORLD , &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD , &world_rank);
-
-    MPI_Comm node_comm;
-    MPI_Comm_split_type(MPI_COMM_WORLD, OMPI_COMM_TYPE_NODE, 0, MPI_INFO_NULL, &node_comm);
-
-    int node_rank, node_size;
-    MPI_Comm_rank(node_comm, &node_rank);
-    MPI_Comm_size(node_comm, &node_size);
-
     bool emulation = (std::getenv("XCL_EMULATION_MODE") != nullptr);
 
-    uint32_t device_id = emulation ? 0 : (((node_rank / 2) + config.device_id_offset) % 3);
+    if (emulation) {
+        config.finish_setup(64, false, emulation);
+    }
 
-    uint32_t instance = node_rank % 2;
+    std::vector<uint32_t> device_ids(config.num_instances / 2);
+    std::vector<std::string> device_bdfs(config.num_instances / 2);
+    std::vector<xrt::device> devices(config.num_instances / 2);
+    std::vector<xrt::uuid> xclbin_uuids(config.num_instances / 2);
 
-    xrt::device device = xrt::device(device_id);
-    xrt::uuid xclbin_uuid = device.load_xclbin(config.xclbin_file);
+    for (uint32_t i = 0; i < config.num_instances / 2 ; i++)  {
+        // TODO check emulation behavior
+        device_ids[i] = emulation ? 0 : (i + config.device_id);
+
+        device_bdfs[i] = bdf_map(device_ids[i], emulation);
+
+        if (emulation) {
+            devices[i] = xrt::device(0);
+        } else {
+            std::cout << "Programming device " << device_bdfs[i] << std::endl;
+            devices[i] = xrt::device(device_bdfs[i]);
+        }
+
+        xclbin_uuids[i] = devices[i].load_xclbin(config.xclbin_path);
+    }
 
     if (config.wait) {
         wait_for_enter();
     }
+    std::vector<Aurora> auroras(config.num_instances);
 
-    Aurora aurora;
     if (!emulation) {
-        aurora = Aurora(instance, device, xclbin_uuid);
-        check_core_status_global(aurora, config.timeout_ms, world_rank, world_size);
-        config.finish_setup(aurora.fifo_width, aurora.has_framing(), emulation);
-    } else {
-        config.finish_setup(64, false, emulation);
+        std::vector<bool> statuses(config.num_instances);
+        for (uint32_t i = 0; i < config.num_instances; i++) {
+            auroras[i] = Aurora(i % 2, devices[i / 2], xclbin_uuids[i / 2]);
+            statuses[i] = auroras[i].core_status_ok(3000);
+            if (!statuses[i]) {
+                std::cout << "problem with core " << i % 2 
+                    << " on device " << device_bdfs[i / 2] 
+                    << " with id " << device_ids[i / 2] << std::endl;
+            }
+        }
+        for (bool ok: statuses) {
+            if (!ok) exit(EXIT_FAILURE);
+        }
+
+        std::cout << "All links are ready" << std::endl;
+
+        if (config.check_status) {
+            exit(EXIT_SUCCESS);
+        }
+
+        config.finish_setup(auroras[0].fifo_width, auroras[0].has_framing(), emulation);
     }
 
-    if (world_rank == 0) {
-        config.print();
-        std::cout << "with " << world_size << " instances" << std::endl;
+    config.print();
+    if (!emulation) {
+        std::cout << "Aurora core has framing " << (auroras[0].has_framing() ? "enabled" : "disabled")
+                  << " and input width of " << auroras[0].fifo_width << " bytes" << std::endl;
     }
 
-    std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, world_size);
+    std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, config.num_instances);
 
     // create kernel objects
-    IssueKernel issue(world_rank, device, xclbin_uuid, config, data[world_rank]);
-    DumpKernel dump(world_rank, device, xclbin_uuid, config);
+    std::vector<SendKernel> send_kernels(config.num_instances);
+    std::vector<RecvKernel> recv_kernels(config.num_instances);
+    for (uint32_t i = 0; i < config.num_instances; i++) {
+        send_kernels[i] = SendKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
+        recv_kernels[i] = RecvKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config);
+    }
 
-    Results results(config, aurora, emulation, device, world_size);
+    Results results(config, auroras, emulation, device_bdfs);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
-        try {
-            issue.prepare_repetition(r);
-            dump.prepare_repetition(r);
+        std::cout << "Repetition " << r << " with " << config.message_sizes[r] << " bytes" << std::endl;
+        for (uint32_t i = 0; i < config.num_instances; i++) {
+            uint32_t i_recv = mode_map(i, config.num_instances, config.test_mode);
+            SendKernel &send = send_kernels[i];
+            RecvKernel &recv = recv_kernels[i_recv];
+            Aurora &recv_aurora = auroras[i_recv];
+            std::cout << "Sending from " << i << " to " << i_recv << std::endl;
+            try {
+                send.prepare_repetition(r);
+                recv.prepare_repetition(r);
+                if (config.nfc_test) {
+                    std::cout << "Testing NFC: waiting 3 seconds before starting the recv kernel" << std::endl;
+                    if (!emulation) {
+                        recv_aurora.print_fifo_status();
+                    }
+                    send.start(); 
 
-            if (config.test_nfc) {
-                if (world_rank == 0) {
-                    std::cout << "Testing NFC: waiting 10 seconds before starting the dump kernels" << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+                    if (!emulation) {
+                        recv_aurora.print_fifo_status();
+                    }
                 }
-                aurora.print_fifo_status();
-                MPI_Barrier(MPI_COMM_WORLD);        
-                issue.start(); 
 
-                std::this_thread::sleep_for(std::chrono::seconds(10));
-                std::cout << "Receives before starting dump kernel: " << aurora.get_nfc_latency_count() << std::endl;
-                aurora.print_fifo_status();
-            }
-            MPI_Barrier(MPI_COMM_WORLD);        
-            
-            dump.start();
+                recv.start();
 
-            MPI_Barrier(MPI_COMM_WORLD);
-            double start_time = get_wtime();
+                double start_time = get_wtime();
 
-            if (!config.test_nfc) {
-                issue.start();
-            }
-
-            if (dump.timeout()) {
-                std::cout << "Dump timeout" << std::endl;
-                results.local_failed_transmissions[r] = 1;
-            } else {
-                results.local_failed_transmissions[r] = 0;
-            }
-            if (issue.timeout()) {
-                std::cout << "Issue timeout" << std::endl;
-                results.local_failed_transmissions[r] = 2;
-            }
-
-            results.local_transmission_times[r] = get_wtime() - start_time;
-            dump.write_back();
-            if (config.test_mode < 3) {
-                uint32_t issue_rank = world_rank;
-                if (config.test_mode == 1) {
-                    // pair
-                    issue_rank = (world_rank % 2) == 0 ? world_rank + 1 : world_rank - 1;
-                } else if (config.test_mode == 2) {
-                    // ring
-                    issue_rank = (world_rank % 2) == 0 ? ((uint32_t)world_rank + world_size - 1) % world_size : ((uint32_t)world_rank + 1) % world_size;
+                if (!config.nfc_test) {
+                    send.start();
                 }
-                results.local_errors[r] = dump.compare_data(data[issue_rank].data(), r);
-            } else {
-                // no validation
-                results.local_errors[r] = 0;
+
+                if (recv.timeout()) {
+                    std::cout << "Recv timeout" << std::endl;
+                    results.failed_transmissions[i][r] = 1;
+                } else {
+                    results.failed_transmissions[i][r] = 0;
+                }
+
+                if (send.timeout()) {
+                    std::cout << "Send timeout" << std::endl;
+                    results.failed_transmissions[i][r] = 2;
+                }
+
+                double end_time = get_wtime();
+
+                if (!emulation && config.nfc_test) {
+                    std::cout << "Maximum number of In-Flight-Transmissions: " << recv_aurora.get_nfc_latency_count() << std::endl;
+                }
+
+                results.transmission_times[i][r] = end_time - start_time;
+
+                recv.write_back();
+
+                if (config.test_mode < 3) {
+                    results.errors[i][r] = recv.compare_data(data[i].data(), r);
+                    if (results.errors[i][r]) {
+                        std::cout << results.errors[i][r] << " byte errors" << std::endl;
+                    }
+                } else {
+                    // no validation
+                    results.errors[i][r] = 0;
+                }
+            } catch (const std::runtime_error &e) {
+                std::cout << "caught runtime error: " << e.what() << std::endl;
+                results.failed_transmissions[i][r] = 3;
+            } catch (const std::exception &e) {
+                std::cout << "caught unexpected error: " << e.what() << std::endl;
+                results.failed_transmissions[i][r] = 4;
+            } catch (...) {
+                std::cout << "caught non-std::logic_error " << std::endl;
+                results.failed_transmissions[i][r] = 5;
             }
-        } catch (const std::runtime_error &e) {
-            std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
-            results.local_failed_transmissions[r] = 3;
-        } catch (const std::exception &e) {
-            std::cout << "caught unexpected error at repetition " << r << ": " << e.what() << std::endl;
-            results.local_failed_transmissions[r] = 4;
-        } catch (...) {
-            std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
-            results.local_failed_transmissions[r] = 5;
+            results.update_counter(i, r);
+            if (recv_aurora.has_framing()) {
+                if (results.frames_with_errors[i][r]) {
+                    std::cout << results.frames_with_errors[i][r] << " frame errors" << std::endl;
+                }
+            }
         }
-        results.update_counter(r);
     }
 
-    results.gather();
+    uint32_t total_failed_transmissions = results.total_failed_transmissions();
 
-    if (world_rank == 0) {
-        uint32_t failed_transmissions = results.failed_transmissions();
-        if (failed_transmissions) {
-            std::cout << failed_transmissions << " failed transmissions" << std::endl;
+    if (total_failed_transmissions) {
+        std::cout << total_failed_transmissions << " failed transmissions" << std::endl;
+    } else {
+        if (config.nfc_test) {
+            std::cout << "NFC test passed" << std::endl;
         } else {
-            if (config.test_nfc) {
-                std::cout << "NFC test passed" << std::endl;
-            } else {
-                uint32_t byte_errors = results.byte_errors();
-                if (byte_errors) {
-                    std::cout << byte_errors << " bytes with errors" << std::endl;
-                }
-
-                uint32_t frame_errors = results.frame_errors();
-                if (frame_errors) {
-                    std::cout << frame_errors << " frames with errors" << std::endl;
-                }
-
+            uint32_t total_byte_errors = results.total_byte_errors();
+            if (total_byte_errors) {
+                std::cout << total_byte_errors << " bytes with errors in total" << std::endl;
             }
-        }
-        results.print_results();
-        results.print_errors();
-        results.write();
-    }
 
-    MPI_Finalize();
+            uint32_t total_frame_errors = results.total_frame_errors();
+            if (total_frame_errors) {
+                std::cout << total_frame_errors << " frames with errors in total" << std::endl;
+            }
+
+        }
+    }
+    results.print_results();
+    results.print_errors();
+    results.write();
+
     return results.has_errors();
 }
 
