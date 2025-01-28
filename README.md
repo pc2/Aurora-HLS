@@ -48,7 +48,7 @@ The FIFOs on the transceiving and on the receiving side can be configured manual
 The threshold signals on the receiving side are relevant for the flow control, the threshold signals on the transmitting side serve no functional purpose except for status reporting. When there is a larger FIFO needed, it is sufficient and cleaner to add a FIFO to the AXI connection on the link level.
 
 ```
-stream_connect=issue_1.data_output:aurora_flow_1.tx_axis:256
+stream_connect=send_1.data_output:aurora_flow_1.tx_axis:256
 ```
 
 All 8 FIFO status signals can be read from the host code, described in the examples in "How to use it".

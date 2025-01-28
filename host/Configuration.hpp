@@ -212,7 +212,7 @@ public:
             std::cout << repetitions << " repetitions" << std::endl;
             std::cout << iterations << " iterations" << std::endl;
         }
-        std::cout << "Issue/Dump timeout: " << timeout_ms << " ms" << std::endl;
+        std::cout << "Timeout: " << timeout_ms << " ms" << std::endl;
         std::cout << num_instances << " instances" << std::endl;
         if (semaphore) {
             std::cout << "Locking results.csv for parallel writing" << std::endl;

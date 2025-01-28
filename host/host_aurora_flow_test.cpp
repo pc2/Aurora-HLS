@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
         if (emulation) {
             devices[i] = xrt::device(0);
         } else {
-            std::cout << "programming device " << device_bdfs[i] << std::endl;
+            std::cout << "Programming device " << device_bdfs[i] << std::endl;
             devices[i] = xrt::device(device_bdfs[i]);
         }
 
@@ -148,21 +148,23 @@ int main(int argc, char *argv[])
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, config.num_instances);
 
     // create kernel objects
-    std::vector<SendKernel> issue_kernels(config.num_instances);
+    std::vector<SendKernel> send_kernels(config.num_instances);
     std::vector<RecvKernel> recv_kernels(config.num_instances);
     for (uint32_t i = 0; i < config.num_instances; i++) {
-        issue_kernels[i] = SendKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
+        send_kernels[i] = SendKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config, data[i]);
         recv_kernels[i] = RecvKernel(config.instances[i], devices[emulation ? 0 : i / 2], xclbin_uuids[emulation ? 0 : i / 2], config);
     }
 
     Results results(config, auroras, emulation, device_bdfs);
 
     for (uint32_t r = 0; r < config.repetitions; r++) {
+        std::cout << "Repetition " << r << " with " << config.message_sizes[r] << " bytes" << std::endl;
         for (uint32_t i = 0; i < config.num_instances; i++) {
             uint32_t i_recv = mode_map(i, config.num_instances, config.test_mode);
-            SendKernel &send = issue_kernels[i];
+            SendKernel &send = send_kernels[i];
             RecvKernel &recv = recv_kernels[i_recv];
             Aurora &recv_aurora = auroras[i_recv];
+            std::cout << "Sending from " << i << " to " << i_recv << std::endl;
             try {
                 send.prepare_repetition(r);
                 recv.prepare_repetition(r);
@@ -189,21 +191,21 @@ int main(int argc, char *argv[])
                 }
 
                 if (recv.timeout()) {
-                    std::cout << "Recv " << i_recv << " timeout" << std::endl;
+                    std::cout << "Recv timeout" << std::endl;
                     results.failed_transmissions[i][r] = 1;
                 } else {
                     results.failed_transmissions[i][r] = 0;
                 }
 
                 if (send.timeout()) {
-                    std::cout << "Send " << i << " timeout" << std::endl;
+                    std::cout << "Send timeout" << std::endl;
                     results.failed_transmissions[i][r] = 2;
                 }
 
                 double end_time = get_wtime();
 
                 if (!emulation && config.nfc_test) {
-                    std::cout << "Receives on instance " << i_recv << ": " << recv_aurora.get_nfc_latency_count() << std::endl;
+                    std::cout << "Maximum number of In-Flight-Transmissions: " << recv_aurora.get_nfc_latency_count() << std::endl;
                 }
 
                 results.transmission_times[i][r] = end_time - start_time;
@@ -212,21 +214,29 @@ int main(int argc, char *argv[])
 
                 if (config.test_mode < 3) {
                     results.errors[i][r] = recv.compare_data(data[i].data(), r);
+                    if (results.errors[i][r]) {
+                        std::cout << results.errors[i][r] << " byte errors" << std::endl;
+                    }
                 } else {
                     // no validation
                     results.errors[i][r] = 0;
                 }
             } catch (const std::runtime_error &e) {
-                std::cout << "caught runtime error at repetition " << r << ": " << e.what() << std::endl;
+                std::cout << "caught runtime error: " << e.what() << std::endl;
                 results.failed_transmissions[i][r] = 3;
             } catch (const std::exception &e) {
-                std::cout << "caught unexpected error at repetition " << r << ": " << e.what() << std::endl;
+                std::cout << "caught unexpected error: " << e.what() << std::endl;
                 results.failed_transmissions[i][r] = 4;
             } catch (...) {
-                std::cout << "caught non-std::logic_error at repetition " << r << std::endl;
+                std::cout << "caught non-std::logic_error " << std::endl;
                 results.failed_transmissions[i][r] = 5;
             }
             results.update_counter(i, r);
+            if (recv_aurora.has_framing()) {
+                if (results.frames_with_errors[i][r]) {
+                    std::cout << results.frames_with_errors[i][r] << " frame errors" << std::endl;
+                }
+            }
         }
     }
 
@@ -240,12 +250,12 @@ int main(int argc, char *argv[])
         } else {
             uint32_t total_byte_errors = results.total_byte_errors();
             if (total_byte_errors) {
-                std::cout << total_byte_errors << " bytes with errors" << std::endl;
+                std::cout << total_byte_errors << " bytes with errors in total" << std::endl;
             }
 
             uint32_t total_frame_errors = results.total_frame_errors();
             if (total_frame_errors) {
-                std::cout << total_frame_errors << " frames with errors" << std::endl;
+                std::cout << total_frame_errors << " frames with errors in total" << std::endl;
             }
 
         }

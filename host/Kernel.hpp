@@ -99,12 +99,8 @@ public:
                 err_num++;
             }
         }
-        if (err_num) {
-            std::cout << "Data verification FAIL" << std::endl;
-            std::cout << "for Recv Kernel " << instance << std::endl;
-            std::cout << "in repetition " << repetition << std::endl;
-            std::cout << "Total mismatched bytes: " << err_num << std::endl;
-            std::cout << "Ratio: " << (double)err_num/(double) config.message_sizes[repetition] << std::endl;
+        if (err_num > 16) {
+            std::cout << "only showing the first 16 byte errors" << std::endl;
         }
         return err_num;
     }
