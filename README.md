@@ -177,7 +177,7 @@ The verilog modules for flow control, monitoring and for the configuration have 
 
 ## Test design
 
-The test design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. It is configured for our infrastructure with 3 FPGAs and supports three different topologies.
+The test design is inspired by the original Xilinx example and contains a simple send and a simple recv kernel, which just transmit and receive the data. The bitstream contains 2 instances for both qsfp ports. The host code is tailored to our infrastructure, with 3 FPGAs per node and supports three different topologies.
 
 ### Build the example
 
@@ -286,9 +286,9 @@ There are scripts available for running on the [Noctua 2](https://pc2.uni-paderb
 
 There are scripts available for configuring the three topologies [loopback](./scripts/configure_loopback.sh), [pair](./scripts/configure_pair.sh) and [ring](./scripts/configure_ring.sh). They also include a link to a visualisation.
 
-There is one script for simple synthesis and one for synthesing all configurations with datawidth converter enabled or disabled and framing or streaming enabled. With all synthesized configurations available, you can test them with one [script](./scripts/run_over_all_configs.sh).
+There is one script for [simple synthesis](./scripts/synth.sh) and one for synthesing [all configurations](./scripts/synth_all.sh) with datawidth converter enabled or disabled and framing or streaming enabled. With all synthesized configurations available, you can test them with one [script](./scripts/run_over_all_configs.sh).
 
-For quick testing, there are three scripts which configure each topology and set the right mode parameter.
+For quick testing, there are three scripts which configure each topology and set the right mode parameter: [loopback](./scripts/run_loopback.sh), [pair](./scripts/run_pair.sh) and [ring](./scripts/run_ring.sh).
 
 The scripts are passing all parameters to the test run.
 
