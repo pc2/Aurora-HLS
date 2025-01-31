@@ -25,8 +25,8 @@ FetchContent_Declare(
   extern_hlslib
 
   # unfortunately they do not use releases, so the latest commit was used
-  GIT_REPOSITORY      https://github.com/definelicht/hlslib.git
-  GIT_TAG             v1.4.5)
+  GIT_REPOSITORY      https://github.com/papeg/hlslib.git
+  GIT_TAG             read_nb)
 
 FetchContent_GetProperties(extern_hlslib)
 if(NOT extern_hlslib_POPULATED)
