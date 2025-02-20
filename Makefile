@@ -22,6 +22,7 @@ ECHO=@echo
 aurora: aurora_flow_0.xo aurora_flow_1.xo
 
 CXX=c++
+MPICXX=mpic++
 
 # change here to test different boards
 PART := xcu280-fsvh2892-2L-e
@@ -161,8 +162,14 @@ recv_$(TARGET).xo: ./hls/recv.cpp
 send_$(TARGET).xo: ./hls/send.cpp
 	v++ $(HLSCFLAGS) --temp_dir _x_send --kernel send --output $@ $^
 	
+send_recv_$(TARGET).xo: ./hls/send_recv.cpp
+	v++ $(HLSCFLAGS) --temp_dir _x_send_recv --kernel send_recv --output $@ $^
+	
 aurora_flow_test_hw.xclbin: aurora send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo recv_$(TARGET).xo send_$(TARGET).xo
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_test_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo recv_$(TARGET).xo send_$(TARGET).xo
+
+aurora_flow_ring_hw.xclbin: aurora send_recv_$(TARGET).xo aurora_flow_ring_$(TARGET).cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_ring_$(TARGET) --config aurora_flow_ring_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo send_recv_$(TARGET).xo
 
 aurora_flow_test_sw_emu_loopback.xclbin: send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET)_loopback.cfg
 	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_loopback.cfg --output $@ recv_$(TARGET).xo send_$(TARGET).xo
@@ -181,7 +188,11 @@ LDFLAGS += $(LDFLAGS) -lxrt_coreutil -luuid
 host_aurora_flow_test: ./host/host_aurora_flow_test.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
 	$(CXX) -o host_aurora_flow_test $< $(CXXFLAGS) $(LDFLAGS)
 
-host: host_aurora_flow_test
+host_aurora_flow_ring: ./host/host_aurora_flow_ring.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
+	$(MPICXX) -o host_aurora_flow_ring $< $(CXXFLAGS) $(LDFLAGS)
+
+
+host: host_aurora_flow_test host_aurora_flow_ring
 
 # verilog testbenches
 

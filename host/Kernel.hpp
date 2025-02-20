@@ -115,3 +115,43 @@ private:
     Configuration config;
 };
 
+class SendRecvKernel
+{
+public:
+    SendRecvKernel(uint32_t instance, xrt::device &device, xrt::uuid &xclbin_uuid, Configuration &config) : instance(instance), config(config)
+    {
+        char name[100];
+        snprintf(name, 100, "send_recv:{send_recv_%u}", instance);
+        kernel = xrt::kernel(device, xclbin_uuid, name);
+    }
+
+    SendRecvKernel() {}
+
+    void prepare_repetition(uint32_t repetition)
+    {
+        run = xrt::run(kernel);
+
+        run.set_arg(2, config.message_sizes[repetition]);
+        run.set_arg(3, config.iterations_per_message[repetition]);
+    }
+
+    void start()
+    {
+        run.start();
+    }
+
+    bool timeout()
+    {
+        return run.wait(std::chrono::milliseconds(config.timeout_ms)) == ERT_CMD_STATE_TIMEOUT;
+    }
+
+    std::vector<char> data;
+private:
+    xrt::bo data_bo;
+    xrt::kernel kernel;
+    xrt::run run;
+    uint32_t instance;
+    Configuration config;
+};
+
+
