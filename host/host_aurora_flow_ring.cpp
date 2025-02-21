@@ -31,13 +31,6 @@
 #include "Results.hpp"
 #include "Kernel.hpp"
 
-// can be used for chipscoping
-void wait_for_enter()
-{
-    std::cout << "waiting for enter.." << std::endl;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-}
-
 std::vector<std::vector<char>> generate_data(uint32_t num_bytes, uint32_t size)
 {
     char *slurm_job_id = std::getenv("SLURM_JOB_ID");
@@ -108,7 +101,6 @@ int main(int argc, char *argv[])
     if (emulation) {
         config.finish_setup(64, false, emulation);
     }
-    config.test_mode = 2;
 
     uint32_t device_id;
     std::string device_bdf;
@@ -128,23 +120,24 @@ int main(int argc, char *argv[])
         xclbin_uuid = device.load_xclbin("aurora_flow_ring_hw.xclbin");
     }
 
-    if (config.wait) {
-        wait_for_enter();
-    }
     std::vector<Aurora> aurora(2);
     aurora[0] = Aurora(0, device, xclbin_uuid);
     aurora[1] = Aurora(1, device, xclbin_uuid);
 
     check_core_status_global(aurora[0], aurora[1], 3000, rank, size);
 
-    std::cout << "All links are ready" << std::endl;
+    if (rank == 0) {
+        std::cout << "All links are ready" << std::endl;
+    }
 
     config.finish_setup(aurora[0].fifo_width, aurora[0].has_framing(), emulation);
 
-    config.print();
+    if (rank == 0) {
+        config.print();
 
     std::cout << "Aurora core has framing " << (aurora[0].has_framing() ? "enabled" : "disabled")
               << " and input width of " << aurora[0].fifo_width << " bytes" << std::endl;
+    }
 
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, 2);
 

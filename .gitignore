@@ -5,6 +5,7 @@
 venv
 .vscode
 host_aurora_flow_test
+host_aurora_flow_ring
 ip_creation*
 aurora_flow_0_project*
 aurora_flow_1_project*
@@ -34,3 +35,4 @@ eval/.ipynb_checkpoints
 *.wdb
 *.wcfg
 build
+scripts/run_ring_n*.sh
