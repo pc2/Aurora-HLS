@@ -13,19 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <vector>
+#include <mpi.h>
+#include <iostream>
+#include <fstream>
 
 #include "Aurora.hpp"
-#include "experimental/xrt_kernel.h"
-#include "experimental/xrt_ip.h"
-#include "version.h"
-#include <fstream>
-#include <unistd.h>
-#include <vector>
-#include <thread>
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include <mpi.h>
 
 #include "Configuration.hpp"
 #include "Results.hpp"
@@ -86,6 +79,31 @@ std::string bdf_map(uint32_t device_id, bool emulation)
     }
 }
 
+void write_results(bool semaphore, int32_t world_size, uint32_t iterations, uint32_t message_size, double latency)
+{
+    if (semaphore) {
+        while (rename("ring_results.csv", "ring_results.csv.lock") != 0) {}
+    }
+
+    char *job_id = std::getenv("SLURM_JOB_ID");
+    std::string job_id_str(job_id == NULL ? "none" : job_id);
+
+    std::ofstream of;
+    of.open(semaphore ? "ring_results.csv.lock" : "ring_results.csv", std::ios_base::app);
+
+    of << job_id_str << ","
+       << world_size << ","
+       << iterations << ","
+       << message_size << ","
+       << latency << std::endl;
+ 
+    of.close();
+
+    if (semaphore) {
+        rename("ring_results.csv.lock", "ring_results.csv");
+    }
+}
+
 int main(int argc, char *argv[])
 {
     Configuration config(argc, argv);
@@ -135,8 +153,8 @@ int main(int argc, char *argv[])
     if (rank == 0) {
         config.print();
 
-    std::cout << "Aurora core has framing " << (aurora[0].has_framing() ? "enabled" : "disabled")
-              << " and input width of " << aurora[0].fifo_width << " bytes" << std::endl;
+        std::cout << "Aurora core has framing " << (aurora[0].has_framing() ? "enabled" : "disabled")
+                  << " and input width of " << aurora[0].fifo_width << " bytes" << std::endl;
     }
 
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, 2);
@@ -157,50 +175,56 @@ int main(int argc, char *argv[])
         }
     }
 
-    //Results results(config, auroras, emulation, device_bdfs);
-
     for (uint32_t r = 0; r < config.repetitions; r++) {
         if (rank == 0) {
             std::cout << "Repetition " << r << " with " << config.message_sizes[r] << " bytes" << std::endl;
         }
         try {
+            uint32_t i_send = 1;
+            uint32_t i_recv = 0;
+            SendKernel &send = send_kernels[i_send];
+            RecvKernel &recv = recv_kernels[i_recv];
+            SendRecvKernel &send_recv = send_recv_kernels[i_recv];
             if (rank == 0) {
-                send_kernels[1].prepare_repetition(r);
-                recv_kernels[0].prepare_repetition(r);
-                recv_kernels[0].start();
+                send.prepare_repetition(r);
+                recv.prepare_repetition(r);
+                recv.start();
             } else {
-                send_recv_kernels[0].prepare_repetition(r);
-                send_recv_kernels[0].start();
+                send_recv.prepare_repetition(r);
+                send_recv.start();
             }
 
             MPI_Barrier(MPI_COMM_WORLD);
             double start_time = get_wtime();
             if (rank == 0) {
-                uint32_t i_send = 1;
-                uint32_t i_recv = 0;
-                send_kernels[i_send].start();
+                send.start();
 
-                if (recv_kernels[i_recv].timeout()) {
+                if (recv.timeout()) {
                     std::cout << "Recv " << i_recv << " timeout" << std::endl;
                 }
 
-                if (send_kernels[i_send].timeout()) {
+                if (send.timeout()) {
                     std::cout << "Send " << i_send << " timeout" << std::endl;
                 }
 
                 double end_time = get_wtime();
 
-                recv_kernels[i_recv].write_back();
+                recv.write_back();
 
-                uint32_t errors = recv_kernels[i_recv].compare_data(data[i_send].data(), r);
+                uint32_t errors = recv.compare_data(data[i_send].data(), r);
                 if (errors) {
                     std::cout << errors << " byte errors" << std::endl;
                 }
-                double latency = (end_time - start_time) / config.iterations_per_message[r];
-                double gigabits = config.message_sizes[r] * 8 / 1000000000.0;
+                double latency = (end_time - start_time);
+                double latency_per_iteration = latency / config.iterations_per_message[r];
+                double gigabits_per_iteration = config.message_sizes[r] * 8 / 1000000000.0;
+                double gigabits = config.iterations_per_message[r] * gigabits_per_iteration;
 
+                std::cout << "Latency per iteration (us): " << (latency_per_iteration) * 1000000.0 << std::endl;
                 std::cout << "Throughput: " << gigabits / latency << std::endl;
-                std::cout << "Latency (us): " << latency * 1000000.0 << std::endl;
+
+                write_results(config.semaphore, size, config.iterations_per_message[r], config.message_sizes[r], latency);
+
             }
         } catch (const std::runtime_error &e) {
             std::cout << "caught runtime error: " << e.what() << std::endl;
