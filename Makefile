@@ -155,24 +155,31 @@ aurora_flow_1.xo: $(RTL_SRC_1) ./tcl/pack_kernel.tcl
 	mkdir aurora_flow_1_project
 	cd aurora_flow_1_project && vivado -mode batch -source ../tcl/pack_kernel.tcl -tclargs $(PART) 1
 
-# build example bitstream
+# example bitstream
 recv_$(TARGET).xo: ./hls/recv.cpp
 	v++ $(HLSCFLAGS) --temp_dir _x_recv --kernel recv --output $@ $^
 
 send_$(TARGET).xo: ./hls/send.cpp
 	v++ $(HLSCFLAGS) --temp_dir _x_send --kernel send --output $@ $^
 	
-send_recv_$(TARGET).xo: ./hls/send_recv.cpp
-	v++ $(HLSCFLAGS) --temp_dir _x_send_recv --kernel send_recv --output $@ $^
-	
 aurora_flow_test_hw.xclbin: aurora send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET).cfg
 	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_test_$(TARGET) --config aurora_flow_test_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo recv_$(TARGET).xo send_$(TARGET).xo
 
-aurora_flow_ring_hw.xclbin: aurora send_recv_$(TARGET).xo aurora_flow_ring_$(TARGET).cfg
-	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_ring_$(TARGET) --config aurora_flow_ring_$(TARGET).cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo send_recv_$(TARGET).xo
-
 aurora_flow_test_sw_emu_loopback.xclbin: send_$(TARGET).xo recv_$(TARGET).xo aurora_flow_test_$(TARGET)_loopback.cfg
 	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_$(TARGET) --config aurora_flow_test_$(TARGET)_loopback.cfg --output $@ recv_$(TARGET).xo send_$(TARGET).xo
+
+# ring bitstream
+send_recv_$(TARGET).xo: ./hls/send_recv.cpp
+	v++ $(HLSCFLAGS) --temp_dir _x_send_recv --kernel send_recv --output $@ $^
+	
+recv_send_$(TARGET).xo: ./hls/recv_send.cpp
+	v++ $(HLSCFLAGS) --temp_dir _x_recv_send --kernel recv_send --output $@ $^
+	
+aurora_flow_send_recv_hw.xclbin: aurora send_recv_hw.xo recv_send_hw.xo aurora_flow_send_recv_hw.cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_send_recv_hw --config aurora_flow_send_recv_hw.cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo send_recv_hw.xo recv_send_hw.xo
+
+aurora_flow_recv_send_hw.xclbin: aurora recv_send_hw.xo aurora_flow_recv_send_hw.cfg
+	v++ $(LINKFLAGS) --temp_dir _x_aurora_flow_recv_send_hw --config aurora_flow_recv_send_hw.cfg --output $@ aurora_flow_0.xo aurora_flow_1.xo recv_send_hw.xo
 
 xclbin : aurora_flow_test_$(TARGET).xclbin
 
@@ -190,7 +197,6 @@ host_aurora_flow_test: ./host/host_aurora_flow_test.cpp ./host/Aurora.hpp ./host
 
 host_aurora_flow_ring: ./host/host_aurora_flow_ring.cpp ./host/Aurora.hpp ./host/Results.hpp ./host/Configuration.hpp ./host/Kernel.hpp
 	$(MPICXX) -o host_aurora_flow_ring $< $(CXXFLAGS) $(LDFLAGS)
-
 
 host: host_aurora_flow_test host_aurora_flow_ring
 

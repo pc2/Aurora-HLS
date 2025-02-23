@@ -133,9 +133,9 @@ int main(int argc, char *argv[])
     device = xrt::device(device_bdf);
 
     if (rank == 0) {
-        xclbin_uuid = device.load_xclbin("aurora_flow_test_hw.xclbin");
+        xclbin_uuid = device.load_xclbin("aurora_flow_send_recv_hw.xclbin");
     } else {
-        xclbin_uuid = device.load_xclbin("aurora_flow_ring_hw.xclbin");
+        xclbin_uuid = device.load_xclbin("aurora_flow_recv_send_hw.xclbin");
     }
 
     std::vector<Aurora> aurora(2);
@@ -157,21 +157,18 @@ int main(int argc, char *argv[])
                   << " and input width of " << aurora[0].fifo_width << " bytes" << std::endl;
     }
 
-    std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, 2);
+    std::vector<char> data = generate_data(config.max_num_bytes, 1)[0];
 
     // create kernel objects
-    std::vector<SendKernel> send_kernels(2);
-    std::vector<RecvKernel> recv_kernels(2);
-    std::vector<SendRecvKernel> send_recv_kernels(2);
+    std::vector<RecvSendKernel> recv_send(2);
+    SendRecvKernel send_recv;
 
     if (rank == 0) {
-        for (uint32_t i = 0; i < 2; i++) {
-            send_kernels[i] = SendKernel(i, device, xclbin_uuid, config, data[i]);
-            recv_kernels[i] = RecvKernel(i, device, xclbin_uuid, config);
-        }
+        send_recv = SendRecvKernel(1, device, xclbin_uuid, config, data);
+        recv_send[0] = RecvSendKernel(0, device, xclbin_uuid, config);
     } else {
         for (uint32_t i = 0; i < 2; i++) {
-            send_recv_kernels[i] = SendRecvKernel(i, device, xclbin_uuid, config);
+            recv_send[i] = RecvSendKernel(i, device, xclbin_uuid, config);
         }
     }
 
@@ -180,38 +177,30 @@ int main(int argc, char *argv[])
             std::cout << "Repetition " << r << " with " << config.message_sizes[r] << " bytes" << std::endl;
         }
         try {
-            uint32_t i_send = 1;
-            uint32_t i_recv = 0;
-            SendKernel &send = send_kernels[i_send];
-            RecvKernel &recv = recv_kernels[i_recv];
-            SendRecvKernel &send_recv = send_recv_kernels[i_recv];
+            recv_send[0].prepare_repetition(r)
+            recv_send[0].start();
             if (rank == 0) {
-                send.prepare_repetition(r);
-                recv.prepare_repetition(r);
-                recv.start();
-            } else {
                 send_recv.prepare_repetition(r);
-                send_recv.start();
+            } else {
+                recv_send[1].prepare_repetition(r);
+                recv_send[1].start();
             }
 
             MPI_Barrier(MPI_COMM_WORLD);
             double start_time = get_wtime();
             if (rank == 0) {
-                send.start();
+                send_recv.start();
 
-                if (recv.timeout()) {
-                    std::cout << "Recv " << i_recv << " timeout" << std::endl;
-                }
-
-                if (send.timeout()) {
-                    std::cout << "Send " << i_send << " timeout" << std::endl;
+                if (send_recv.timeout()) {
+                    std::cout << "SendRecv timeout" << std::endl;
                 }
 
                 double end_time = get_wtime();
 
-                recv.write_back();
+                send_recv.write_back();
 
-                uint32_t errors = recv.compare_data(data[i_send].data(), r);
+                uint32_t errors = 0;
+                errors += send_recv.compare_data(data.data(), r);
                 if (errors) {
                     std::cout << errors << " byte errors" << std::endl;
                 }

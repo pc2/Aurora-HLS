@@ -16,4 +16,4 @@ source env.sh
 changeFPGAlinksXilinx {2}
 srun -l -n {1} --spread-job ./scripts/reset.sh
 
-srun -l -n {0} ./host_aurora_flow_ring -s -m 2 -i 1024
+srun -l -n {0} ./host_aurora_flow_ring -s -i 1 -b 64
