@@ -27,7 +27,7 @@ module aurora_flow_io (
     input wire          rx_axis_tready,
 `ifdef USE_FRAMING
     output wire         rx_axis_tlast,
-    output wire[63:0]   rx_axis_tkeep,
+    output wire[(`FIFO_WIDTH - 1):0] rx_axis_tkeep,
 `endif
 
     input wire[255:0]    m_axi_rx_tdata_u,
@@ -42,7 +42,7 @@ module aurora_flow_io (
     output wire         tx_axis_tready,
 `ifdef USE_FRAMING
     input wire          tx_axis_tlast,
-    input wire [63:0]   tx_axis_tkeep,
+    input wire [(`FIFO_WIDTH - 1):0] tx_axis_tkeep,
 `endif
 
     output wire[255:0]    s_axi_tx_tdata_u,

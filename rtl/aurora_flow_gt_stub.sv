@@ -17,6 +17,7 @@
 // DPI-C GT stub replacing the aurora_64b66b transceiver for hw_emu.
 // Uses named pipes for inter-FPGA communication.
 // Keeps the same port interface as aurora_64b66b_0 (relevant signals only).
+`include "aurora_flow_define.v"
 
 module aurora_flow_gt_stub #(
     parameter INSTANCE = 0,

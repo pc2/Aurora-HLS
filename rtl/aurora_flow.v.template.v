@@ -27,7 +27,7 @@ module aurora_flow_@@@instance@@@ (
     input wire           rx_axis_tready,
 `ifdef USE_FRAMING
     output wire          rx_axis_tlast,
-    output wire [63:0]   rx_axis_tkeep,
+    output wire [(`FIFO_WIDTH - 1):0] rx_axis_tkeep,
 `endif
 
     input wire  [((`FIFO_WIDTH * 8) - 1):0]  tx_axis_tdata,
@@ -35,7 +35,7 @@ module aurora_flow_@@@instance@@@ (
     output wire          tx_axis_tready,
 `ifdef USE_FRAMING
     input wire           tx_axis_tlast,
-    input wire  [63:0]   tx_axis_tkeep,
+    input wire  [(`FIFO_WIDTH - 1):0] tx_axis_tkeep,
 `endif
 
   // AXI4-Lite slave interface
