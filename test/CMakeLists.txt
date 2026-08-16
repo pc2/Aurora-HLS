@@ -34,6 +34,9 @@ set(AURORA_FLOW_BUILD_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "AuroraFlow kernel bu
 
 set(AURORA_FLOW_PLATFORM   "xilinx_u280_gen3x16_xdma_1_202211_1" CACHE STRING "v++ platform")
 set(AURORA_FLOW_FIFO_WIDTH "64" CACHE STRING "AuroraFlow FIFO width (32 or 64)")
+set(AURORA_FLOW_USE_FRAMING "0" CACHE STRING "Enable Aurora framing (0 or 1)")
+set(AURORA_FLOW_TARGET_CLOCK_HZ "300000000" CACHE STRING
+    "AuroraFlow AXI clock target in Hz")
 
 find_package(AuroraFlow REQUIRED)
 
@@ -99,6 +102,11 @@ set(VPP_COMMON_FLAGS
 set(VPP_HLS_FLAGS ${VPP_COMMON_FLAGS} -DDATA_WIDTH_BYTES=${AURORA_FLOW_FIFO_WIDTH})
 set(VPP_LINK_FLAGS --link --optimize 3 ${VPP_COMMON_FLAGS})
 
+set(AURORA_CLOCK_CONFIG
+    "${CMAKE_BINARY_DIR}/aurora_flow_clock_${AURORA_FLOW_TARGET_CLOCK_HZ}.cfg")
+file(GENERATE OUTPUT "${AURORA_CLOCK_CONFIG}" CONTENT
+"[clock]\nfreqHz=${AURORA_FLOW_TARGET_CLOCK_HZ}:aurora_flow_0.ap_clk,aurora_flow_1.ap_clk\n")
+
 # ---------------------------------------------------------------------------
 # Application HLS kernels (send, recv) per v++ target
 # ---------------------------------------------------------------------------
@@ -139,11 +147,13 @@ add_custom_command(
     COMMAND ${VPP_EXECUTABLE} ${VPP_LINK_FLAGS} --target hw
             --temp_dir ${CMAKE_BINARY_DIR}/_x_aurora_flow_test_hw
             --config ${CMAKE_CURRENT_SOURCE_DIR}/cfg/aurora_flow_test_hw.cfg
+            --config ${AURORA_CLOCK_CONFIG}
             --output ${HW_XCLBIN}
             ${AURORA_FLOW_XOS_HW}
             ${send_hw_xo_path} ${recv_hw_xo_path}
     DEPENDS aurora_flow_hw_kernels send_hw_xo recv_hw_xo
             ${CMAKE_CURRENT_SOURCE_DIR}/cfg/aurora_flow_test_hw.cfg
+            ${AURORA_CLOCK_CONFIG}
     COMMENT "v++ link aurora_flow_test_hw.xclbin"
     VERBATIM
 )
@@ -156,12 +166,14 @@ add_custom_command(
     COMMAND ${VPP_EXECUTABLE} ${VPP_LINK_FLAGS} --target hw_emu
             --temp_dir ${CMAKE_BINARY_DIR}/_x_aurora_flow_test_hw_emu
             --config ${CMAKE_CURRENT_SOURCE_DIR}/cfg/aurora_flow_test_hw_emu.cfg
+            --config ${AURORA_CLOCK_CONFIG}
             --vivado.prop "fileset.sim_1.{xsim.compile.xsc.more_options}={${AURORA_FLOW_DPI_SRC}}"
             --output ${HW_EMU_XCLBIN}
             ${AURORA_FLOW_XOS_HW_EMU}
             ${send_hw_emu_xo_path} ${recv_hw_emu_xo_path}
     DEPENDS aurora_flow_hw_emu_kernels send_hw_emu_xo recv_hw_emu_xo
             ${CMAKE_CURRENT_SOURCE_DIR}/cfg/aurora_flow_test_hw_emu.cfg
+            ${AURORA_CLOCK_CONFIG}
             ${AURORA_FLOW_DPI_SRC}
     COMMENT "v++ link aurora_flow_test_hw_emu.xclbin"
     VERBATIM

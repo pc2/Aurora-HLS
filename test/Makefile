@@ -34,6 +34,7 @@ export AURORA_FLOW_DIR
 PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
 TARGET   ?= hw
 FIFO_WIDTH ?= 64
+TARGET_CLOCK_HZ ?= 300000000
 
 MPICXX := mpic++
 
@@ -47,6 +48,10 @@ VPP_HLSCFLAGS := --compile --platform $(PLATFORM) --target $(TARGET) --save-temp
                  -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
 
 VPP_LINKFLAGS := --link --optimize 3 --platform $(PLATFORM) --save-temps --debug
+
+# Keep the selected frequency in the file name so changing TARGET_CLOCK_HZ in
+# an existing build directory cannot silently reuse a stale clock directive.
+AURORA_CLOCK_CONFIG := $(BUILD_DIR)/aurora_flow_clock_$(TARGET_CLOCK_HZ).cfg
 
 all: host xclbin
 
@@ -63,6 +68,10 @@ $(BUILD_DIR)/recv_$(TARGET).xo: hls/recv.cpp | $(BUILD_DIR)
 $(BUILD_DIR)/send_$(TARGET).xo: hls/send.cpp | $(BUILD_DIR)
 	v++ $(VPP_HLSCFLAGS) --temp_dir $(BUILD_DIR)/_x_send_$(TARGET) --kernel send --output $@ $<
 
+$(AURORA_CLOCK_CONFIG): | $(BUILD_DIR)
+	printf '[clock]\nfreqHz=%s:aurora_flow_0.ap_clk,aurora_flow_1.ap_clk\n' \
+	       '$(TARGET_CLOCK_HZ)' > $@
+
 # ---------------------------------------------------------------------------
 # Linked xclbin (one rule per target execution mode)
 # ---------------------------------------------------------------------------
@@ -70,10 +79,12 @@ $(BUILD_DIR)/send_$(TARGET).xo: hls/send.cpp | $(BUILD_DIR)
 # hw xclbin
 $(BUILD_DIR)/aurora_flow_test_hw.xclbin: $(AURORA_FLOW_XOS_HW) \
                                           $(BUILD_DIR)/send_hw.xo $(BUILD_DIR)/recv_hw.xo \
-                                          cfg/aurora_flow_test_hw.cfg | $(BUILD_DIR)
+                                          cfg/aurora_flow_test_hw.cfg \
+                                          $(AURORA_CLOCK_CONFIG) | $(BUILD_DIR)
 	v++ $(VPP_LINKFLAGS) --target hw \
 	    --temp_dir $(BUILD_DIR)/_x_aurora_flow_test_hw \
 	    --config cfg/aurora_flow_test_hw.cfg \
+	    --config $(AURORA_CLOCK_CONFIG) \
 	    --output $@ \
 	    $(AURORA_FLOW_XOS_HW) $(BUILD_DIR)/send_hw.xo $(BUILD_DIR)/recv_hw.xo
 
@@ -81,10 +92,12 @@ $(BUILD_DIR)/aurora_flow_test_hw.xclbin: $(AURORA_FLOW_XOS_HW) \
 $(BUILD_DIR)/aurora_flow_test_hw_emu.xclbin: $(AURORA_FLOW_XOS_HW_EMU) \
                                               $(BUILD_DIR)/send_hw_emu.xo $(BUILD_DIR)/recv_hw_emu.xo \
                                               cfg/aurora_flow_test_hw_emu.cfg \
+                                              $(AURORA_CLOCK_CONFIG) \
                                               $(AURORA_FLOW_DPI_SRC) | $(BUILD_DIR)
 	v++ $(VPP_LINKFLAGS) --target hw_emu \
 	    --temp_dir $(BUILD_DIR)/_x_aurora_flow_test_hw_emu \
 	    --config cfg/aurora_flow_test_hw_emu.cfg \
+	    --config $(AURORA_CLOCK_CONFIG) \
 	    --vivado.prop "fileset.sim_1.{xsim.compile.xsc.more_options}={$(AURORA_FLOW_DPI_SRC)}" \
 	    --output $@ \
 	    $(AURORA_FLOW_XOS_HW_EMU) $(BUILD_DIR)/send_hw_emu.xo $(BUILD_DIR)/recv_hw_emu.xo

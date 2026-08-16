@@ -60,7 +60,7 @@ make xclbin TARGET=hw            # aurora_flow_test_hw.xclbin (synthesis, slow)
 The `test/Makefile` includes `../aurora_flow.mk`, which locates the library. Variables like `FIFO_WIDTH=32` and `USE_FRAMING=1` are forwarded to the library Makefile automatically.
 
 ```bash
-make xclbin TARGET=hw_emu FIFO_WIDTH=32 USE_FRAMING=1
+make xclbin TARGET=hw_emu FIFO_WIDTH=32 USE_FRAMING=1 TARGET_CLOCK_HZ=402800000
 ```
 
 ## Building with CMake
@@ -78,7 +78,11 @@ cmake --build . --target emconfig
 Cache variables can be passed at configure time:
 
 ```bash
-cmake .. -DPLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1 -DFIFO_WIDTH=64
+cmake .. \
+  -DAURORA_FLOW_PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1 \
+  -DAURORA_FLOW_FIFO_WIDTH=32 \
+  -DAURORA_FLOW_USE_FRAMING=1 \
+  -DAURORA_FLOW_TARGET_CLOCK_HZ=402800000
 ```
 
 The CMake build uses the same library artifacts. `find_package(AuroraFlow)` delegates kernel packaging back to the library Makefile, and CMake invokes v++ for the HLS kernel compile and xclbin link step.
