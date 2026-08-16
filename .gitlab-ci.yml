@@ -1,362 +1,331 @@
+# AuroraFlow CI: fast checks use native GitLab jobs; expensive Vitis and FPGA
+# matrices use content-addressed hpc-ci result sets.
 stages:
-  - build
-  - test
-  - synth
-  - run
+  - check
+  - sw-emu-build
+  - sw-emu-run
+  - hw-emu-build
+  - hw-emu-run
+  - hw-build
+  - hw-run
   - benchmark
   - collect
 
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+
 variables:
-  ACCOUNT: "hpc-prf-cifi"
-  SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 1 --cpus-per-task=4 --mem 16g"
-  HW_EMU_SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 1:00:00 -n 1 --mem 32g --cpus-per-task=32"
-  HW_SYNTH_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -q fpgasynthesis -t 4:00:00 -n 1 --mem 64g --cpus-per-task=64"
-  SHORT_RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 00:30:00 -N 1 -n 6"
-  LONG_RUN_SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p fpga -t 01:30:00 -N 1 -n 6"
+  ACCOUNT: "pc2-mitarbeiter"
+  LOCAL_RUNNER_TAG: "noctua2-shell"
+  SLURM_RUNNER_TAG: "noctua2-slurm"
+  HPC_CI_PACKAGE_NAME: "aurora-flow"
+  HPC_CI_PACKAGE_VERSION: "1.0.0"
+  HPC_CI_STORAGE_DIR: "/scratch/pc2-mitarbeiter/papeg/hpc-ci"
+  GIT_SUBMODULE_STRATEGY: none
 
 default:
   id_tokens:
     CI_JOB_JWT:
       aud: https://git.uni-paderborn.de
-  tags:
-    - slurm
+
+include:
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "sw-emu-build"
+      stage: "sw-emu-build"
+      command_files: "ci/build-xclbin.sh"
+      matrix_file: "ci/matrix/sw-emu-build.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk cmake hls include rtl tcl
+        test/CMakeLists.txt test/Makefile test/cfg test/hls xdc
+      env_file: "env.sh"
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p normal -t 00:15:00
+        --cpus-per-task=8 --mem=32G
+      publish_paths: >-
+        aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        emconfig.json
+      failure_paths: "*.log *.jou build/**/*.log"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "sw-emu-run"
+      stage: "sw-emu-run"
+      command_files: "ci/run-emu.sh"
+      matrix_file: "ci/matrix/sw-emu-run.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk cmake include
+        test/CMakeLists.txt test/Makefile test/host test/scripts
+      env_file: "env.sh"
+      upstream_inputs: >-
+        sw-emu-build,paths=aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin emconfig.json
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p normal -t 00:15:00
+        -n {RUN_RANKS} --cpus-per-task=1 --mem=16G
+      publish_paths: "emu-run.log"
+      extract_paths: "emu-run.log"
+      failure_paths: "*.log run/**/*.log"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "hw-emu-build"
+      stage: "hw-emu-build"
+      command_files: "ci/build-xclbin.sh"
+      matrix_file: "ci/matrix/hw-emu-build.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk cmake include rtl tcl xdc
+        test/CMakeLists.txt test/Makefile test/cfg test/hls
+      env_file: "env.sh"
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p normal --qos=fpgasynthesis -t 00:45:00
+        --cpus-per-task=8 --mem=32G
+      publish_paths: >-
+        aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        emconfig.json
+      failure_paths: "*.log *.jou build/**/*.log"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "hw-emu-run"
+      stage: "hw-emu-run"
+      command_files: "ci/run-emu.sh"
+      matrix_file: "ci/matrix/hw-emu-run.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk cmake include
+        test/CMakeLists.txt test/Makefile test/host test/scripts
+      env_file: "env.sh"
+      upstream_inputs: >-
+        hw-emu-build,paths=aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin emconfig.json
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p normal -t 00:30:00
+        -n {RUN_RANKS} --cpus-per-task=1 --mem=64G
+      publish_paths: "emu-run.log"
+      extract_paths: "emu-run.log"
+      failure_paths: "*.log run/**/*.log run/**/xsim*.log"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "hw-build"
+      stage: "hw-build"
+      command_files: "ci/build-xclbin.sh ci/check-timing.sh"
+      matrix_file: "ci/matrix/hw-build.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk ci/check-timing.py cmake include rtl tcl xdc
+        test/CMakeLists.txt test/Makefile test/cfg test/hls
+      env_file: "env.sh"
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p normal --qos=fpgasynthesis -t 08:00:00
+        --cpus-per-task=8 --mem=64G
+      publish_paths: >-
+        aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        clock.cfg timing.json timing-reports
+      extract_paths: "clock.cfg timing.json timing-reports/*.rpt"
+      failure_paths: >-
+        *.log *.jou timing.json timing-reports
+        build/**/*.log build/**/*.jou build/**/*timing*.rpt
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "hw-run"
+      stage: "hw-run"
+      command_files: "ci/run-hw.sh"
+      matrix_file: "ci/matrix/hw-run.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk include
+        test/Makefile test/host test/scripts
+      env_file: "env.sh"
+      upstream_inputs: >-
+        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p fpga -t 00:15:00 -N 1 -n 6
+        --constraint=xilinx_u280_xrt{XRT}
+      publish_paths: "results.csv hw-run.log"
+      extract_paths: "results.csv hw-run.log"
+      failure_paths: "*.log *.csv run/**/*.log run/**/*.csv"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/matrix-step@main
+    inputs:
+      job_name: "benchmark"
+      stage: "benchmark"
+      command_files: "ci/benchmark.sh"
+      matrix_file: "ci/matrix/benchmark.txt"
+      source_paths: >-
+        Makefile aurora_flow.mk include
+        test/Makefile test/host test/scripts
+      env_file: "env.sh"
+      upstream_inputs: >-
+        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+      precheck_runner_tag: "$LOCAL_RUNNER_TAG"
+      slurm_runner_tag: "$SLURM_RUNNER_TAG"
+      slurm_parameters: >-
+        -A $ACCOUNT -p fpga -t 01:30:00 -N 1 -n 6
+        --constraint=xilinx_u280_xrt{XRT}
+      publish_paths: "benchmark.csv benchmark.log"
+      extract_paths: "benchmark.csv benchmark.log"
+      failure_paths: "*.log *.csv run/**/*.log run/**/*.csv"
+      failure_policy: "fail"
+
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/collect@main
+    inputs:
+      base_job_name: ".aurora-flow-results"
+      index_glob: "hw-build-index.json hw-run-index.json benchmark-index.json"
+      mode: "extracts"
+      staging_dir: "collected"
+
+.hw-only:
+  rules:
+    - if: '$SKIP_HW == "true"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /\[skip hw\]/'
+      when: never
+    - when: on_success
+
+.after-partial-build:
+  rules:
+    - when: always
+
+.hw-after-partial-build:
+  rules:
+    - if: '$SKIP_HW == "true"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /\[skip hw\]/'
+      when: never
+    - when: always
+
+check:rtl:
+  stage: check
+  tags: [$LOCAL_RUNNER_TAG]
+  timeout: 1h
+  needs: []
+  parallel:
+    matrix:
+      - TB: [nfc, monitor, configuration, control_s_axi]
   before_script:
     - source env.sh
+  script:
+    - make "run_${TB}_tb"
+    # xsim can return zero after an internal Tcl/launch error, so the log is
+    # part of the pass criterion rather than relying on the process status.
+    - '! grep -q ''^ERROR:'' xsim.log'
+  artifacts:
+    paths:
+      - "${TB}_tb.wdb"
+      - "${TB}_tb.vcd"
+      - "*.log"
+    when: on_failure
 
-# ============================================================
-# Build stage
-#
-# Build the test example with both Make and CMake flows to
-# exercise the library integration paths.
-# ============================================================
-
-build:host:
-  stage: build
+check:host:
+  stage: check
+  tags: [$LOCAL_RUNNER_TAG]
+  timeout: 1h
+  needs: []
   parallel:
     matrix:
       - BUILD_SYS: [make, cmake]
         XRT: ["2.14", "2.15", "2.16"]
+  before_script:
+    - source env.sh
   script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
     - |
-      if [ "$BUILD_SYS" = "make" ]; then
-        make -C test host
-        cp test/build/host_aurora_flow_test host_aurora_flow_test
+      if [[ "$BUILD_SYS" == "make" ]]; then
+        make -C test BUILD_DIR="$CI_PROJECT_DIR/build-host" host
       else
-        rm -rf build_cmake_host
-        mkdir build_cmake_host
-        cd build_cmake_host
-        cmake ../test
-        cmake --build . --target host_aurora_flow_test
-        cd ..
-        cp build_cmake_host/host_aurora_flow_test host_aurora_flow_test
+        cmake -S test -B build-host
+        cmake --build build-host --parallel 8 --target host_aurora_flow_test
       fi
-    - mkdir -p build/${BUILD_SYS}/xrt${XRT}
-    - cp host_aurora_flow_test build/${BUILD_SYS}/xrt${XRT}/
-  artifacts:
-    paths:
-      - build/${BUILD_SYS}/xrt${XRT}/host_aurora_flow_test
-  needs: []
 
-build:sw_emu:
-  stage: build
-  parallel:
-    matrix:
-      - BUILD_SYS: [make, cmake]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - |
-      if [ "$BUILD_SYS" = "make" ]; then
-        make -C test TARGET=sw_emu FIFO_WIDTH=$WIDTH xclbin
-        cp test/build/aurora_flow_test_sw_emu.xclbin aurora_flow_test_sw_emu.xclbin
-        cp test/build/emconfig.json emconfig.json
-      else
-        rm -rf build_cmake_sw_emu
-        mkdir build_cmake_sw_emu
-        cd build_cmake_sw_emu
-        cmake ../test -DAURORA_FLOW_FIFO_WIDTH=$WIDTH
-        cmake --build . --target xclbin_sw_emu
-        cmake --build . --target emconfig
-        cd ..
-        cp build_cmake_sw_emu/aurora_flow_test_sw_emu.xclbin aurora_flow_test_sw_emu.xclbin
-        cp build_cmake_sw_emu/emconfig.json emconfig.json
-      fi
-    - mkdir -p build/${BUILD_SYS}/sw_emu/xrt${XRT}
-    - cp aurora_flow_test_sw_emu.xclbin build/${BUILD_SYS}/sw_emu/xrt${XRT}/aurora_flow_test_sw_emu_${WIDTH}.xclbin
-  artifacts:
-    paths:
-      - build/${BUILD_SYS}/sw_emu/xrt${XRT}/aurora_flow_test_sw_emu_${WIDTH}.xclbin
-      - emconfig.json
-  needs: []
-
-build:hw_emu:
-  stage: build
-  variables:
-    SCHEDULER_PARAMETERS: $HW_EMU_SYNTH_SCHEDULER_PARAMETERS
-  parallel:
-    matrix:
-      - WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - make -C test TARGET=hw_emu FIFO_WIDTH=$WIDTH xclbin
-    - mkdir -p build/hw_emu/xrt${XRT}
-    - cp test/build/aurora_flow_test_hw_emu.xclbin build/hw_emu/xrt${XRT}/aurora_flow_test_hw_emu_${WIDTH}.xclbin
-    - cp test/build/emconfig.json emconfig.json
-  artifacts:
-    paths:
-      - build/hw_emu/xrt${XRT}/aurora_flow_test_hw_emu_${WIDTH}.xclbin
-      - emconfig.json
-  needs: []
-
-# ============================================================
-# Test stage (emulation + testbenches in parallel)
-#
-# Exercise both Make and CMake build outputs so both integration
-# paths are verified end-to-end.
-# ============================================================
-
-test:sw_emu:
-  stage: test
-  variables:
-    SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:30:00 -n 3 --mem 16g"
-  parallel:
-    matrix:
-      - BUILD_SYS: [make, cmake]
-        TOPOLOGY: [loopback, pair, ring]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/${BUILD_SYS}/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/${BUILD_SYS}/sw_emu/xrt${XRT}/aurora_flow_test_sw_emu_${WIDTH}.xclbin test/build/aurora_flow_test_sw_emu.xclbin
-    - cp emconfig.json test/build/
-    - ./test/scripts/run_${TOPOLOGY}_emu.sh sw_emu 3 -r 2 -i 10
+sw-emu-build-precheck:
+  needs: ["check:rtl", "check:host"]
+sw-emu-run-precheck:
+  extends: .after-partial-build
   needs:
-    - build:sw_emu
-    - build:host
-
-test:hw_emu:
-  stage: test
-  variables:
-    SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 01:00:00 -n 3 --mem 16g"
-  parallel:
-    matrix:
-      - TOPOLOGY: [loopback, pair, ring]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/make/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/hw_emu/xrt${XRT}/aurora_flow_test_hw_emu_${WIDTH}.xclbin test/build/aurora_flow_test_hw_emu.xclbin
-    - cp emconfig.json test/build/
-    - ./test/scripts/run_${TOPOLOGY}_emu.sh hw_emu 3 -r 2 -i 2 -b 256
-  after_script:
-    - rm -rf test/build/.hw_emu_rank_*
-  needs:
-    - build:hw_emu
-    - build:host
-
-test:hw_emu:nfc_test:
-  stage: test
-  variables:
-    SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 02:00:00 -n 3 --mem 16g"
-  parallel:
-    matrix:
-      - WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/make/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/hw_emu/xrt${XRT}/aurora_flow_test_hw_emu_${WIDTH}.xclbin test/build/aurora_flow_test_hw_emu.xclbin
-    - cp emconfig.json test/build/
-    - ./test/scripts/run_pair_emu.sh hw_emu 3 -r 1 -i 1 -b 65536 -n
-  after_script:
-    - rm -rf test/build/.hw_emu_rank_*
-  needs:
-    - build:hw_emu
-    - build:host
-
-test:nfc_module:
-  stage: test
-  script:
-    - make run_nfc_tb
-  only:
-    changes:
-      - rtl/aurora_flow_nfc.v
-      - rtl/tb/aurora_flow_nfc_tb.v
-      - tcl/run_nfc_tb.tcl
-      - .gitlab-ci.yml
-  artifacts:
-    paths:
-      - nfc_tb.vcd
-      - nfc_tb.wdb
-
-test:monitor_module:
-  stage: test
-  script:
-    - make run_monitor_tb
-  only:
-    changes:
-      - rtl/aurora_flow_monitor.v
-      - rtl/tb/aurora_flow_monitor_tb.v
-      - tcl/run_monitor_tb.tcl
-      - .gitlab-ci.yml
-  artifacts:
-    paths:
-      - monitor_tb.vcd
-      - monitor_tb.wdb
-
-test:configuration_module:
-  stage: test
-  script:
-    - make run_configuration_tb
-  only:
-    changes:
-      - rtl/aurora_flow_configuration.v
-      - rtl/tb/aurora_flow_configuration_tb.v
-      - tcl/run_configuration_tb.tcl
-      - .gitlab-ci.yml
-  artifacts:
-    paths:
-      - configuration_tb.vcd
-      - configuration_tb.wdb
-
-# ============================================================
-# Synth stage (manual trigger)
-# ============================================================
-
-synth:
-  stage: synth
-  variables:
-    SCHEDULER_PARAMETERS: $HW_SYNTH_SCHEDULER_PARAMETERS
-  parallel:
-    matrix:
-      - FRAMING: ["0", "1"]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - make -C test xclbin USE_FRAMING=$FRAMING FIFO_WIDTH=$WIDTH
-    - mkdir -p build/hw/xrt${XRT}
-    - cp test/build/aurora_flow_test_hw.xclbin build/hw/xrt${XRT}/aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin
-  artifacts:
-    paths:
-      - build/hw/xrt${XRT}/aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin
-  needs:
-    - job: test:hw_emu
+    - job: sw-emu-build-precheck
+      artifacts: true
+    - job: sw-emu-build
       artifacts: false
-    - job: test:hw_emu:nfc_test
-      artifacts: false
-    - job: test:nfc_module
-      artifacts: false
-      optional: true
-    - job: test:monitor_module
-      artifacts: false
-      optional: true
-    - job: test:configuration_module
-      artifacts: false
-      optional: true
 
-# ============================================================
-# Run stage (HW tests)
-# ============================================================
-
-run:hw:
-  stage: run
-  parallel:
-    matrix:
-      - TOPOLOGY: [loopback, pair, ring]
-        FRAMING: ["0", "1"]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  variables:
-    SCHEDULER_PARAMETERS: "${SHORT_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt${XRT}"
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/make/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/hw/xrt${XRT}/aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin test/build/
-    - ./test/scripts/run_${TOPOLOGY}_hw.sh -p aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin
-  artifacts:
-    paths:
-      - test/build/results.csv
+hw-emu-build-precheck:
+  needs: ["check:rtl", "check:host"]
+hw-emu-run-precheck:
+  extends: .after-partial-build
   needs:
-    - synth
-    - build:host
+    - job: hw-emu-build-precheck
+      artifacts: true
+    - job: hw-emu-build
+      artifacts: false
 
-run:nfc_test:
-  stage: run
-  parallel:
-    matrix:
-      - FRAMING: ["0", "1"]
-        WIDTH: ["32", "64"]
-        XRT: ["2.14", "2.15", "2.16"]
-  variables:
-    SCHEDULER_PARAMETERS: "${SHORT_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt${XRT}"
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/make/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/hw/xrt${XRT}/aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin test/build/
-    - ./test/scripts/run_pair_hw.sh -p aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin -n -l
+hw-build-precheck:
+  extends: .hw-only
+  needs: ["check:rtl", "check:host"]
+hw-build:
+  extends: .hw-only
+
+hw-run-precheck:
+  extends: .hw-after-partial-build
   needs:
-    - synth
-    - build:host
+    - job: hw-build-precheck
+      artifacts: true
+    - job: hw-build
+      artifacts: false
+hw-run:
+  extends: .hw-only
 
-# ============================================================
-# Benchmark stage
-# ============================================================
-
+benchmark-precheck:
+  extends: .hw-after-partial-build
+  needs:
+    - job: hw-build-precheck
+      artifacts: true
+    - job: hw-build
+      artifacts: false
 benchmark:
-  stage: benchmark
-  parallel:
-    matrix:
-      - XRT: ["2.14", "2.15", "2.16"]
-        WIDTH: ["32", "64"]
-        FRAMING: ["0"]
-        FRAME_SIZE: ["0"]
-      - XRT: ["2.14", "2.15", "2.16"]
-        WIDTH: ["32", "64"]
-        FRAMING: ["1"]
-        FRAME_SIZE: ["4", "16", "32", "128"]
-  variables:
-    SCHEDULER_PARAMETERS: "${LONG_RUN_SCHEDULER_PARAMETERS} --constraint=xilinx_u280_xrt${XRT}"
-  script:
-    - ml fpga/xilinx/xrt/$XRT CMake/4.0.3-GCCcore-14.3.0
-    - mkdir -p test/build
-    - cp build/make/xrt${XRT}/host_aurora_flow_test test/build/
-    - cp build/hw/xrt${XRT}/aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin test/build/
-    - ./test/scripts/configure_pair_hw.sh
-    - ./test/scripts/reset.sh
-    - cd test/build && ./host_aurora_flow_test -m 1 -p aurora_flow_test_hw_${FRAMING}_${WIDTH}.xclbin -f $FRAME_SIZE -l -i 20 -b 268435456 && cd -
-    - mkdir -p results
-    - mv test/build/results.csv results/results_xrt${XRT}_w${WIDTH}_f${FRAMING}_fs${FRAME_SIZE}.csv
-  artifacts:
-    paths:
-      - results/results_xrt${XRT}_w${WIDTH}_f${FRAMING}_fs${FRAME_SIZE}.csv
-  dependencies:
-    - build:host
-    - synth
+  extends: .hw-only
 
-# ============================================================
-# Collect stage
-# ============================================================
-
-benchmark:collect:
+results:collect:
+  extends:
+    - .aurora-flow-results
+    - .hw-after-partial-build
   stage: collect
-  variables:
-    SCHEDULER_PARAMETERS: "-A ${ACCOUNT} -p normal -t 00:10:00 -n 1 --mem 4g"
+  tags: [$LOCAL_RUNNER_TAG]
+  needs:
+    - job: hw-build-precheck
+      artifacts: true
+    - job: hw-build
+      artifacts: false
+    - job: hw-run-precheck
+      artifacts: true
+    - job: hw-run
+      artifacts: false
+    - job: benchmark-precheck
+      artifacts: true
+    - job: benchmark
+      artifacts: false
   script:
-    - cat results/*.csv > results.csv
-    - wc -l results.csv
+    - test -s "$HPC_CI_RESULTS_FILE"
   artifacts:
     paths:
-      - results.csv
-  needs:
-    - benchmark
+      - collected/**/*
+    when: always
+    expire_in: 1 month

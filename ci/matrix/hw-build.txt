@@ -1,0 +1,15 @@
+# Compatibility baseline.
+TARGET=hw
+BUILD_SYS=make
+WIDTH=32,64
+FRAMING=0,1
+TARGET_CLOCK_HZ=300000000
+XRT=2.14,2.15,2.16
+
+# High-speed production target: 256-bit AXI at 402.8 MHz.
+TARGET=hw
+BUILD_SYS=make
+WIDTH=32
+FRAMING=0,1
+TARGET_CLOCK_HZ=402800000
+XRT=2.16

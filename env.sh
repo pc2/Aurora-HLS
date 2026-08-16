@@ -2,7 +2,7 @@
 module reset
 
 ml fpga
-ml xilinx/xrt/2.16
+ml xilinx/xrt/${XRT:-2.16}
 export XILINX_LOCAL_USER_DATA=no
 
 ml tools

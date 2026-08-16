@@ -32,7 +32,7 @@ AuroraFlow/
 ├── rtl/                         RTL sources (Aurora wrapper, NFC, monitor, config,
 │   │                            reset, and aurora_flow_gt_stub.sv + aurora_flow_dpi.c
 │   │                            for hw_emu)
-│   └── tb/                      Verilog unit testbenches (NFC, monitor, configuration)
+│   └── tb/                      Verilog unit testbenches (NFC, monitor, configuration, AXI-Lite control)
 ├── tcl/                         IP creation and kernel packaging scripts
 ├── xdc/                         QSFP pinout constraints
 ├── hls/                         HLS kernel replacing the Aurora core in sw_emu
@@ -102,6 +102,7 @@ stream_connect=my_producer.data_output:aurora_flow_0.tx_axis:256
 make run_nfc_tb            # NFC (flow control) module
 make run_monitor_tb        # Monitor/status counters
 make run_configuration_tb  # Configuration register
+make run_control_s_axi_tb   # AXI-Lite control protocol and register map
 ```
 
 Interactive variants with `_gui` suffix are also available.

@@ -1,2 +1,3 @@
 build*
 *.log
+!ci/build-xclbin.sh

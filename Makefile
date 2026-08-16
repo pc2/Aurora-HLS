@@ -310,6 +310,25 @@ run_configuration_tb: configuration_tb
 run_configuration_tb_gui: configuration_tb
 	xsim --gui configuration_tb
 
+.PHONY: control_s_axi_tb run_control_s_axi_tb run_control_s_axi_tb_gui
+
+xsim.dir/work/aurora_flow_control_s_axi.sdb: $(AURORA_FLOW_DIR)/rtl/aurora_flow_control_s_axi.v $(BUILD_DIR)/rtl/aurora_flow_define.v
+	xvlog $(AURORA_FLOW_DIR)/rtl/aurora_flow_control_s_axi.v -i $(BUILD_DIR)/rtl
+
+xsim.dir/work/aurora_flow_control_s_axi_tb.sdb: $(AURORA_FLOW_DIR)/rtl/tb/aurora_flow_control_s_axi_tb.v
+	xvlog $<
+
+xsim.dir/control_s_axi_tb/xsimk: xsim.dir/work/aurora_flow_control_s_axi.sdb xsim.dir/work/aurora_flow_control_s_axi_tb.sdb
+	xelab -mt 4 -timescale 1ns/1ps -debug typical aurora_flow_control_s_axi_tb -s control_s_axi_tb
+
+control_s_axi_tb: xsim.dir/control_s_axi_tb/xsimk
+
+run_control_s_axi_tb: control_s_axi_tb
+	xsim --tclbatch $(AURORA_FLOW_DIR)/tcl/run_control_s_axi_tb.tcl control_s_axi_tb --wdb control_s_axi_tb.wdb
+
+run_control_s_axi_tb_gui: control_s_axi_tb
+	xsim --gui control_s_axi_tb
+
 # ---------------------------------------------------------------------------
 # Clean
 # ---------------------------------------------------------------------------
