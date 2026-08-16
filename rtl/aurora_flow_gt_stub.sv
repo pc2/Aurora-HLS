@@ -62,8 +62,18 @@ module aurora_flow_gt_stub #(
 );
 
     import "DPI-C" function void aurora_dpi_open_all();
-    import "DPI-C" function int  aurora_dpi_write(input int inst, input bit [255:0] data);
-    import "DPI-C" function int  aurora_dpi_read(input int inst, output bit [255:0] data);
+    import "DPI-C" function int  aurora_dpi_write(
+        input int inst,
+        input bit [255:0] data,
+        input bit [31:0] keep,
+        input bit last
+    );
+    import "DPI-C" function int  aurora_dpi_read(
+        input int inst,
+        output bit [255:0] data,
+        output bit [31:0] keep,
+        output bit last
+    );
     import "DPI-C" function void aurora_dpi_close(input int inst);
 
     // Status: always report link up
@@ -117,10 +127,21 @@ module aurora_flow_gt_stub #(
 
     // TX: write to pipe when valid and pipe accepts
     bit [255:0] tx_data_swapped;
+    bit [31:0] tx_keep_swapped;
+    bit tx_last;
     always @(posedge ap_clk) begin
         if (!reset && pipes_open && s_axi_tx_tvalid) begin
             tx_data_swapped = s_axi_tx_tdata;
-            s_axi_tx_tready <= aurora_dpi_write(INSTANCE, tx_data_swapped);
+`ifdef USE_FRAMING
+            tx_keep_swapped = s_axi_tx_tkeep;
+            tx_last = s_axi_tx_tlast;
+`else
+            tx_keep_swapped = 32'hffffffff;
+            tx_last = 1'b0;
+`endif
+            s_axi_tx_tready <= aurora_dpi_write(
+                INSTANCE, tx_data_swapped, tx_keep_swapped, tx_last
+            );
         end else begin
             s_axi_tx_tready <= 1'b1;
         end
@@ -128,6 +149,8 @@ module aurora_flow_gt_stub #(
 
     // RX: read from pipe when NFC allows and pipes are open
     bit [255:0] rx_data;
+    bit [31:0] rx_keep;
+    bit rx_last;
     always @(posedge ap_clk) begin
         if (reset || !pipes_open) begin
             m_axi_rx_tvalid <= 1'b0;
@@ -136,12 +159,12 @@ module aurora_flow_gt_stub #(
                 pipes_open <= 0;
             end
         end else if (!nfc_stop) begin
-            if (aurora_dpi_read(INSTANCE, rx_data)) begin
+            if (aurora_dpi_read(INSTANCE, rx_data, rx_keep, rx_last)) begin
                 m_axi_rx_tdata <= rx_data;
                 m_axi_rx_tvalid <= 1'b1;
 `ifdef USE_FRAMING
-                m_axi_rx_tkeep <= 32'hffffffff;
-                m_axi_rx_tlast <= 1'b0;
+                m_axi_rx_tkeep <= rx_keep;
+                m_axi_rx_tlast <= rx_last;
 `endif
             end else begin
                 m_axi_rx_tvalid <= 1'b0;
