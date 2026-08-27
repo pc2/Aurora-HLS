@@ -22,8 +22,6 @@ else
   command=("$CI_PROJECT_DIR/test/scripts/run_${TOPOLOGY}_emu.sh" "$TARGET" "$RUN_RANKS" -r 2 -i 10)
 fi
 
-if ! BUILD_DIR="$run_dir" "${command[@]}" > emu-run.log 2>&1; then
-  cat emu-run.log
+if ! BUILD_DIR="$run_dir" "${command[@]}" 2>&1 | tee emu-run.log; then
   exit 1
 fi
-cat emu-run.log

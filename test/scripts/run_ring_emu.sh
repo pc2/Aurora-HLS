@@ -14,7 +14,15 @@ export XCL_EMULATION_MODE=$EMU_MODE
 
 rm -rf "$PIPE_DIR"
 mkdir -p "$PIPE_DIR"
-trap 'rm -rf "$PIPE_DIR"' EXIT
+cleanup_pipe_dir() {
+    status=$?
+    if (( status == 0 )); then
+        rm -rf "$PIPE_DIR"
+    else
+        echo "Preserving failed emulation directory: $PIPE_DIR" >&2
+    fi
+}
+trap cleanup_pipe_dir EXIT
 
 "${SCRIPT_DIR}/configure_ring_emu.sh" $NUM_RANKS "$PIPE_DIR"
 
