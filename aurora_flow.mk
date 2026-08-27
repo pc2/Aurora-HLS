@@ -70,6 +70,12 @@ endif
 ifdef RX_EQ_MODE
   AURORA_FLOW_MAKE_ARGS += RX_EQ_MODE=$(RX_EQ_MODE)
 endif
+ifdef RX_FIFO_SIZE
+  AURORA_FLOW_MAKE_ARGS += RX_FIFO_SIZE=$(RX_FIFO_SIZE)
+endif
+ifdef TX_FIFO_SIZE
+  AURORA_FLOW_MAKE_ARGS += TX_FIFO_SIZE=$(TX_FIFO_SIZE)
+endif
 ifdef DRAIN_AXI_ON_RESET
   AURORA_FLOW_MAKE_ARGS += DRAIN_AXI_ON_RESET=$(DRAIN_AXI_ON_RESET)
 endif
@@ -79,14 +85,14 @@ endif
 
 .PHONY: aurora_flow_hw aurora_flow_hw_emu aurora_flow_sw_emu
 
-aurora_flow_hw: $(AURORA_FLOW_XOS_HW)
-$(AURORA_FLOW_XOS_HW):
+aurora_flow_hw:
 	$(MAKE) -C $(AURORA_FLOW_DIR) aurora_hw $(AURORA_FLOW_MAKE_ARGS)
+$(AURORA_FLOW_XOS_HW): aurora_flow_hw ;
 
-aurora_flow_hw_emu: $(AURORA_FLOW_XOS_HW_EMU)
-$(AURORA_FLOW_XOS_HW_EMU):
+aurora_flow_hw_emu:
 	$(MAKE) -C $(AURORA_FLOW_DIR) aurora_hw_emu $(AURORA_FLOW_MAKE_ARGS)
+$(AURORA_FLOW_XOS_HW_EMU): aurora_flow_hw_emu ;
 
-aurora_flow_sw_emu: $(AURORA_FLOW_XO_SW_EMU)
-$(AURORA_FLOW_XO_SW_EMU):
+aurora_flow_sw_emu:
 	$(MAKE) -C $(AURORA_FLOW_DIR) aurora_sw_emu $(AURORA_FLOW_MAKE_ARGS)
+$(AURORA_FLOW_XO_SW_EMU): aurora_flow_sw_emu ;

@@ -22,7 +22,7 @@ AURORA_FLOW_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 BUILD_DIR ?= $(CURDIR)/build
 
 # Tell the library to build into the same place (must be set before include).
-AURORA_FLOW_BUILD_DIR := $(BUILD_DIR)
+AURORA_FLOW_BUILD_DIR := $(abspath $(BUILD_DIR))
 
 include $(AURORA_FLOW_DIR)/aurora_flow.mk
 
@@ -68,7 +68,7 @@ $(BUILD_DIR)/recv_$(TARGET).xo: hls/recv.cpp | $(BUILD_DIR)
 $(BUILD_DIR)/send_$(TARGET).xo: hls/send.cpp | $(BUILD_DIR)
 	v++ $(VPP_HLSCFLAGS) --temp_dir $(BUILD_DIR)/_x_send_$(TARGET) --kernel send --output $@ $<
 
-$(AURORA_CLOCK_CONFIG): | $(BUILD_DIR)
+$(AURORA_CLOCK_CONFIG): Makefile | $(BUILD_DIR)
 	printf '[clock]\nfreqHz=%s:aurora_flow_0.ap_clk,aurora_flow_1.ap_clk\n' \
 	       '$(TARGET_CLOCK_HZ)' > $@
 

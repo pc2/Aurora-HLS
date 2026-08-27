@@ -69,11 +69,15 @@ endif()
 
 # Forward AURORA_FLOW_<VAR> into <VAR>=value on the Makefile invocation.
 set(_AURORA_FLOW_MAKE_ARGS BUILD_DIR=${AURORA_FLOW_BUILD_DIR})
-foreach(var PLATFORM PART FIFO_WIDTH USE_FRAMING INS_LOSS_NYQ RX_EQ_MODE DRAIN_AXI_ON_RESET)
+foreach(var PLATFORM PART FIFO_WIDTH USE_FRAMING INS_LOSS_NYQ RX_EQ_MODE
+            RX_FIFO_SIZE TX_FIFO_SIZE DRAIN_AXI_ON_RESET)
     if(DEFINED AURORA_FLOW_${var})
         list(APPEND _AURORA_FLOW_MAKE_ARGS "${var}=${AURORA_FLOW_${var}}")
     endif()
 endforeach()
+if(DEFINED AURORA_FLOW_VERSION)
+    list(APPEND _AURORA_FLOW_MAKE_ARGS "AURORA_VERSION=${AURORA_FLOW_VERSION}")
+endif()
 
 function(aurora_flow_build_hw)
     add_custom_command(
