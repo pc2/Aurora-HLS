@@ -1,6 +1,6 @@
 set -euo pipefail
 
-artifact="aurora_flow_test_hw_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_c${TARGET_CLOCK_HZ}_xrt${XRT}.xclbin"
+artifact="aurora_flow_test_hw_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_a${AXI_CLOCK_HZ}_xrt${XRT}.xclbin"
 run_dir="$PWD/run"
 mkdir -p "$run_dir"
 make -C "$CI_PROJECT_DIR/test" BUILD_DIR="$run_dir" host

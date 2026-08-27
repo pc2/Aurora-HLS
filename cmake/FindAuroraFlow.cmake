@@ -70,7 +70,8 @@ endif()
 # Forward AURORA_FLOW_<VAR> into <VAR>=value on the Makefile invocation.
 set(_AURORA_FLOW_MAKE_ARGS BUILD_DIR=${AURORA_FLOW_BUILD_DIR})
 foreach(var PLATFORM PART FIFO_WIDTH USE_FRAMING INS_LOSS_NYQ RX_EQ_MODE
-            RX_FIFO_SIZE TX_FIFO_SIZE DRAIN_AXI_ON_RESET)
+            RX_FIFO_SIZE TX_FIFO_SIZE DRAIN_AXI_ON_RESET HW_INTERFACE_CLOCK_ID
+            HW_EMU_CLOCKS HW_EMU_INTERFACE_CLOCK_ID)
     if(DEFINED AURORA_FLOW_${var})
         list(APPEND _AURORA_FLOW_MAKE_ARGS "${var}=${AURORA_FLOW_${var}}")
     endif()
@@ -83,6 +84,19 @@ function(aurora_flow_build_hw)
     add_custom_command(
         OUTPUT ${AURORA_FLOW_XOS_HW}
         COMMAND $(MAKE) -C ${AURORA_FLOW_DIR} aurora_hw ${_AURORA_FLOW_MAKE_ARGS}
+        DEPENDS
+            ${AURORA_FLOW_DIR}/Makefile
+            ${AURORA_FLOW_DIR}/cmake/FindAuroraFlow.cmake
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow.v.template.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_control_s_axi.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_io.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_nfc.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_reset.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_configuration.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_monitor.v
+            ${AURORA_FLOW_DIR}/tcl/pack_kernel.tcl
+            ${AURORA_FLOW_DIR}/tcl/create_fifo_ip.tcl
+            ${AURORA_FLOW_DIR}/tcl/create_axis_dwidth_converter_ip.tcl
         COMMENT "Building AuroraFlow hw kernels"
         VERBATIM
     )
@@ -95,6 +109,19 @@ function(aurora_flow_build_hw_emu)
     add_custom_command(
         OUTPUT ${AURORA_FLOW_XOS_HW_EMU}
         COMMAND $(MAKE) -C ${AURORA_FLOW_DIR} aurora_hw_emu ${_AURORA_FLOW_MAKE_ARGS}
+        DEPENDS
+            ${AURORA_FLOW_DIR}/Makefile
+            ${AURORA_FLOW_DIR}/cmake/FindAuroraFlow.cmake
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow.v.template.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_control_s_axi.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_io.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_nfc.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_configuration.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_monitor.v
+            ${AURORA_FLOW_DIR}/rtl/aurora_flow_gt_stub.sv
+            ${AURORA_FLOW_DIR}/tcl/pack_kernel_hw_emu.tcl
+            ${AURORA_FLOW_DIR}/tcl/create_fifo_ip.tcl
+            ${AURORA_FLOW_DIR}/tcl/create_axis_dwidth_converter_ip.tcl
         COMMENT "Building AuroraFlow hw_emu kernels"
         VERBATIM
     )

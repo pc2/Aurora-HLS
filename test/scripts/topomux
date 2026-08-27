@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Reproducible topomux entry point for CI and interactive emulation runs.
+set -euo pipefail
+
+: "${AURORA_TOPOMUX_SPEC:=topomux @ git+https://github.com/papeg/topomux.git@5924073d5b8419b011cecd1051449cb226ea9b5c}"
+exec uv tool run \
+    --from "$AURORA_TOPOMUX_SPEC" \
+    topomux "$@"

@@ -50,7 +50,7 @@ include:
         -A $ACCOUNT -p normal -t 00:15:00
         --cpus-per-task=8 --mem=32G
       publish_paths: >-
-        aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_xrt{XRT}.xclbin
         emconfig.json
       failure_paths: "*.log *.jou build/**/*.log"
       failure_policy: "fail"
@@ -66,7 +66,7 @@ include:
         test/CMakeLists.txt test/Makefile test/host test/scripts
       env_file: "env.sh"
       upstream_inputs: >-
-        sw-emu-build,paths=aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin emconfig.json
+        sw-emu-build,paths=aurora_flow_test_sw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_xrt{XRT}.xclbin emconfig.json
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-
@@ -93,7 +93,7 @@ include:
         -A $ACCOUNT -p normal --qos=fpgasynthesis -t 00:45:00
         --cpus-per-task=8 --mem=32G
       publish_paths: >-
-        aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_a{AXI_CLOCK_HZ}_gt{HW_EMU_GT_CLOCK_HZ}_clocks{HW_EMU_CLOCKS}_xrt{XRT}.xclbin
         emconfig.json
       failure_paths: "*.log *.jou build/**/*.log"
       failure_policy: "fail"
@@ -109,7 +109,7 @@ include:
         test/CMakeLists.txt test/Makefile test/host test/scripts
       env_file: "env.sh"
       upstream_inputs: >-
-        hw-emu-build,paths=aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin emconfig.json
+        hw-emu-build,paths=aurora_flow_test_hw_emu_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_a{AXI_CLOCK_HZ}_gt{HW_EMU_GT_CLOCK_HZ}_clocks{HW_EMU_CLOCKS}_xrt{XRT}.xclbin emconfig.json
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-
@@ -136,7 +136,7 @@ include:
         -A $ACCOUNT -p normal --qos=fpgasynthesis -t 08:00:00
         --cpus-per-task=8 --mem=64G
       publish_paths: >-
-        aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_a{AXI_CLOCK_HZ}_xrt{XRT}.xclbin
         clock.cfg timing.json timing-reports
       extract_paths: "clock.cfg timing.json timing-reports/*.rpt"
       failure_paths: >-
@@ -155,7 +155,7 @@ include:
         test/Makefile test/host test/scripts
       env_file: "env.sh"
       upstream_inputs: >-
-        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_a{AXI_CLOCK_HZ}_xrt{XRT}.xclbin
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-
@@ -177,7 +177,7 @@ include:
         test/Makefile test/host test/scripts
       env_file: "env.sh"
       upstream_inputs: >-
-        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_c{TARGET_CLOCK_HZ}_xrt{XRT}.xclbin
+        hw-build,paths=aurora_flow_test_hw_{BUILD_SYS}_f{FRAMING}_w{WIDTH}_a{AXI_CLOCK_HZ}_xrt{XRT}.xclbin
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-

@@ -1,21 +1,62 @@
 set -euo pipefail
 
 build_dir="$PWD/build"
-artifact="aurora_flow_test_${TARGET}_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_c${TARGET_CLOCK_HZ}_xrt${XRT}.xclbin"
+case "$TARGET" in
+  sw_emu)
+    artifact="aurora_flow_test_sw_emu_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_xrt${XRT}.xclbin"
+    ;;
+  hw)
+    artifact="aurora_flow_test_hw_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_a${AXI_CLOCK_HZ}_xrt${XRT}.xclbin"
+    ;;
+  hw_emu)
+    artifact="aurora_flow_test_hw_emu_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_a${AXI_CLOCK_HZ}_gt${HW_EMU_GT_CLOCK_HZ}_clocks${HW_EMU_CLOCKS}_xrt${XRT}.xclbin"
+    ;;
+  *)
+    echo "unsupported target: $TARGET" >&2
+    exit 2
+    ;;
+esac
 
 if [[ "$BUILD_SYS" == "make" ]]; then
-  make -C "$CI_PROJECT_DIR/test" \
-    BUILD_DIR="$build_dir" \
-    TARGET="$TARGET" \
-    FIFO_WIDTH="$WIDTH" \
-    USE_FRAMING="$FRAMING" \
-    TARGET_CLOCK_HZ="$TARGET_CLOCK_HZ" \
-    xclbin
+  make_args=(
+    BUILD_DIR="$build_dir"
+    TARGET="$TARGET"
+    FIFO_WIDTH="$WIDTH"
+    USE_FRAMING="$FRAMING"
+  )
+  if [[ "$TARGET" != "sw_emu" ]]; then
+    make_args+=(AXI_CLOCK_HZ="$AXI_CLOCK_HZ")
+  fi
+  if [[ "$TARGET" == "hw" ]]; then
+    make_args+=(HW_INTERFACE_CLOCK_ID="${HW_INTERFACE_CLOCK_ID:-0}")
+  fi
+  if [[ "$TARGET" == "hw_emu" ]]; then
+    make_args+=(
+      HW_EMU_GT_CLOCK_HZ="$HW_EMU_GT_CLOCK_HZ"
+      HW_EMU_CLOCKS="$HW_EMU_CLOCKS"
+      HW_EMU_INTERFACE_CLOCK_ID="${HW_EMU_INTERFACE_CLOCK_ID:-0}"
+    )
+  fi
+  make -C "$CI_PROJECT_DIR/test" "${make_args[@]}" xclbin
 else
-  cmake -S "$CI_PROJECT_DIR/test" -B "$build_dir" \
-    -DAURORA_FLOW_FIFO_WIDTH="$WIDTH" \
-    -DAURORA_FLOW_USE_FRAMING="$FRAMING" \
-    -DAURORA_FLOW_TARGET_CLOCK_HZ="$TARGET_CLOCK_HZ"
+  cmake_args=(
+    -DAURORA_FLOW_FIFO_WIDTH="$WIDTH"
+    -DAURORA_FLOW_USE_FRAMING="$FRAMING"
+  )
+  if [[ "$TARGET" != "sw_emu" ]]; then
+    cmake_args+=(-DAURORA_FLOW_AXI_CLOCK_HZ="$AXI_CLOCK_HZ")
+  fi
+  if [[ "$TARGET" == "hw" ]]; then
+    cmake_args+=(-DAURORA_FLOW_HW_INTERFACE_CLOCK_ID="${HW_INTERFACE_CLOCK_ID:-0}")
+  fi
+  if [[ "$TARGET" == "hw_emu" ]]; then
+    cmake_args+=(
+      -DAURORA_FLOW_HW_EMU_GT_CLOCK_HZ="$HW_EMU_GT_CLOCK_HZ"
+      -DAURORA_FLOW_HW_EMU_CLOCKS="$HW_EMU_CLOCKS"
+      -DAURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID="${HW_EMU_INTERFACE_CLOCK_ID:-0}"
+    )
+  fi
+  cmake -S "$CI_PROJECT_DIR/test" -B "$build_dir" "${cmake_args[@]}"
   cmake --build "$build_dir" --parallel 16 --target "xclbin_${TARGET}" emconfig
 fi
 
@@ -23,7 +64,7 @@ cp "$build_dir/aurora_flow_test_${TARGET}.xclbin" "$artifact"
 cp "$build_dir/emconfig.json" emconfig.json
 
 if [[ "$TARGET" == "hw" ]]; then
-  cp "$build_dir/aurora_flow_clock_${TARGET_CLOCK_HZ}.cfg" clock.cfg
+  cp "$build_dir/aurora_flow_axi_clock_${AXI_CLOCK_HZ}_data_clock_${HW_INTERFACE_CLOCK_ID:-0}.cfg" clock.cfg
   mkdir -p timing-reports
   report_count=0
   while IFS= read -r report; do

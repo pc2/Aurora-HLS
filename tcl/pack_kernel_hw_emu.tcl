@@ -19,11 +19,22 @@
 
 ##################################### Step 1: create vivado project and add design sources
 
-# argv layout: <part> <instance> <src_dir> <build_dir>
+# argv layout: <part> <instance> <src_dir> <build_dir> <clock_count> <interface_clock_id>
 set part      [lindex $argv 0]
 set instance  [lindex $argv 1]
 set src_dir   [lindex $argv 2]
 set build_dir [lindex $argv 3]
+set clock_count [lindex $argv 4]
+set interface_clock_id [lindex $argv 5]
+if {$clock_count ni {1 2}} {
+    error "clock_count must be 1 or 2"
+}
+if {$interface_clock_id ni {0 1}} {
+    error "interface_clock_id must be 0 or 1"
+}
+if {$clock_count == 1 && $interface_clock_id != 0} {
+    error "interface_clock_id 1 requires clock_count 2"
+}
 set ip_root   ./aurora_flow_ip_${instance}
 set ip_src    ${ip_root}/src
 
@@ -58,11 +69,36 @@ ipx::package_project -root_dir ./aurora_flow_ip_${instance} -vendor xilinx.com -
 ipx::infer_bus_interface ap_clk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
 ipx::infer_bus_interface ap_rst_n xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]
 
-# associate AXI/AXIS interface with clock
-ipx::associate_bus_interfaces -busif s_axi_control  -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif rx_axis        -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif tx_axis        -clock ap_clk [ipx::current_core]
+if {$clock_count == 2} {
+    # Vitis 2023.2 two-clock RTL-kernel convention. These exact port names map
+    # to scalable clock ID 1 and its reset.
+    ipx::infer_bus_interface ap_clk_2 xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
+    ipx::infer_bus_interface ap_rst_n_2 xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]
+}
+
 ipx::associate_bus_interfaces -clock ap_clk -reset ap_rst_n [ipx::current_core]
+if {$interface_clock_id == 1} {
+    set interface_clock ap_clk_2
+    set interface_reset ap_rst_n_2
+} else {
+    set interface_clock ap_clk
+    set interface_reset ap_rst_n
+}
+
+# Vitis' kernel AXI-Lite control interconnect is on clock ID 0 and does not
+# insert a clock converter for an RTL kernel control port. Keep control there;
+# the AXI-Stream interfaces and emulated data path can share clock ID 1 with the
+# router network side.
+ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk \
+    [ipx::current_core]
+foreach busif {rx_axis tx_axis} {
+    ipx::associate_bus_interfaces -busif $busif -clock $interface_clock \
+        [ipx::current_core]
+}
+if {$interface_clock_id == 1} {
+    ipx::associate_bus_interfaces -clock ap_clk_2 -reset $interface_reset \
+        [ipx::current_core]
+}
 
 # No GT ports or refclk for hw_emu
 

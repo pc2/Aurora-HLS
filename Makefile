@@ -46,6 +46,31 @@ DRAIN_AXI_ON_RESET := 0
 # Supported: 32 and 64
 FIFO_WIDTH := 64
 
+# Hardware normally exposes one scalable platform clock. Integrations that
+# split the mandatory 300 MHz AXI-Lite control port from a faster AXI-Stream
+# data path can place the latter on clock ID 1.
+HW_INTERFACE_CLOCK_ID ?= 0
+ifeq ($(filter $(HW_INTERFACE_CLOCK_ID),0 1),)
+  $(error HW_INTERFACE_CLOCK_ID must be 0 or 1)
+endif
+
+# hw_emu can use the legacy single-clock kernel (1) or expose both scalable
+# platform clocks (2).  By default the external interfaces remain on clock ID
+# 0 and ap_clk_2 models the independent Aurora user clock.  Integrations that
+# already place their data path on clock ID 1 can put the AXI-Stream side and
+# GT stub there while AXI-Lite control remains on clock ID 0.
+HW_EMU_CLOCKS ?= 2
+HW_EMU_INTERFACE_CLOCK_ID ?= 0
+ifeq ($(filter $(HW_EMU_CLOCKS),1 2),)
+  $(error HW_EMU_CLOCKS must be 1 or 2)
+endif
+ifeq ($(filter $(HW_EMU_INTERFACE_CLOCK_ID),0 1),)
+  $(error HW_EMU_INTERFACE_CLOCK_ID must be 0 or 1)
+endif
+ifeq ($(HW_EMU_CLOCKS):$(HW_EMU_INTERFACE_CLOCK_ID),1:1)
+  $(error HW_EMU_INTERFACE_CLOCK_ID=1 requires HW_EMU_CLOCKS=2)
+endif
+
 ifeq ($(FIFO_WIDTH), 32)
 	SKIP_DATAWIDTH_CONVERTER := 1
 else
@@ -149,10 +174,41 @@ $(BUILD_DIR)/rtl/aurora_flow_define.v:
 	echo "\`define RX_EQ_MODE \"$(RX_EQ_MODE)\"" >> $@
 	echo "\`define INS_LOSS_NYQ $(INS_LOSS_NYQ)" >> $@
 
-$(BUILD_DIR)/rtl/hw_emu/aurora_flow_define.v: $(BUILD_DIR)/rtl/aurora_flow_define.v
+HW_EMU_CLOCK_LAYOUT_FILE := $(BUILD_DIR)/rtl/hw_emu/.clock-layout
+HW_CLOCK_LAYOUT_FILE := $(BUILD_DIR)/rtl/hw/.clock-layout
+
+.PHONY: FORCE
+FORCE:
+
+$(HW_EMU_CLOCK_LAYOUT_FILE): FORCE
+	mkdir -p $(BUILD_DIR)/rtl/hw_emu
+	printf '%s:%s\n' '$(HW_EMU_CLOCKS)' '$(HW_EMU_INTERFACE_CLOCK_ID)' > $@.tmp
+	if ! cmp -s $@.tmp $@; then mv $@.tmp $@; else rm -f $@.tmp; fi
+
+$(HW_CLOCK_LAYOUT_FILE): FORCE
+	mkdir -p $(BUILD_DIR)/rtl/hw
+	printf '%s\n' '$(HW_INTERFACE_CLOCK_ID)' > $@.tmp
+	if ! cmp -s $@.tmp $@; then mv $@.tmp $@; else rm -f $@.tmp; fi
+
+$(BUILD_DIR)/rtl/hw/aurora_flow_define.v: $(BUILD_DIR)/rtl/aurora_flow_define.v $(HW_CLOCK_LAYOUT_FILE)
+	mkdir -p $(BUILD_DIR)/rtl/hw
+	cp $< $@
+	if [ $(HW_INTERFACE_CLOCK_ID) = 1 ]; then \
+		echo "\`define AURORA_FLOW_SECONDARY_CLOCK" >> $@; \
+		echo "\`define AURORA_FLOW_DATA_CLOCK_2" >> $@; \
+	fi
+
+$(BUILD_DIR)/rtl/hw_emu/aurora_flow_define.v: $(BUILD_DIR)/rtl/aurora_flow_define.v $(HW_EMU_CLOCK_LAYOUT_FILE)
 	mkdir -p $(BUILD_DIR)/rtl/hw_emu
 	cp $< $@
 	echo "\`define HW_EMU" >> $@
+	if [ $(HW_EMU_CLOCKS) = 2 ]; then \
+		echo "\`define HW_EMU_TWO_CLOCKS" >> $@; \
+		echo "\`define AURORA_FLOW_SECONDARY_CLOCK" >> $@; \
+	fi
+	if [ $(HW_EMU_INTERFACE_CLOCK_ID) = 1 ]; then \
+		echo "\`define AURORA_FLOW_DATA_CLOCK_2" >> $@; \
+	fi
 
 # ---------------------------------------------------------------------------
 # RTL source lists (for dependency tracking)
@@ -172,7 +228,7 @@ IP_COMMON := $(BUILD_DIR)/ip_creation/axis_data_fifo_rx/axis_data_fifo_rx.xci \
 RTL_HW_SRC_0 := $(RTL_STATIC) \
                 $(AURORA_FLOW_DIR)/rtl/aurora_flow_reset.v \
                 $(BUILD_DIR)/rtl/aurora_flow_0.v \
-                $(BUILD_DIR)/rtl/aurora_flow_define.v \
+                $(BUILD_DIR)/rtl/hw/aurora_flow_define.v \
                 $(BUILD_DIR)/ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci \
                 $(IP_COMMON) \
                 $(AURORA_FLOW_DIR)/xdc/aurora_64b66b_0.xdc
@@ -180,7 +236,7 @@ RTL_HW_SRC_0 := $(RTL_STATIC) \
 RTL_HW_SRC_1 := $(RTL_STATIC) \
                 $(AURORA_FLOW_DIR)/rtl/aurora_flow_reset.v \
                 $(BUILD_DIR)/rtl/aurora_flow_1.v \
-                $(BUILD_DIR)/rtl/aurora_flow_define.v \
+                $(BUILD_DIR)/rtl/hw/aurora_flow_define.v \
                 $(BUILD_DIR)/ip_creation/aurora_64b66b_0/aurora_64b66b_0.xci \
                 $(IP_COMMON) \
                 $(AURORA_FLOW_DIR)/xdc/aurora_64b66b_1.xdc
@@ -208,14 +264,16 @@ $(BUILD_DIR)/aurora_flow_hw_0.xo: $(RTL_HW_SRC_0) $(AURORA_FLOW_DIR)/tcl/pack_ke
 	mkdir -p $(BUILD_DIR)/aurora_flow_hw_0_project
 	cd $(BUILD_DIR)/aurora_flow_hw_0_project && vivado -mode batch \
 		-source $(AURORA_FLOW_DIR)/tcl/pack_kernel.tcl \
-		-tclargs $(PART) 0 $(AURORA_FLOW_DIR) $(BUILD_DIR)
+		-tclargs $(PART) 0 $(AURORA_FLOW_DIR) $(BUILD_DIR) \
+		$(HW_INTERFACE_CLOCK_ID)
 
 $(BUILD_DIR)/aurora_flow_hw_1.xo: $(RTL_HW_SRC_1) $(AURORA_FLOW_DIR)/tcl/pack_kernel.tcl
 	rm -rf $(BUILD_DIR)/aurora_flow_hw_1_project
 	mkdir -p $(BUILD_DIR)/aurora_flow_hw_1_project
 	cd $(BUILD_DIR)/aurora_flow_hw_1_project && vivado -mode batch \
 		-source $(AURORA_FLOW_DIR)/tcl/pack_kernel.tcl \
-		-tclargs $(PART) 1 $(AURORA_FLOW_DIR) $(BUILD_DIR)
+		-tclargs $(PART) 1 $(AURORA_FLOW_DIR) $(BUILD_DIR) \
+		$(HW_INTERFACE_CLOCK_ID)
 
 # ---------------------------------------------------------------------------
 # Kernel packaging (hw_emu)
@@ -228,14 +286,16 @@ $(BUILD_DIR)/aurora_flow_hw_emu_0.xo: $(RTL_HW_EMU_SRC_0) $(AURORA_FLOW_DIR)/tcl
 	mkdir -p $(BUILD_DIR)/aurora_flow_hw_emu_0_project
 	cd $(BUILD_DIR)/aurora_flow_hw_emu_0_project && vivado -mode batch \
 		-source $(AURORA_FLOW_DIR)/tcl/pack_kernel_hw_emu.tcl \
-		-tclargs $(PART) 0 $(AURORA_FLOW_DIR) $(BUILD_DIR)
+		-tclargs $(PART) 0 $(AURORA_FLOW_DIR) $(BUILD_DIR) $(HW_EMU_CLOCKS) \
+		$(HW_EMU_INTERFACE_CLOCK_ID)
 
 $(BUILD_DIR)/aurora_flow_hw_emu_1.xo: $(RTL_HW_EMU_SRC_1) $(AURORA_FLOW_DIR)/tcl/pack_kernel_hw_emu.tcl
 	rm -rf $(BUILD_DIR)/aurora_flow_hw_emu_1_project
 	mkdir -p $(BUILD_DIR)/aurora_flow_hw_emu_1_project
 	cd $(BUILD_DIR)/aurora_flow_hw_emu_1_project && vivado -mode batch \
 		-source $(AURORA_FLOW_DIR)/tcl/pack_kernel_hw_emu.tcl \
-		-tclargs $(PART) 1 $(AURORA_FLOW_DIR) $(BUILD_DIR)
+		-tclargs $(PART) 1 $(AURORA_FLOW_DIR) $(BUILD_DIR) $(HW_EMU_CLOCKS) \
+		$(HW_EMU_INTERFACE_CLOCK_ID)
 
 # ---------------------------------------------------------------------------
 # HLS kernel packaging (sw_emu)

@@ -18,11 +18,15 @@
 
 ##################################### Step 1: create vivado project and add design sources
 
-# argv layout: <part> <instance> <src_dir> <build_dir>
+# argv layout: <part> <instance> <src_dir> <build_dir> <interface_clock_id>
 set part      [lindex $argv 0]
 set instance  [lindex $argv 1]
 set src_dir   [lindex $argv 2]
 set build_dir [lindex $argv 3]
+set interface_clock_id [lindex $argv 4]
+if {$interface_clock_id ni {0 1}} {
+    error "interface_clock_id must be 0 or 1"
+}
 set ip_root   ./aurora_flow_ip_${instance}
 set ip_src    ${ip_root}/src
 
@@ -32,7 +36,7 @@ create_project aurora_flow_${instance} ./aurora_flow_${instance} -part $part
 # stage generated sources inside the IP root so package_project keeps relative
 # paths for the packaged include file.
 file mkdir ${ip_src}
-file copy -force ${build_dir}/rtl/aurora_flow_define.v ${ip_src}/aurora_flow_define.v
+file copy -force ${build_dir}/rtl/hw/aurora_flow_define.v ${ip_src}/aurora_flow_define.v
 
 # add design sources into project
 add_files -norecurse -fileset sources_1 \
@@ -68,19 +72,30 @@ ipx::package_project -root_dir ./aurora_flow_ip_${instance} -vendor xilinx.com -
 # inference clock and reset signals
 ipx::infer_bus_interface ap_clk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
 ipx::infer_bus_interface ap_rst_n xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]
+if {$interface_clock_id == 1} {
+    ipx::infer_bus_interface ap_clk_2 xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
+    ipx::infer_bus_interface ap_rst_n_2 xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]
+}
 # remove auto inferred clock interface init_clk, just treat it as a normal port
 ipx::remove_bus_interface init_clk [ipx::current_core]
 
-
-# associate AXI/AXIS interface with clock
-ipx::associate_bus_interfaces -busif s_axi_control  -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif rx_axis        -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif tx_axis        -clock ap_clk [ipx::current_core]
-
-# associate axis and reset signal with clock
-ipx::associate_bus_interfaces -busif rx_axis -clock ap_clk [ipx::current_core]
-ipx::associate_bus_interfaces -busif tx_axis -clock ap_clk [ipx::current_core]
+# AXI-Lite control stays on platform clock ID 0. The optional second clock is
+# used only for the external AXI-Stream data path.
+ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk [ipx::current_core]
+if {$interface_clock_id == 1} {
+    set data_clock ap_clk_2
+} else {
+    set data_clock ap_clk
+}
+foreach busif {rx_axis tx_axis} {
+    ipx::associate_bus_interfaces -busif $busif -clock $data_clock \
+        [ipx::current_core]
+}
 ipx::associate_bus_interfaces -clock ap_clk -reset ap_rst_n [ipx::current_core]
+if {$interface_clock_id == 1} {
+    ipx::associate_bus_interfaces -clock ap_clk_2 -reset ap_rst_n_2 \
+        [ipx::current_core]
+}
 
 # create GT data port
 ipx::add_bus_interface gt_port [ipx::current_core]

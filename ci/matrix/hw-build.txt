@@ -1,15 +1,17 @@
-# Compatibility baseline.
+# Compatibility profile: 512-bit AXI at 300 MHz.
 TARGET=hw
 BUILD_SYS=make
-WIDTH=32,64
+WIDTH=64
 FRAMING=0,1
-TARGET_CLOCK_HZ=300000000
+AXI_CLOCK_HZ=300000000
+HW_INTERFACE_CLOCK_ID=0
 XRT=2.14,2.15,2.16
 
-# High-speed production target: 256-bit AXI at 402.8 MHz.
+# Router profile: 256-bit AXI at exactly 400 MHz.
 TARGET=hw
 BUILD_SYS=make
 WIDTH=32
 FRAMING=0,1
-TARGET_CLOCK_HZ=402800000
+AXI_CLOCK_HZ=400000000
+HW_INTERFACE_CLOCK_ID=1
 XRT=2.16

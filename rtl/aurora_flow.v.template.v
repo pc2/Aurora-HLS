@@ -20,6 +20,10 @@ module aurora_flow_@@@instance@@@ (
 // Platform axi/axis ports
     input wire           ap_clk,
     input wire           ap_rst_n,
+`ifdef AURORA_FLOW_SECONDARY_CLOCK
+    input wire           ap_clk_2,
+    input wire           ap_rst_n_2,
+`endif
 
 // TX/RX AXIS interface
     output wire [((`FIFO_WIDTH * 8) - 1):0]  rx_axis_tdata,
@@ -72,6 +76,22 @@ module aurora_flow_@@@instance@@@ (
     output wire [1:0]    s_axi_control_bresp
 `endif
 );
+
+// The router integration keeps AXI-Lite control on clock ID 0 and places the
+// AuroraFlow AXI-Stream data path on scalable clock ID 1. The default hw_emu
+// two-clock mode is unchanged: all external interfaces use ap_clk while only
+// the GT stub uses ap_clk_2.
+wire control_clk = ap_clk;
+wire control_rst_n = ap_rst_n;
+wire emu_clk;
+wire emu_rst_n;
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+assign emu_clk = ap_clk_2;
+assign emu_rst_n = ap_rst_n_2;
+`else
+assign emu_clk = ap_clk;
+assign emu_rst_n = ap_rst_n;
+`endif
 
 
 // internal axi/axis signals
@@ -154,7 +174,7 @@ wire            fifo_rx_prog_empty;
 
 xpm_cdc_single  rx_prog_empty_sync (
     .src_in     (fifo_rx_prog_empty),
-    .src_clk    (ap_clk),
+    .src_clk    (emu_clk),
     .dest_clk   (user_clk),
     .dest_out   (fifo_rx_prog_empty_u)
 );
@@ -177,10 +197,40 @@ wire            ap_rst_n_i;
 `endif
 wire            ap_rst_n_u;
 
-// software-controllable reset
+// Software control is always clocked by ap_clk. Synchronize its persistent
+// reset bit before it affects the optional ap_clk_2 data-path domain.
+wire            sw_reset_control;
 wire            sw_reset;
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+xpm_cdc_single #(
+    .DEST_SYNC_FF   (4),
+    .INIT_SYNC_FF   (1),
+    .SIM_ASSERT_CHK (1),
+    .SRC_INPUT_REG  (0)
+) sw_reset_sync (
+    .src_in     (sw_reset_control),
+    .src_clk    (control_clk),
+    .dest_clk   (emu_clk),
+    .dest_out   (sw_reset)
+);
+`else
+assign sw_reset = sw_reset_control;
+`endif
+
 wire            ap_rst_n_core;
-assign ap_rst_n_core = ap_rst_n && !sw_reset;
+assign ap_rst_n_core = emu_rst_n && !sw_reset;
+
+// Use the selected data-path reset as the source for the Aurora user domain.
+// In the default split hw_emu topology, the external data path remains on
+// ap_clk while the GT stub uses ap_clk_2, so both resets must be released.
+wire            ap_rst_n_user_source;
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+assign ap_rst_n_user_source = ap_rst_n_core;
+`elsif HW_EMU_TWO_CLOCKS
+assign ap_rst_n_user_source = ap_rst_n_core && ap_rst_n_2;
+`else
+assign ap_rst_n_user_source = ap_rst_n_core;
+`endif
 
 // optionally drain tx data source during sw_reset
 wire            tx_axis_tready_raw;
@@ -206,7 +256,7 @@ xpm_cdc_async_rst reset_sync_0 (
 `endif
 
 xpm_cdc_async_rst reset_sync_1 (
-    .src_arst   (ap_rst_n_core),
+    .src_arst   (ap_rst_n_user_source),
     .dest_clk   (user_clk),
     .dest_arst  (ap_rst_n_u)
 );
@@ -226,7 +276,7 @@ assign monitor_reset_u = reset_pb_u || host_monitor_reset_u;
 
 xpm_cdc_async_rst reset_sync_3 (
     .src_arst   (monitor_reset_u),
-    .dest_clk   (ap_clk),
+    .dest_clk   (emu_clk),
     .dest_arst  (monitor_reset)
 );
 
@@ -234,42 +284,42 @@ xpm_cdc_async_rst reset_sync_3 (
 xpm_cdc_array_single #(.WIDTH(4)) aurora_status_sync_0 (
     .src_in     (line_up_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (line_up_sync)
 );
 
 xpm_cdc_array_single #(.WIDTH(4)) aurora_status_sync_1 (
     .src_in     (gt_powergood_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (gt_powergood_sync)
 );
 
 xpm_cdc_single  aurora_status_sync_2 (
     .src_in     (channel_up_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (channel_up_sync)
 );
 
 xpm_cdc_single  aurora_status_sync_3 (
     .src_in     (soft_err_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (soft_err_sync)
 );
 
 xpm_cdc_single  aurora_status_sync_4 (
     .src_in     (hard_err_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (hard_err_sync)
 );
 
 xpm_cdc_single  aurora_status_sync_5 (
     .src_in     (mmcm_not_locked_out_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (mmcm_not_locked_out_sync)
 );
 
@@ -277,11 +327,18 @@ xpm_cdc_single  aurora_status_sync_5 (
 xpm_cdc_single  aurora_status_sync_6 (
     .src_in     (gt_pll_lock_i),
     .src_clk    (init_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
+    .dest_out   (gt_pll_lock_sync)
+);
+`elsif HW_EMU_TWO_CLOCKS
+xpm_cdc_single  aurora_status_sync_6 (
+    .src_in     (gt_pll_lock_u),
+    .src_clk    (user_clk),
+    .dest_clk   (control_clk),
     .dest_out   (gt_pll_lock_sync)
 );
 `else
-// gt_pll_lock_u from stub is already in user_clk domain (= ap_clk)
+// The single-clock stub already produces this status in the ap_clk domain.
 assign gt_pll_lock_sync = gt_pll_lock_u;
 `endif
 
@@ -298,38 +355,53 @@ assign aurora_status = {
 xpm_cdc_single  fifo_status_sync_0 (
     .src_in     (fifo_rx_almost_full_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (fifo_rx_almost_full_sync)
 );
 
 xpm_cdc_single  fifo_status_sync_1 (
     .src_in     (fifo_rx_prog_full_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (fifo_rx_prog_full_sync)
 );
 
 xpm_cdc_single  fifo_status_sync_2 (
     .src_in     (fifo_tx_almost_empty_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (fifo_tx_almost_empty_sync)
 );
 
 xpm_cdc_single  fifo_status_sync_3 (
     .src_in     (fifo_tx_prog_empty_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (fifo_tx_prog_empty_sync)
 );
+
+wire [3:0] fifo_app_status = {
+    fifo_rx_almost_empty,
+    fifo_rx_prog_empty,
+    fifo_tx_almost_full,
+    fifo_tx_prog_full
+};
+wire [3:0] fifo_app_status_control;
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+xpm_cdc_array_single #(.WIDTH(4)) fifo_app_status_sync (
+    .src_in     (fifo_app_status),
+    .src_clk    (emu_clk),
+    .dest_clk   (control_clk),
+    .dest_out   (fifo_app_status_control)
+);
+`else
+assign fifo_app_status_control = fifo_app_status;
+`endif
 
 assign fifo_status = {
     fifo_rx_almost_full_sync,
     fifo_rx_prog_full_sync,
-    fifo_rx_almost_empty,
-    fifo_rx_prog_empty,
-    fifo_tx_almost_full,
-    fifo_tx_prog_full,
+    fifo_app_status_control,
     fifo_tx_almost_empty_sync,
     fifo_tx_prog_empty_sync
 };
@@ -416,8 +488,19 @@ aurora_flow_gt_stub #(
     .INSTANCE(@@@instance@@@),
     .PIPE_ID(@@@instance@@@)
 ) aurora_flow_gt_stub_0 (
+`ifdef HW_EMU_TWO_CLOCKS
+    .ap_clk                       (ap_clk_2),
+`else
     .ap_clk                       (ap_clk),
+`endif
+`ifdef HW_EMU_TWO_CLOCKS
+    .reset                        (!ap_rst_n_u),
+`else
+    // Preserve the legacy hw_emu reset sequence. In Vitis 2022.2 the
+    // synchronized reset can assert again after the DPI pipes were opened,
+    // which closes them permanently in the current GT stub.
     .reset                        (!ap_rst_n_core),
+`endif
     .hard_err                     (hard_err_u),
     .soft_err                     (soft_err_u),
     .channel_up                   (channel_up_u),
@@ -450,7 +533,7 @@ aurora_flow_gt_stub #(
 `endif
 
 aurora_flow_io aurora_flow_io_0 (
-    .ap_clk                 (ap_clk),
+    .ap_clk                 (emu_clk),
     .ap_rst_n               (ap_rst_n_core),
     .user_clk               (user_clk),
     .ap_rst_n_u             (ap_rst_n_u),
@@ -509,7 +592,7 @@ xpm_cdc_single  aurora_monitor_sync_1 (
 // reset_pb_u: sync reset_pb_i (constant 0) into user_clk domain
 xpm_cdc_single  aurora_monitor_sync_1 (
     .src_in     (reset_pb_i),
-    .src_clk    (ap_clk),
+    .src_clk    (emu_clk),
     .dest_clk   (user_clk),
     .dest_out   (reset_pb_u)
 );
@@ -541,9 +624,9 @@ wire [31:0] soft_err_count_u;
 wire [31:0] channel_down_count_u;
 
 wire [31:0] fifo_rx_overflow_count_u;
-wire [31:0] fifo_tx_overflow_count;
-wire [31:0] tx_count;
-wire [31:0] rx_count;
+wire [31:0] fifo_tx_overflow_count_emu;
+wire [31:0] tx_count_emu;
+wire [31:0] rx_count_emu;
 
 `ifdef USE_FRAMING
 wire [31:0] frames_received_u;
@@ -576,15 +659,15 @@ aurora_flow_monitor aurora_flow_monitor_0 (
     .frames_with_errors         (frames_with_errors_u),
 `endif
     .rst                        (monitor_reset),
-    .clk                        (ap_clk),
+    .clk                        (emu_clk),
     .tx_tvalid                  (tx_axis_tvalid),
     .tx_tready                  (tx_axis_tready),
     .rx_tvalid                  (rx_axis_tvalid),
     .rx_tready                  (rx_axis_tready),
     .fifo_tx_almost_full        (fifo_tx_almost_full),
-    .fifo_tx_overflow_count     (fifo_tx_overflow_count),
-    .tx_count                   (tx_count),
-    .rx_count                   (rx_count)
+    .fifo_tx_overflow_count     (fifo_tx_overflow_count_emu),
+    .tx_count                   (tx_count_emu),
+    .rx_count                   (rx_count_emu)
 );
 
 wire [31:0] gt_not_ready_0_count;
@@ -601,102 +684,117 @@ wire [31:0] hard_err_count;
 wire [31:0] soft_err_count;
 wire [31:0] channel_down_count;
 wire [31:0] fifo_rx_overflow_count;
+wire [31:0] fifo_tx_overflow_count;
+wire [31:0] tx_count;
+wire [31:0] rx_count;
+
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+xpm_cdc_array_single #(.WIDTH(96)) app_monitor_sync (
+    .src_in({fifo_tx_overflow_count_emu, tx_count_emu, rx_count_emu}),
+    .src_clk(emu_clk),
+    .dest_clk(control_clk),
+    .dest_out({fifo_tx_overflow_count, tx_count, rx_count})
+);
+`else
+assign {fifo_tx_overflow_count, tx_count, rx_count} =
+       {fifo_tx_overflow_count_emu, tx_count_emu, rx_count_emu};
+`endif
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_3 (
     .src_in(gt_not_ready_0_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(gt_not_ready_0_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_4 (
     .src_in(gt_not_ready_1_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(gt_not_ready_1_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_5 (
     .src_in(gt_not_ready_2_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(gt_not_ready_2_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_6 (
     .src_in(gt_not_ready_3_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(gt_not_ready_3_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_7 (
     .src_in(line_down_0_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(line_down_0_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_8 (
     .src_in(line_down_1_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(line_down_1_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_9 (
     .src_in(line_down_2_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(line_down_2_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_10 (
     .src_in(line_down_3_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(line_down_3_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_11 (
     .src_in(pll_not_locked_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(pll_not_locked_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_12 (
     .src_in(mmcm_not_locked_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(mmcm_not_locked_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_13 (
     .src_in(hard_err_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(hard_err_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_14 (
     .src_in(soft_err_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(soft_err_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_15 (
     .src_in(channel_down_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(channel_down_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_monitor_sync_16 (
     .src_in(fifo_rx_overflow_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(fifo_rx_overflow_count)
 );
 
@@ -707,14 +805,14 @@ wire [31:0] frames_with_errors;
 xpm_cdc_array_single #(.WIDTH(32)) frames_received_sync (
     .src_in     (frames_received_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (frames_received)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) frames_with_errors_sync (
     .src_in     (frames_with_errors_u),
     .src_clk    (user_clk),
-    .dest_clk   (ap_clk),
+    .dest_clk   (control_clk),
     .dest_out   (frames_with_errors)
 );
 `endif
@@ -746,21 +844,21 @@ wire [31:0] nfc_latency_count;
 xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_0 (
     .src_in(nfc_full_trigger_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(nfc_full_trigger_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_1 (
     .src_in(nfc_empty_trigger_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(nfc_empty_trigger_count)
 );
 
 xpm_cdc_array_single #(.WIDTH(32)) aurora_nfc_sync_2 (
     .src_in(nfc_latency_count_u),
     .src_clk(user_clk),
-    .dest_clk(ap_clk),
+    .dest_clk(control_clk),
     .dest_out(nfc_latency_count)
 );
 
@@ -773,8 +871,8 @@ aurora_flow_configuration aurora_flow_configuration_0 (
 );
 
 aurora_flow_control_s_axi axi_control_slave (
-  .ACLK                     (ap_clk),
-  .ARESETn                  (ap_rst_n),
+  .ACLK                     (control_clk),
+  .ARESETn                  (control_rst_n),
   .AWADDR                   (s_axi_control_awaddr),
   .AWVALID                  (s_axi_control_awvalid),
   .AWREADY                  (s_axi_control_awready),
@@ -820,7 +918,7 @@ aurora_flow_control_s_axi axi_control_slave (
   .frames_received          (frames_received),
   .frames_with_errors       (frames_with_errors),
 `endif
-  .core_reset               (sw_reset),
+  .core_reset               (sw_reset_control),
   .monitor_reset            (host_monitor_reset)
 );
 

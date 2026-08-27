@@ -25,7 +25,8 @@ if not reports:
 
 results = [{"path": str(path), "wns_ns": report_wns(path)} for path in reports]
 summary = {
-    "target_clock_hz": int(os.environ["TARGET_CLOCK_HZ"]),
+    "axi_clock_hz": int(os.environ["AXI_CLOCK_HZ"]),
+    "hw_interface_clock_id": int(os.environ.get("HW_INTERFACE_CLOCK_ID", "0")),
     "width_bytes": int(os.environ["WIDTH"]),
     "framing": int(os.environ["FRAMING"]),
     "reports": results,

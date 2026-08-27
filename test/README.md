@@ -35,9 +35,8 @@ test/
 │   ├── aurora_flow_test_hw_emu.cfg  v++ link config (hw_emu)
 │   └── aurora_flow_test_sw_emu.cfg  v++ link config (sw_emu)
 ├── scripts/
-│   ├── configure_loopback_emu.sh    pipe topology setup (loopback)
-│   ├── configure_pair_emu.sh        pipe topology setup (pair)
-│   ├── configure_ring_emu.sh        pipe topology setup (ring)
+│   ├── configure_emu.sh             pipe topology setup via topomux
+│   ├── topomux                      pinned uv launcher for topomux
 │   ├── hw_emu_rank_wrapper.sh       xsim per-rank isolation (hw_emu + MPI)
 │   ├── run_*_emu.sh                 emulation launchers (sw_emu / hw_emu)
 │   ├── run_*_hw.sh                  hardware launchers (Noctua 2)
@@ -60,8 +59,20 @@ make xclbin TARGET=hw            # aurora_flow_test_hw.xclbin (synthesis, slow)
 The `test/Makefile` includes `../aurora_flow.mk`, which locates the library. Variables like `FIFO_WIDTH=32` and `USE_FRAMING=1` are forwarded to the library Makefile automatically.
 
 ```bash
-make xclbin TARGET=hw_emu FIFO_WIDTH=32 USE_FRAMING=1 TARGET_CLOCK_HZ=402800000
+make xclbin TARGET=hw_emu FIFO_WIDTH=32 USE_FRAMING=1 \
+  HW_EMU_CLOCKS=2 HW_EMU_INTERFACE_CLOCK_ID=1 \
+  AXI_CLOCK_HZ=400000000 HW_EMU_GT_CLOCK_HZ=400000000
+
+make xclbin TARGET=hw FIFO_WIDTH=32 USE_FRAMING=1 \
+  HW_INTERFACE_CLOCK_ID=1 AXI_CLOCK_HZ=400000000
 ```
+
+For split-clock `hw_emu`, clock 0 stays at 300 MHz for HLS and AXI-Lite control.
+`HW_EMU_INTERFACE_CLOCK_ID=1` moves the AXI-Stream data path to `ap_clk_2`;
+`AXI_CLOCK_HZ` and `HW_EMU_GT_CLOCK_HZ` must then match because the data path and GT stub share clock 1.
+
+For split-clock `hw`, `ap_clk` and AXI-Lite control remain at 300 MHz while `HW_INTERFACE_CLOCK_ID=1` places the AXI-Stream data path on `ap_clk_2` at `AXI_CLOCK_HZ`.
+The real Aurora IP generates its own clock>
 
 ## Building with CMake
 
@@ -82,7 +93,11 @@ cmake .. \
   -DAURORA_FLOW_PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1 \
   -DAURORA_FLOW_FIFO_WIDTH=32 \
   -DAURORA_FLOW_USE_FRAMING=1 \
-  -DAURORA_FLOW_TARGET_CLOCK_HZ=402800000
+  -DAURORA_FLOW_AXI_CLOCK_HZ=400000000 \
+  -DAURORA_FLOW_HW_INTERFACE_CLOCK_ID=1 \
+  -DAURORA_FLOW_HW_EMU_CLOCKS=2 \
+  -DAURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID=1 \
+  -DAURORA_FLOW_HW_EMU_GT_CLOCK_HZ=400000000
 ```
 
 The CMake build uses the same library artifacts. `find_package(AuroraFlow)` delegates kernel packaging back to the library Makefile, and CMake invokes v++ for the HLS kernel compile and xclbin link step.

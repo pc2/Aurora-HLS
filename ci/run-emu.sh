@@ -1,6 +1,10 @@
 set -euo pipefail
 
-artifact="aurora_flow_test_${TARGET}_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_c${TARGET_CLOCK_HZ}_xrt${XRT}.xclbin"
+if [[ "$TARGET" == "hw_emu" ]]; then
+  artifact="aurora_flow_test_hw_emu_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_a${AXI_CLOCK_HZ}_gt${HW_EMU_GT_CLOCK_HZ}_clocks${HW_EMU_CLOCKS}_xrt${XRT}.xclbin"
+else
+  artifact="aurora_flow_test_sw_emu_${BUILD_SYS}_f${FRAMING}_w${WIDTH}_xrt${XRT}.xclbin"
+fi
 run_dir="$PWD/run"
 mkdir -p "$run_dir"
 
