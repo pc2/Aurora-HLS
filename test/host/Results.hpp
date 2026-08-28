@@ -145,9 +145,7 @@ public:
                 frames_with_errors[instance][repetition] = auroras[instance].get_frames_with_errors();
             }
 
-            for (uint32_t i = 0; i < config.num_instances; i++) {
-                auroras[instance].reset_counter();
-            }
+            auroras[instance].reset_counter();
         }
    }
 

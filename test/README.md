@@ -33,9 +33,19 @@ test/
 ├── cfg/
 │   ├── aurora_flow_test_hw.cfg      v++ link config (hw)
 │   ├── aurora_flow_test_hw_emu.cfg  v++ link config (hw_emu)
+│   ├── aurora_flow_test_clock_bridge.cfg
+│   │                                  300/400 MHz hw_emu bridge link config
+│   ├── aurora_flow_test_clock_bridge_hw.cfg
+│   │                                  bridge link config with U280 QSFP mappings
 │   └── aurora_flow_test_sw_emu.cfg  v++ link config (sw_emu)
+├── rtl/
+│   └── aurora_flow_clock_bridge.v   reusable CDC + 512/256-bit test kernel
+├── tcl/
+│   └── pack_clock_bridge.tcl        packages the test bridge as an RTL XO
 ├── scripts/
 │   ├── configure_emu.sh             pipe topology setup via topomux
+│   ├── clock_bridge.sh              builds the 300/400 MHz bridge variant
+│   ├── check_clock_bridge_link.sh    audits its generated Vitis connections
 │   ├── topomux                      pinned uv launcher for topomux
 │   ├── hw_emu_rank_wrapper.sh       xsim per-rank isolation (hw_emu + MPI)
 │   ├── run_*_emu.sh                 emulation launchers (sw_emu / hw_emu)
@@ -58,21 +68,8 @@ make xclbin TARGET=hw            # aurora_flow_test_hw.xclbin (synthesis, slow)
 
 The `test/Makefile` includes `../aurora_flow.mk`, which locates the library. Variables like `FIFO_WIDTH=32` and `USE_FRAMING=1` are forwarded to the library Makefile automatically.
 
-```bash
-make xclbin TARGET=hw_emu FIFO_WIDTH=32 USE_FRAMING=1 \
-  HW_EMU_CLOCKS=2 HW_EMU_INTERFACE_CLOCK_ID=1 \
-  AXI_CLOCK_HZ=400000000 HW_EMU_GT_CLOCK_HZ=400000000
-
-make xclbin TARGET=hw FIFO_WIDTH=32 USE_FRAMING=1 \
-  HW_INTERFACE_CLOCK_ID=1 AXI_CLOCK_HZ=400000000
-```
-
-For split-clock `hw_emu`, clock 0 stays at 300 MHz for HLS and AXI-Lite control.
-`HW_EMU_INTERFACE_CLOCK_ID=1` moves the AXI-Stream data path to `ap_clk_2`;
-`AXI_CLOCK_HZ` and `HW_EMU_GT_CLOCK_HZ` must then match because the data path and GT stub share clock 1.
-
-For split-clock `hw`, `ap_clk` and AXI-Lite control remain at 300 MHz while `HW_INTERFACE_CLOCK_ID=1` places the AXI-Stream data path on `ap_clk_2` at `AXI_CLOCK_HZ`.
-The real Aurora IP generates its own clock>
+Vitis waveform collection is disabled by default.
+Set `VPP_DEBUG=1` for the Make build, or `AURORA_FLOW_VPP_DEBUG=ON` for CMake, when waveforms are needed.
 
 ## Building with CMake
 
@@ -93,21 +90,21 @@ cmake .. \
   -DAURORA_FLOW_PLATFORM=xilinx_u280_gen3x16_xdma_1_202211_1 \
   -DAURORA_FLOW_FIFO_WIDTH=32 \
   -DAURORA_FLOW_USE_FRAMING=1 \
-  -DAURORA_FLOW_AXI_CLOCK_HZ=400000000 \
+  -DAURORA_FLOW_AXI_CLOCK_HZ=300000000 \
   -DAURORA_FLOW_HW_INTERFACE_CLOCK_ID=1 \
   -DAURORA_FLOW_HW_EMU_CLOCKS=2 \
-  -DAURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID=1 \
+  -DAURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID=0 \
   -DAURORA_FLOW_HW_EMU_GT_CLOCK_HZ=400000000
 ```
 
 The CMake build uses the same library artifacts. `find_package(AuroraFlow)` delegates kernel packaging back to the library Makefile, and CMake invokes v++ for the HLS kernel compile and xclbin link step.
+The line-rate bridge is currently a Make/CI integration target
 
 ## Running
 
 All build artifacts (host binary, xclbin, `emconfig.json`) live in `test/build/`.
-The run scripts `cd` into that directory automatically before invoking `mpirun`,
-so you can launch them from `test/`. Override with `BUILD_DIR=...` if you built
-somewhere else.
+The run scripts `cd` into that directory automatically before invoking `mpirun`, so you can launch them from `test/`.
+Override with `BUILD_DIR=...` if you built somewhere else.
 
 ### Emulation
 
@@ -115,12 +112,15 @@ somewhere else.
 ./scripts/run_loopback_emu.sh sw_emu 3 -r 2 -i 10       # sw_emu, loopback, 3 ranks
 ./scripts/run_pair_emu.sh     hw_emu 3 -r 2 -i 2 -b 256 # hw_emu, pair, 3 ranks
 ./scripts/run_ring_emu.sh     sw_emu 2 -r 1 -i 100      # sw_emu, ring, 2 ranks
+
+make xclbin TARGET=sw_emu FIFO_WIDTH=32 USE_FRAMING=1
+./scripts/run_ring_emu.sh     sw_emu 2 -r 2 -i 10 -b 257 -f 2
 ```
 
 Arguments: `<emu_mode> [num_ranks] [host_args...]`. All trailing arguments are forwarded to `host_aurora_flow_test`.
 
 Each `run_*_emu.sh` script does three things:
-1. Creates `AURORA_PIPE_DIR` and invokes the matching `configure_*_emu.sh` to `mkfifo` the per-rank pipes and symlink them into the chosen topology. The pipe naming follows the library contract documented in the root README.
+1. Creates `AURORA_PIPE_DIR` and invokes `configure_emu.sh`, which uses the pinned topomux version to create the per-rank FIFOs and topology symlinks. The pipe naming follows the library contract documented in the root README.
 2. For `sw_emu`, launches `mpirun -n N ./host_aurora_flow_test ...` directly.
 3. For `hw_emu`, launches `mpirun -n N ./hw_emu_rank_wrapper.sh ...` so each rank gets its own working directory (xsim uses fixed socket/lock filenames that would collide between processes on the same host).
 
@@ -140,6 +140,23 @@ On Noctua 2, there's also a helper that iterates over all FPGA nodes:
 ./scripts/for_every_node.sh ./scripts/run_over_all_configs.sh
 ```
 
+## 32-byte/400 MHz line-rate variant
+
+Users that clock their logic at line rate can use a 32-byte AXI-Stream interface and still achieve full throughput.
+This variant is tested with a small wrapper that performs the data-width conversion and clock-domain crossing, allowing the regular HLS kernels to be reused.
+
+```text
+HLS 64-byte @ 300 MHz -> async FIFO -> 64/32-byte DWC -> AuroraFlow 32-byte @ 400 MHz
+HLS 64-byte @ 300 MHz <- async FIFO <- 32/64-byte DWC <- AuroraFlow 32-byte @ 400 MHz
+```
+
+This variant supports both hardware emulation and real hardware. The helper selects the required clock IDs and builds the host and xclbin.
+
+```bash
+TARGET=hw_emu USE_FRAMING=1 ./scripts/clock_bridge.sh
+TARGET=hw     USE_FRAMING=1 ./scripts/clock_bridge.sh
+```
+
 ## CLI reference
 
 ```
@@ -150,20 +167,20 @@ Usage:
   -d, --device_id arg    Device ID according to linkscript (default: 0)
   -p, --xclbin_path arg  Path to xclbin file (default:
                          aurora_flow_test_hw.xclbin)
-  -r, --repetitions arg  Repetitions. Will be discarded, when used with -l
+  -r, --repetitions arg  Repetitions. Ignored when used with -l
                          (default: 1)
-  -i, --iterations arg   Iterations in one repetition. Will be scaled up,
-                         when used with -l (default: 1)
-  -f, --frame_size arg   Maximum frame size. In multiple of the input width
+  -i, --iterations arg   Iterations in one repetition. Scaled up when used
+                         with -l (default: 1)
+  -f, --frame_size arg   Maximum frame size in multiples of the input width
                          (default: 128)
   -b, --num_bytes arg    Maximum number of bytes transferred per iteration.
-                         Must be a multiple of the input width (default:
-                         1048576)
+                         Must be a multiple of the input width unless
+                         the xclbin supports framing (default: 1048576)
   -m, --test_mode arg    Topology. 0 for loopback, 1 for pair and 2 for
                          ring (default: 0)
   -c, --check_status     Check if the link is up and exit
-  -n, --nfc_test         NFC Test. Recv Kernel will be started 3 seconds
-                         later then the Send kernel.
+  -n, --nfc_test         NFC test. Start the receive kernel 3 seconds after
+                         the send kernel
   -l, --latency_test     Creates one repetition for every message size, up
                          to the maximum
   -s, --semaphore        Locks the results file. Needed for parallel

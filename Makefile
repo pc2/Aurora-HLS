@@ -303,9 +303,16 @@ $(BUILD_DIR)/aurora_flow_hw_emu_1.xo: $(RTL_HW_EMU_SRC_1) $(AURORA_FLOW_DIR)/tcl
 
 aurora_sw_emu: $(BUILD_DIR)/aurora_flow_sw_emu.xo
 
-$(BUILD_DIR)/aurora_flow_sw_emu.xo: $(AURORA_FLOW_DIR)/hls/aurora_flow_sw_emu.cpp | $(BUILD_DIR)
+SW_EMU_LAYOUT_FILE := $(BUILD_DIR)/.aurora_flow_sw_emu_layout
+
+$(SW_EMU_LAYOUT_FILE): FORCE | $(BUILD_DIR)
+	printf '%s:%s:%s\n' '$(PLATFORM)' '$(FIFO_WIDTH)' '$(USE_FRAMING)' > $@.tmp
+	if ! cmp -s $@.tmp $@; then mv $@.tmp $@; else rm -f $@.tmp; fi
+
+$(BUILD_DIR)/aurora_flow_sw_emu.xo: $(AURORA_FLOW_DIR)/hls/aurora_flow_sw_emu.cpp $(SW_EMU_LAYOUT_FILE) | $(BUILD_DIR)
 	v++ --compile --platform $(PLATFORM) --target sw_emu --save-temps --debug \
 	    -DDATA_WIDTH_BYTES=$(FIFO_WIDTH) \
+	    -DUSE_FRAMING=$(USE_FRAMING) \
 	    --temp_dir $(BUILD_DIR)/_x_aurora_flow_sw_emu \
 	    --kernel aurora_flow_sw_emu --output $@ $<
 

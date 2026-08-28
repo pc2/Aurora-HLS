@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
@@ -34,17 +35,38 @@
 #define DATA_WIDTH_BYTES 64
 #endif
 
+#ifndef USE_FRAMING
+#define USE_FRAMING 0
+#endif
+
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
+#define CONFIGURATION_READY (1u << 31)
+#define CONFIGURATION_HAS_TKEEP (1u << 0)
+#define CONFIGURATION_HAS_TLAST (1u << 1)
+#define CONFIGURATION_FIFO_WIDTH_SHIFT 2
+
+using axis_packet = ap_axiu<DATA_WIDTH, 0, 0, 0>;
+
 #ifndef __SYNTHESIS__
-static bool write_full(int fd, const void *buf, size_t count) {
-    size_t total = 0;
-    while (total < count) {
-        ssize_t n = write(fd, (const char *)buf + total, count - total);
-        if (n <= 0) return false;
-        total += n;
-    }
-    return true;
+// Pipe format matches hw_emu: data, tkeep, then a tlast flag.
+static constexpr size_t KEEP_BYTES = DATA_WIDTH_BYTES / 8;
+static constexpr size_t RECORD_BYTES = DATA_WIDTH_BYTES + KEEP_BYTES + sizeof(uint32_t);
+static_assert(DATA_WIDTH_BYTES == 32 || DATA_WIDTH_BYTES == 64,
+              "AuroraFlow sw_emu supports 32- and 64-byte streams");
+static_assert(RECORD_BYTES <= 4096,
+              "AuroraFlow sw_emu records must fit in a POSIX atomic pipe write");
+
+static bool write_packet(int fd, const axis_packet &pkt) {
+    unsigned char record[RECORD_BYTES];
+    uint64_t keep = pkt.keep.to_uint64();
+    uint32_t flags = pkt.last ? 1u : 0u;
+
+    memcpy(record, &pkt.data, DATA_WIDTH_BYTES);
+    memcpy(record + DATA_WIDTH_BYTES, &keep, KEEP_BYTES);
+    memcpy(record + DATA_WIDTH_BYTES + KEEP_BYTES, &flags, sizeof(flags));
+
+    return write(fd, record, sizeof(record)) == static_cast<ssize_t>(sizeof(record));
 }
 
 static bool read_full(int fd, void *buf, size_t count) {
@@ -56,18 +78,38 @@ static bool read_full(int fd, void *buf, size_t count) {
     }
     return true;
 }
+
+static bool read_packet(int fd, axis_packet &pkt) {
+    unsigned char record[RECORD_BYTES];
+    uint64_t keep = 0;
+    uint32_t flags = 0;
+
+    if (!read_full(fd, record, sizeof(record))) return false;
+
+    memcpy(&pkt.data, record, DATA_WIDTH_BYTES);
+    memcpy(&keep, record + DATA_WIDTH_BYTES, KEEP_BYTES);
+    memcpy(&flags, record + DATA_WIDTH_BYTES + KEEP_BYTES, sizeof(flags));
+    pkt.keep = keep;
+    pkt.last = flags & 1u;
+    return true;
+}
 #endif
 
 extern "C" {
 
 void aurora_flow_sw_emu(
-    hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &tx_axis,
-    hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &rx_axis,
+    hls::stream<axis_packet> &tx_axis,
+    hls::stream<axis_packet> &rx_axis,
     unsigned int pipe_id,
-    volatile unsigned int *control
+    volatile unsigned int *control,
+    volatile unsigned int *configuration
 ) {
+    *configuration = CONFIGURATION_READY
+        | (DATA_WIDTH_BYTES << CONFIGURATION_FIFO_WIDTH_SHIFT)
+        | (USE_FRAMING ? CONFIGURATION_HAS_TKEEP | CONFIGURATION_HAS_TLAST : 0);
+
 #ifdef __SYNTHESIS__
-    ap_axiu<DATA_WIDTH, 0, 0, 0> pkt = tx_axis.read();
+    axis_packet pkt = tx_axis.read();
     rx_axis.write(pkt);
     *control = 0;
 #else
@@ -113,8 +155,8 @@ void aurora_flow_sw_emu(
                 usleep(1000);
                 continue;
             }
-            ap_axiu<DATA_WIDTH, 0, 0, 0> pkt = tx_axis.read();
-            if (!write_full(tx_fd, &pkt.data, DATA_WIDTH_BYTES)) break;
+            axis_packet pkt = tx_axis.read();
+            if (!write_packet(tx_fd, pkt)) break;
         }
         close(tx_fd);
     });
@@ -123,12 +165,8 @@ void aurora_flow_sw_emu(
     while (*control == 0) {
         int ret = poll(&pfd, 1, 100);
         if (ret > 0 && (pfd.revents & POLLIN)) {
-            ap_uint<DATA_WIDTH> data = 0;
-            if (!read_full(rx_fd, &data, DATA_WIDTH_BYTES)) break;
-            ap_axiu<DATA_WIDTH, 0, 0, 0> pkt;
-            pkt.data = data;
-            pkt.keep = -1;
-            pkt.last = 0;
+            axis_packet pkt;
+            if (!read_packet(rx_fd, pkt)) break;
             rx_axis.write(pkt);
         } else if (ret > 0 && (pfd.revents & (POLLHUP | POLLERR))) {
             break;

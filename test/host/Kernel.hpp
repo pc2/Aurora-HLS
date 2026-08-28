@@ -1,3 +1,14 @@
+#include <algorithm>
+#include <cstdint>
+
+static constexpr size_t MAX_STREAM_WORD_BYTES = 64;
+
+static size_t transfer_buffer_size(size_t byte_size)
+{
+    return ((byte_size + MAX_STREAM_WORD_BYTES - 1) / MAX_STREAM_WORD_BYTES)
+        * MAX_STREAM_WORD_BYTES;
+}
+
 class SendKernel
 {
 public:
@@ -7,9 +18,12 @@ public:
         snprintf(name, 100, "send:{send_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
-        data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
+        const size_t buffer_size = transfer_buffer_size(config.max_num_bytes);
+        std::vector<char> padded_data(buffer_size, 0);
+        std::copy(data.begin(), data.end(), padded_data.begin());
+        data_bo = xrt::bo(device, buffer_size, xrt::bo::flags::normal, kernel.group_id(1));
 
-        data_bo.write(data.data());
+        data_bo.write(padded_data.data());
         data_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
     }
 
@@ -55,7 +69,10 @@ public:
         snprintf(name, 100, "recv:{recv_%u}", instance);
         kernel = xrt::kernel(device, xclbin_uuid, name);
 
-        data_bo = xrt::bo(device, config.max_num_bytes, xrt::bo::flags::normal, kernel.group_id(1));
+        data_bo = xrt::bo(device, transfer_buffer_size(config.max_num_bytes),
+                          xrt::bo::flags::normal, kernel.group_id(1));
+        framing_errors_bo = xrt::bo(device, sizeof(uint32_t), xrt::bo::flags::normal,
+                                    kernel.group_id(6));
 
         data.resize(config.max_num_bytes);
     }
@@ -64,12 +81,18 @@ public:
 
     void prepare_repetition(uint32_t repetition)
     {
+        uint32_t zero = 0;
+        framing_errors_bo.write(&zero);
+        framing_errors_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
         run = xrt::run(kernel);
 
         run.set_arg(1, data_bo);
         run.set_arg(2, config.message_sizes[repetition]);
-        run.set_arg(3, config.iterations_per_message[repetition]);
-        run.set_arg(4, config.test_mode);
+        run.set_arg(3, config.frame_sizes[repetition]);
+        run.set_arg(4, config.iterations_per_message[repetition]);
+        run.set_arg(5, config.test_mode);
+        run.set_arg(6, framing_errors_bo);
     }
 
     void start()
@@ -85,7 +108,17 @@ public:
     void write_back()
     {
         data_bo.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
-        data_bo.read(data.data());
+        std::vector<char> padded_data(transfer_buffer_size(config.max_num_bytes));
+        data_bo.read(padded_data.data());
+        std::copy_n(padded_data.begin(), config.max_num_bytes, data.begin());
+    }
+
+    uint32_t read_framing_errors()
+    {
+        uint32_t framing_errors = 0;
+        framing_errors_bo.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+        framing_errors_bo.read(&framing_errors);
+        return framing_errors;
     }
 
     uint32_t compare_data(char *ref, uint32_t repetition)
@@ -109,6 +142,7 @@ public:
 
 private:
     xrt::bo data_bo;
+    xrt::bo framing_errors_bo;
     xrt::kernel kernel;
     xrt::run run;
     uint32_t instance;

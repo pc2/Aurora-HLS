@@ -97,10 +97,6 @@ int main(int argc, char *argv[])
     }
     bool emulation = (config.execution_mode != ExecutionMode::hw);
 
-    if (emulation) {
-        config.finish_setup(64, false, emulation);
-    }
-
     std::vector<uint32_t> device_ids(config.num_instances / 2);
     std::vector<std::string> device_bdfs(config.num_instances / 2);
     std::vector<xrt::device> devices(config.num_instances / 2);
@@ -147,15 +143,20 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 
-    if (!emulation) {
-        config.finish_setup(auroras[0].fifo_width, auroras[0].has_framing(), emulation);
+    for (uint32_t i = 1; i < config.num_instances; i++) {
+        if (auroras[i].fifo_width != auroras[0].fifo_width
+                || auroras[i].has_tkeep != auroras[0].has_tkeep
+                || auroras[i].has_tlast != auroras[0].has_tlast) {
+            std::cerr << "Error: AuroraFlow instances have incompatible stream configurations" << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
 
+    config.finish_setup(auroras[0].fifo_width, auroras[0].has_framing());
+
     config.print();
-    if (!emulation) {
-        std::cout << "AuroraFlow core has framing " << (auroras[0].has_framing() ? "enabled" : "disabled")
-                  << " and input width of " << auroras[0].fifo_width << " bytes" << std::endl;
-    }
+    std::cout << "AuroraFlow core has framing " << (auroras[0].has_framing() ? "enabled" : "disabled")
+              << " and input width of " << auroras[0].fifo_width << " bytes" << std::endl;
 
     std::vector<std::vector<char>> data = generate_data(config.max_num_bytes, config.num_instances);
 
@@ -226,6 +227,14 @@ int main(int argc, char *argv[])
 
                 recv.write_back();
 
+                if (config.frame_sizes[r] != 0 && results.failed_transmissions[i][r] == 0) {
+                    results.frames_with_errors[i][r] = recv.read_framing_errors();
+                    if (results.frames_with_errors[i][r]) {
+                        std::cout << results.frames_with_errors[i][r]
+                                  << " AXI-Stream framing errors" << std::endl;
+                    }
+                }
+
                 if (config.test_mode < 3) {
                     results.errors[i][r] = recv.compare_data(data[i].data(), r);
                     if (results.errors[i][r]) {
@@ -245,12 +254,15 @@ int main(int argc, char *argv[])
                 std::cout << "caught non-std::logic_error " << std::endl;
                 results.failed_transmissions[i][r] = 5;
             }
-            results.update_counter(i, r);
             if (recv_aurora.has_framing()) {
                 if (results.frames_with_errors[i][r]) {
                     std::cout << results.frames_with_errors[i][r] << " frame errors" << std::endl;
                 }
             }
+        }
+
+        for (uint32_t i = 0; i < config.num_instances; i++) {
+            results.update_counter(i, r);
         }
     }
 
@@ -278,7 +290,25 @@ int main(int argc, char *argv[])
     results.print_errors();
     results.write();
 
-    MPI_Finalize();
-    return results.has_errors();
-}
+    const int exit_status = results.has_errors();
 
+    if (emulation) {
+        // Shut down emulation while all rank peers are still alive.
+        std::cout << "Waiting for all ranks before emulator shutdown" << std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "Stopping emulator links" << std::endl;
+        recv_kernels.clear();
+        send_kernels.clear();
+
+        for (AuroraFlow &aurora : auroras) aurora.request_shutdown();
+        std::cout << "Waiting for emulator links to stop" << std::endl;
+        for (AuroraFlow &aurora : auroras) aurora.wait_for_shutdown();
+        auroras.clear();
+        std::cout << "Emulator links stopped" << std::endl;
+    }
+
+    if (emulation) std::cout << "Finalizing MPI" << std::endl;
+    MPI_Finalize();
+    if (emulation) std::cout << "MPI finalized" << std::endl;
+    return exit_status;
+}

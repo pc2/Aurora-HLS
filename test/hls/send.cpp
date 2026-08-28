@@ -22,6 +22,10 @@
 #define DATA_WIDTH_BYTES 64
 #endif
 
+#ifndef USE_FRAMING
+#define USE_FRAMING 0
+#endif
+
 #define DATA_WIDTH (DATA_WIDTH_BYTES * 8)
 
 #define STREAM_DEPTH 256
@@ -47,6 +51,7 @@ extern "C"
     void send_data(
         unsigned int iterations,
         unsigned int chunks,
+        unsigned int byte_size,
         unsigned int frame_size,
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> &data_stream,
         hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>> &data_output,
@@ -61,10 +66,21 @@ extern "C"
                 #pragma HLS PIPELINE II = 1
                 ap_axiu<DATA_WIDTH, 0, 0, 0> temp;
                 temp.data = data_stream.read();
+                temp.keep = -1;
+                temp.last = 0;
+#if USE_FRAMING
                 if (frame_size != 0) {
+                    unsigned int valid_bytes = ((i + 1) == chunks)
+                        ? byte_size - (i * DATA_WIDTH_BYTES)
+                        : DATA_WIDTH_BYTES;
+                    if (valid_bytes != DATA_WIDTH_BYTES) {
+                        temp.keep = (ap_uint<DATA_WIDTH_BYTES>(1) << valid_bytes) - 1;
+                    }
                     temp.last = (((i + 1) % frame_size) == 0) || ((i + 1) == chunks);
-                    temp.keep = -1;
                 }
+#else
+                (void)frame_size;
+#endif
                 data_output.write(temp);
             }
             if (ack_mode == 0) {
@@ -86,10 +102,10 @@ extern "C"
         hls::stream<ap_axiu<1, 0, 0, 0>>& pair_ack_stream
     ) {
 #pragma HLS dataflow
-        unsigned int chunks = byte_size / DATA_WIDTH_BYTES;
+        unsigned int chunks = (byte_size + DATA_WIDTH_BYTES - 1) / DATA_WIDTH_BYTES;
         hls::stream<ap_uint<DATA_WIDTH>, STREAM_DEPTH> data_stream;
 
         read_data(iterations, chunks, data_input, data_stream);
-        send_data(iterations, chunks, frame_size, data_stream, data_output, ack_mode, loopback_ack_stream, pair_ack_stream);
+        send_data(iterations, chunks, byte_size, frame_size, data_stream, data_output, ack_mode, loopback_ack_stream, pair_ack_stream);
     }
 }

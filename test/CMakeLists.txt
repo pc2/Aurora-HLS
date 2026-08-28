@@ -126,7 +126,9 @@ set(VPP_COMMON_FLAGS
     --save-temps
     --debug
 )
-set(VPP_HLS_FLAGS ${VPP_COMMON_FLAGS} -DDATA_WIDTH_BYTES=${AURORA_FLOW_FIFO_WIDTH})
+set(VPP_HLS_FLAGS ${VPP_COMMON_FLAGS}
+    -DDATA_WIDTH_BYTES=${AURORA_FLOW_FIFO_WIDTH}
+    -DUSE_FRAMING=${AURORA_FLOW_USE_FRAMING})
 set(VPP_LINK_FLAGS --link --optimize 3 ${VPP_COMMON_FLAGS})
 
 function(hz_to_mhz clock_hz output_variable)

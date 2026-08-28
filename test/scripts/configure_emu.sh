@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # configure_emu.sh <loopback|pair|ring> <num_ranks> <pipe_dir>
-#
-# topomux owns the emulation pipe layout.  It emits the mkdir/mkfifo/ln -s
-# commands needed by AuroraFlow's AURORA_PIPE_DIR contract; bash applies them.
+# Configure an emulation topology with topomux.
 set -euo pipefail
 
 TOPOLOGY="${1:?usage: configure_emu.sh <loopback|pair|ring> <num_ranks> <pipe_dir>}"

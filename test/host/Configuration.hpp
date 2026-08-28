@@ -46,13 +46,13 @@ public:
         options.add_options()
             ("d,device_id", "Device ID according to linkscript", cxxopts::value<uint32_t>()->default_value("0"))
             ("p,xclbin_path", "Path to xclbin file", cxxopts::value<std::string>()->default_value("aurora_flow_test_hw.xclbin"))
-            ("r,repetitions", "Repetitions. Will be discarded, when used with -l", cxxopts::value<uint32_t>()->default_value("1"))
-            ("i,iterations", "Iterations in one repetition. Will be scaled up, when used with -l", cxxopts::value<uint32_t>()->default_value("1"))
-            ("f,frame_size", "Maximum frame size. In multiple of the input width", cxxopts::value<uint32_t>()->default_value("128"))
-            ("b,num_bytes", "Maximum number of bytes transferred per iteration. Must be a multiple of the input width", cxxopts::value<uint32_t>()->default_value("1048576"))
+            ("r,repetitions", "Repetitions. Ignored when used with -l", cxxopts::value<uint32_t>()->default_value("1"))
+            ("i,iterations", "Iterations in one repetition. Scaled up when used with -l", cxxopts::value<uint32_t>()->default_value("1"))
+            ("f,frame_size", "Maximum frame size in multiples of the input width", cxxopts::value<uint32_t>()->default_value("128"))
+            ("b,num_bytes", "Maximum number of bytes transferred per iteration. Must be a multiple of the input width unless the xclbin supports framing", cxxopts::value<uint32_t>()->default_value("1048576"))
             ("m,test_mode", "Topology. 0 for loopback, 1 for pair and 2 for ring", cxxopts::value<uint32_t>()->default_value("0"))
             ("c,check_status", "Check if the link is up and exit", cxxopts::value<bool>()->default_value("false"))
-            ("n,nfc_test", "NFC Test. Recv Kernel will be started 3 seconds later then the Send kernel.", cxxopts::value<bool>()->default_value("false"))
+            ("n,nfc_test", "NFC test. Start the receive kernel 3 seconds after the send kernel", cxxopts::value<bool>()->default_value("false"))
             ("l,latency_test", "Creates one repetition for every message size, up to the maximum", cxxopts::value<bool>()->default_value("false"))
             ("s,semaphore", "Locks the results file. Needed for parallel evaluation", cxxopts::value<bool>()->default_value("false"))
             ("t,timeout_ms", "Timeout in ms", cxxopts::value<uint32_t>()->default_value("10000"))
@@ -110,8 +110,8 @@ public:
 
     Configuration() {}
 
-    void finish_setup(uint32_t fifo_width, bool has_framing, bool emulation) {
-        if ((max_num_bytes % fifo_width ) != 0) {
+    void finish_setup(uint32_t fifo_width, bool has_framing) {
+        if ((max_num_bytes % fifo_width) != 0 && !has_framing) {
             std::cout << "Error: number of bytes must be multiple of the fifo width " << fifo_width << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -123,6 +123,9 @@ public:
 
         if (!has_framing) {
             max_frame_size = 0;
+        } else if (max_frame_size == 0) {
+            std::cout << "Error: framing requires a non-zero frame size" << std::endl;
+            exit(EXIT_FAILURE);
         }
 
         if (latency_test) {
@@ -221,4 +224,3 @@ public:
     }
 
 };
-

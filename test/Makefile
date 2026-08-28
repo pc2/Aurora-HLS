@@ -76,7 +76,7 @@ CXXFLAGS += -fopenmp
 LDFLAGS  := -L$(XILINX_XRT)/lib -lxrt_coreutil -luuid
 
 VPP_HLSCFLAGS := --compile --platform $(PLATFORM) --target $(TARGET) --save-temps --debug \
-                 -DDATA_WIDTH_BYTES=$(FIFO_WIDTH)
+                 -DDATA_WIDTH_BYTES=$(FIFO_WIDTH) -DUSE_FRAMING=$(USE_FRAMING)
 
 VPP_LINKFLAGS := --link --optimize 3 --platform $(PLATFORM) --save-temps --debug
 

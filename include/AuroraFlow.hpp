@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
+#include <stdexcept>
 
 double get_wtime()
 {
@@ -101,6 +102,7 @@ static const uint32_t FIFO_WIDTH        = 0x0007fc;
 static const uint32_t FIFO_DEPTH        = 0x007800;
 static const uint32_t RX_EQ_MODE_BINARY = 0x018000;
 static const uint32_t INS_LOSS_NYQ      = 0x3e0000;
+static const uint32_t SW_EMU_CONFIGURATION_READY = 0x80000000;
 static const char *rx_eq_mode_names[4] = {
     "AUTO",
     "LPM",
@@ -136,16 +138,20 @@ public:
             file_link_kernel = xrt::kernel(device, xclbin_uuid, name);
 
             control_bo = xrt::bo(device, sizeof(unsigned int), file_link_kernel.group_id(3));
+            configuration_bo = xrt::bo(device, sizeof(unsigned int), file_link_kernel.group_id(4));
             unsigned int zero = 0;
             control_bo.write(&zero);
             control_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+            configuration_bo.write(&zero);
+            configuration_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
             file_link_run = xrt::run(file_link_kernel);
             file_link_run.set_arg(2, instance_id);
             file_link_run.set_arg(3, control_bo);
+            file_link_run.set_arg(4, configuration_bo);
             file_link_run.start();
 
-            set_emulation_defaults();
+            read_sw_emu_configuration();
         } else {
             char name[100];
             snprintf(name, 100, "aurora_flow_%u:{aurora_flow_%u}", instance, instance);
@@ -170,16 +176,32 @@ public:
 
     ~AuroraFlow() { shutdown(); }
 
-    void shutdown()
+    // Request all file-link stops before waiting for any of them.
+    void request_shutdown()
     {
         if (is_sw_emu) {
+            if (sw_emu_shutdown_requested) return;
             unsigned int one = 1;
             control_bo.write(&one);
             control_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-            file_link_run.wait(std::chrono::milliseconds(5000));
+            sw_emu_shutdown_requested = true;
         } else if (is_emulation) {
             reset_core();
         }
+    }
+
+    void wait_for_shutdown()
+    {
+        if (is_sw_emu && sw_emu_shutdown_requested && !sw_emu_shutdown_finished) {
+            file_link_run.wait();
+            sw_emu_shutdown_finished = true;
+        }
+    }
+
+    void shutdown()
+    {
+        request_shutdown();
+        wait_for_shutdown();
     }
 
     // Configuration
@@ -572,8 +594,11 @@ private:
     xrt::kernel file_link_kernel;
     xrt::run file_link_run;
     xrt::bo control_bo;
+    xrt::bo configuration_bo;
     bool is_emulation = false;
     bool is_sw_emu = false;
+    bool sw_emu_shutdown_requested = false;
+    bool sw_emu_shutdown_finished = false;
 
     void read_configuration()
     {
@@ -587,6 +612,27 @@ private:
         uint32_t fifo_thresholds = ip.read_register(FIFO_THRESHOLDS_ADDRESS);
         fifo_prog_full_threshold = (fifo_thresholds & 0xffff0000) >> 16;
         fifo_prog_empty_threshold = (fifo_thresholds & 0x0000ffff);
+    }
+
+    void read_sw_emu_configuration()
+    {
+        uint32_t configuration = 0;
+        const double deadline = get_wtime() + 3.0;
+        do {
+            configuration_bo.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+            configuration_bo.read(&configuration);
+            if (configuration & SW_EMU_CONFIGURATION_READY) {
+                set_emulation_defaults();
+                has_tkeep = configuration & HAS_TKEEP;
+                has_tlast = (configuration & HAS_TLAST) >> 1;
+                fifo_width = (configuration & FIFO_WIDTH) >> 2;
+                return;
+            }
+            usleep(1000);
+        } while (get_wtime() < deadline);
+
+        request_shutdown();
+        throw std::runtime_error("timed out waiting for sw_emu configuration");
     }
 
     void set_emulation_defaults()
@@ -607,6 +653,7 @@ private:
         file_link_kernel = std::move(other.file_link_kernel);
         file_link_run = std::move(other.file_link_run);
         control_bo = std::move(other.control_bo);
+        configuration_bo = std::move(other.configuration_bo);
         has_tkeep = other.has_tkeep;
         has_tlast = other.has_tlast;
         fifo_width = other.fifo_width;
@@ -619,5 +666,9 @@ private:
         rank_id = other.rank_id;
         is_emulation = std::exchange(other.is_emulation, false);
         is_sw_emu = std::exchange(other.is_sw_emu, false);
+        sw_emu_shutdown_requested = other.sw_emu_shutdown_requested;
+        sw_emu_shutdown_finished = other.sw_emu_shutdown_finished;
+        other.sw_emu_shutdown_requested = false;
+        other.sw_emu_shutdown_finished = false;
     }
 };
