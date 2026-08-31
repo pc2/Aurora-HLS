@@ -16,11 +16,14 @@ else
 fi
 cp "$artifact" "$run_dir/aurora_flow_test_hw.xclbin"
 
-if ! BUILD_DIR="$run_dir" "$CI_PROJECT_DIR/test/scripts/run_pair_hw.sh" \
+if BUILD_DIR="$run_dir" "$CI_PROJECT_DIR/test/scripts/run_pair_hw.sh" \
     -p aurora_flow_test_hw.xclbin -f "$FRAME_SIZE" -l -i 20 -b 268435456 \
     > benchmark.log 2>&1; then
+  :
+else
+  status=$?
   cat benchmark.log
-  exit 1
+  exit "$status"
 fi
 cat benchmark.log
 test -s "$run_dir/results.csv"

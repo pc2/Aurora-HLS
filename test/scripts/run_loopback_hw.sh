@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+set -euo pipefail
+
 #SBATCH -p fpga
 #SBATCH -t 00:30:00
 #SBATCH -N 1
@@ -21,4 +23,4 @@ cd "$BUILD_DIR"
 
 "${SCRIPT_DIR}/configure_loopback_hw.sh"
 
-./host_aurora_flow_test -m 0 $@
+exec ./host_aurora_flow_test -m 0 "$@"

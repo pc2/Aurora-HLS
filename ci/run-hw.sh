@@ -31,9 +31,12 @@ else
   command=("$CI_PROJECT_DIR/test/scripts/run_${TOPOLOGY}_hw.sh" -p aurora_flow_test_hw.xclbin -r 1 -i 1)
 fi
 
-if ! BUILD_DIR="$run_dir" "${command[@]}" > hw-run.log 2>&1; then
+if BUILD_DIR="$run_dir" "${command[@]}" > hw-run.log 2>&1; then
+  :
+else
+  status=$?
   cat hw-run.log
-  exit 1
+  exit "$status"
 fi
 cat hw-run.log
 test -s "$run_dir/results.csv"
