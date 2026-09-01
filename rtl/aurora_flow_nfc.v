@@ -25,7 +25,7 @@ module aurora_flow_nfc (
     input wire  rx_tvalid,
     input wire  s_axi_nfc_tready,
     output reg  s_axi_nfc_tvalid,
-    output reg [0:15] s_axi_nfc_tdata,
+    output reg [15:0] s_axi_nfc_tdata,
     output reg [31:0] full_trigger_count,
     output reg [31:0] empty_trigger_count,
     output reg [31:0] max_latency
@@ -42,9 +42,8 @@ localparam reset = 3'b111;
 
 reg [2:0] current_state, next_state;
 
-// default big endian
-reg [0:15] nfc_xoff = 16'hffff;
-reg [0:15] nfc_xon = 16'h0000;
+reg [15:0] nfc_xoff = 16'hffff;
+reg [15:0] nfc_xon = 16'h0000;
 
 reg [31:0] latency_count;
 

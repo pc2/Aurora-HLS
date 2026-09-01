@@ -98,6 +98,8 @@ assign emu_rst_n = ap_rst_n;
 
 wire            user_clk;
 
+// Aurora is generated with C_USE_BYTESWAP=true, matching Vitis' little-endian
+// [n:0] AXI data, keep, and flow-control bus ordering.
 wire [255:0]    s_axi_tx_tdata_u;
 wire            s_axi_tx_tvalid_u;
 wire            s_axi_tx_tready_u;
@@ -426,7 +428,7 @@ aurora_64b66b_0 aurora_64b66b_0_0 (
 `endif
   .tx_out_clk                   (),                         // output wire tx_out_clk
   .gt_pll_lock                  (gt_pll_lock_i),            // output wire gt_pll_lock
-  .s_axi_tx_tdata               (s_axi_tx_tdata_u),         // input wire [0 : 255] s_axi_tx_tdata
+  .s_axi_tx_tdata               (s_axi_tx_tdata_u),         // input wire [255 : 0] s_axi_tx_tdata
 `ifdef USE_FRAMING
   .s_axi_tx_tkeep               (s_axi_tx_tkeep_u),
   .s_axi_tx_tlast               (s_axi_tx_tlast_u),
@@ -436,7 +438,7 @@ aurora_64b66b_0 aurora_64b66b_0_0 (
   .s_axi_nfc_tdata              (s_axi_nfc_tdata_u),                         // input wire s_axi_nfc_tdata
   .s_axi_nfc_tready             (s_axi_nfc_tready_u),                         // output wire s_axi_nfc_tready,
   .s_axi_nfc_tvalid             (s_axi_nfc_tvalid_u),                         // input wire s_axi_nfc_tvalid,
-  .m_axi_rx_tdata               (m_axi_rx_tdata_u),         // output wire [0 : 255] m_axi_rx_tdata
+  .m_axi_rx_tdata               (m_axi_rx_tdata_u),         // output wire [255 : 0] m_axi_rx_tdata
 `ifdef USE_FRAMING
   .m_axi_rx_tkeep               (m_axi_rx_tkeep_u),
   .m_axi_rx_tlast               (m_axi_rx_tlast_u),

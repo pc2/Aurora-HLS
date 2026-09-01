@@ -44,10 +44,12 @@ create_ip -name aurora_64b66b \
           -module_name aurora_64b66b_$instance \
           -dir ./ip_creation
 
+# Match the little-endian [n:0] AXI bus ordering used by Vitis and HLS.
 set_property -dict [list CONFIG.C_AURORA_LANES {4} \
                          CONFIG.C_LINE_RATE {25.78125} \
                          CONFIG.C_REFCLK_FREQUENCY {161.1328125} \
                          CONFIG.C_INIT_CLK {100} \
+                         CONFIG.C_USE_BYTESWAP {true} \
                          CONFIG.INS_LOSS_NYQ $ins_loss_nyq \
                          CONFIG.RX_EQ_MODE $rx_eq_mode \
                          CONFIG.flow_mode {Immediate_NFC} \

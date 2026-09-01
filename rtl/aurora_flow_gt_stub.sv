@@ -16,7 +16,8 @@
 
 // DPI-C GT stub replacing the aurora_64b66b transceiver for hw_emu.
 // Uses named pipes for inter-FPGA communication.
-// Keeps the same port interface as aurora_64b66b_0 (relevant signals only).
+// Keeps the same little-endian port interface as the configured
+// aurora_64b66b_0 (relevant signals only).
 `include "aurora_flow_define.v"
 
 module aurora_flow_gt_stub #(
@@ -27,22 +28,22 @@ module aurora_flow_gt_stub #(
     input  wire         ap_clk,
     input  wire         reset,
     // TX AXI-Stream (from FIFO/datawidth converter)
-    input  wire [0:255] s_axi_tx_tdata,
+    input  wire [255:0] s_axi_tx_tdata,
     input  wire         s_axi_tx_tvalid,
     output reg          s_axi_tx_tready,
 `ifdef USE_FRAMING
-    input  wire [0:31]  s_axi_tx_tkeep,
+    input  wire [31:0]  s_axi_tx_tkeep,
     input  wire         s_axi_tx_tlast,
 `endif
     // RX AXI-Stream (to FIFO/datawidth converter)
-    output reg  [0:255] m_axi_rx_tdata,
+    output reg  [255:0] m_axi_rx_tdata,
     output reg          m_axi_rx_tvalid,
 `ifdef USE_FRAMING
-    output reg  [0:31]  m_axi_rx_tkeep,
+    output reg  [31:0]  m_axi_rx_tkeep,
     output reg          m_axi_rx_tlast,
 `endif
     // NFC
-    input  wire [0:15]  s_axi_nfc_tdata,
+    input  wire [15:0]  s_axi_nfc_tdata,
     input  wire         s_axi_nfc_tvalid,
     output wire         s_axi_nfc_tready,
     // Status
@@ -126,21 +127,21 @@ module aurora_flow_gt_stub #(
     end
 
     // TX: write to pipe when valid and pipe accepts
-    bit [255:0] tx_data_swapped;
-    bit [31:0] tx_keep_swapped;
+    bit [255:0] tx_data;
+    bit [31:0] tx_keep;
     bit tx_last;
     always @(posedge ap_clk) begin
         if (!reset && pipes_open && s_axi_tx_tvalid) begin
-            tx_data_swapped = s_axi_tx_tdata;
+            tx_data = s_axi_tx_tdata;
 `ifdef USE_FRAMING
-            tx_keep_swapped = s_axi_tx_tkeep;
+            tx_keep = s_axi_tx_tkeep;
             tx_last = s_axi_tx_tlast;
 `else
-            tx_keep_swapped = 32'hffffffff;
+            tx_keep = 32'hffffffff;
             tx_last = 1'b0;
 `endif
             s_axi_tx_tready <= aurora_dpi_write(
-                INSTANCE, tx_data_swapped, tx_keep_swapped, tx_last
+                INSTANCE, tx_data, tx_keep, tx_last
             );
         end else begin
             s_axi_tx_tready <= 1'b1;
