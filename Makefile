@@ -153,9 +153,27 @@ $(BUILD_DIR)/rtl/hw_emu/aurora_flow_1.v: $(AURORA_FLOW_DIR)/rtl/aurora_flow.v.te
 	cp $< $@
 	sed -i 's/@@@instance@@@/1/g' $@
 
-$(BUILD_DIR)/rtl/aurora_flow_define.v:
+# VPL compiles linked RTL kernels in a shared Verilog macro scope. Clear every
+# optional setting first so another packaged kernel cannot select our layout.
+$(BUILD_DIR)/rtl/aurora_flow_define.v: $(AURORA_FLOW_DIR)/Makefile
 	mkdir -p $(BUILD_DIR)/rtl
-	echo "" > $@
+	printf '%s\n' \
+		"\`undef AURORA_FLOW_IO_MODULE" \
+		"\`undef AURORA_FLOW_AXIS_DATA_FIFO_RX_MODULE" \
+		"\`undef AURORA_FLOW_AXIS_DATA_FIFO_TX_MODULE" \
+		"\`undef AURORA_FLOW_AXIS_DWIDTH_CONVERTER_RX_MODULE" \
+		"\`undef AURORA_FLOW_AXIS_DWIDTH_CONVERTER_TX_MODULE" \
+		"\`undef FIFO_WIDTH" \
+		"\`undef USE_FRAMING" \
+		"\`undef SKIP_DATAWIDTH_CONVERTER" \
+		"\`undef DRAIN_AXI_ON_RESET" \
+		"\`undef HAS_TKEEP" \
+		"\`undef HAS_TLAST" \
+		"\`undef RX_FIFO_DEPTH" \
+		"\`undef RX_FIFO_PROG_FULL" \
+		"\`undef RX_FIFO_PROG_EMPTY" \
+		"\`undef RX_EQ_MODE" \
+		"\`undef INS_LOSS_NYQ" > $@
 	if [ $(USE_FRAMING) = 1 ]; then \
 		echo "\`define USE_FRAMING" >> $@; \
 	fi

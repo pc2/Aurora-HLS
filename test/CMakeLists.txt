@@ -51,6 +51,7 @@ if(NOT AURORA_FLOW_HW_EMU_CLOCKS MATCHES "^[12]$")
 endif()
 set(AURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID "0" CACHE STRING
     "hw_emu AXI-Stream clock ID (0 or 1; AXI-Lite control remains on ID 0)")
+option(AURORA_FLOW_VPP_DEBUG "Enable v++ waveform/debug instrumentation" OFF)
 if(NOT AURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID MATCHES "^[01]$")
     message(FATAL_ERROR "AURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID must be 0 or 1")
 endif()
@@ -124,8 +125,10 @@ find_program(EMCONFIGUTIL_EXECUTABLE emconfigutil)
 set(VPP_COMMON_FLAGS
     --platform ${AURORA_FLOW_PLATFORM}
     --save-temps
-    --debug
 )
+if(AURORA_FLOW_VPP_DEBUG)
+    list(APPEND VPP_COMMON_FLAGS --debug)
+endif()
 set(VPP_HLS_FLAGS ${VPP_COMMON_FLAGS}
     -DDATA_WIDTH_BYTES=${AURORA_FLOW_FIFO_WIDTH}
     -DUSE_FRAMING=${AURORA_FLOW_USE_FRAMING})

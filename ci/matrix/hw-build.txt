@@ -13,3 +13,16 @@ FRAMING=0,1
 AXI_CLOCK_HZ=300000000
 HW_INTERFACE_CLOCK_ID=0
 XRT=2.16
+
+# Line-rate split-clock integration: the HLS kernels run at
+# 512 bits/300 MHz, while the bridge and AuroraFlow run at 256 bits/400 MHz.
+TARGET=hw
+BUILD_SYS=make
+WIDTH=32
+HLS_WIDTH=64
+HLS_CLOCK_HZ=300000000
+FRAMING=0,1
+AXI_CLOCK_HZ=400000000
+HW_INTERFACE_CLOCK_ID=1
+CLOCK_BRIDGE=1
+XRT=2.16

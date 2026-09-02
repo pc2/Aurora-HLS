@@ -28,3 +28,20 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.16
+
+# Line-rate split-clock integration: HLS is 512-bit/300 MHz; the reusable
+# duplex bridge performs asynchronous CDC and 512/256-bit conversion;
+# AuroraFlow and the GT stub use the 256-bit/400 MHz side. Two-clock hw_emu
+# requires XRT 2.16.
+TARGET=hw_emu
+BUILD_SYS=make
+WIDTH=32
+HLS_WIDTH=64
+HLS_CLOCK_HZ=300000000
+FRAMING=0,1
+AXI_CLOCK_HZ=400000000
+HW_EMU_GT_CLOCK_HZ=400000000
+HW_EMU_CLOCKS=2
+HW_EMU_INTERFACE_CLOCK_ID=1
+CLOCK_BRIDGE=1
+XRT=2.16

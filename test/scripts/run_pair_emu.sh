@@ -26,5 +26,10 @@ trap cleanup_pipe_dir EXIT
 
 "${SCRIPT_DIR}/configure_emu.sh" pair "$NUM_RANKS" "$PIPE_DIR"
 
-mpirun -x XCL_EMULATION_MODE -n $NUM_RANKS \
+MPI_EXPORTS=(-x XCL_EMULATION_MODE)
+if [[ -n "${AURORA_DPI_DEBUG:-}" ]]; then
+    MPI_EXPORTS+=(-x AURORA_DPI_DEBUG)
+fi
+
+mpirun "${MPI_EXPORTS[@]}" -n $NUM_RANKS \
     "${SCRIPT_DIR}/rank_wrapper.sh" "$PIPE_DIR" "$EMU_MODE" -m 1 "$@"

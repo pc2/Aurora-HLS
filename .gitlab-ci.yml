@@ -85,7 +85,8 @@ include:
       matrix_file: "ci/matrix/hw-emu-build.txt"
       source_paths: >-
         Makefile aurora_flow.mk cmake include rtl tcl xdc
-        test/CMakeLists.txt test/Makefile test/cfg test/hls
+        test/CMakeLists.txt test/Makefile test/cfg test/hls test/rtl test/tcl
+        test/scripts/check_clock_bridge_link.sh
       env_file: "env.sh"
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
@@ -128,7 +129,8 @@ include:
       matrix_file: "ci/matrix/hw-build.txt"
       source_paths: >-
         Makefile aurora_flow.mk ci/check-timing.py cmake include rtl tcl xdc
-        test/CMakeLists.txt test/Makefile test/cfg test/hls
+        test/CMakeLists.txt test/Makefile test/cfg test/hls test/rtl test/tcl
+        test/scripts/check_clock_bridge_link.sh
       env_file: "env.sh"
       precheck_runner_tag: "$LOCAL_RUNNER_TAG"
       slurm_runner_tag: "$SLURM_RUNNER_TAG"

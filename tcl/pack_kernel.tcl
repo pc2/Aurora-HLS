@@ -37,12 +37,15 @@ create_project aurora_flow_${instance} ./aurora_flow_${instance} -part $part
 # paths for the packaged include file.
 file mkdir ${ip_src}
 file copy -force ${build_dir}/rtl/hw/aurora_flow_define.v ${ip_src}/aurora_flow_define.v
+file copy -force ${build_dir}/rtl/aurora_flow_${instance}.v \
+    ${ip_src}/aurora_flow_${instance}.v
 
 # add design sources into project
 add_files -norecurse -fileset sources_1 \
        [list                                          \
+              ${ip_src}/aurora_flow_define.v \
               ${src_dir}/rtl/aurora_flow_control_s_axi.v \
-              ${build_dir}/rtl/aurora_flow_${instance}.v \
+              ${ip_src}/aurora_flow_${instance}.v \
               ${src_dir}/rtl/aurora_flow_io.v \
               ${src_dir}/rtl/aurora_flow_nfc.v \
               ${src_dir}/rtl/aurora_flow_reset.v \
@@ -61,13 +64,25 @@ add_files -norecurse -fileset constrs_1 \
        ]
 
 # make `include "aurora_flow_define.v" resolve to the staged file in the IP root
+set_property file_type {Verilog Header} \
+    [get_files ${ip_src}/aurora_flow_define.v]
 set_property include_dirs [list ${ip_src}] [get_filesets sources_1]
+set_property top aurora_flow_${instance} [get_filesets sources_1]
 
 update_compile_order -fileset sources_1
 
 # create IP packaging project
 ipx::package_project -root_dir ./aurora_flow_ip_${instance} -vendor xilinx.com -library user -taxonomy /UserIP -import_files -set_current true
 
+set required_clock_ports {ap_clk ap_rst_n}
+if {$interface_clock_id == 1} {
+    lappend required_clock_ports ap_clk_2 ap_rst_n_2
+}
+foreach port $required_clock_ports {
+    if {[llength [ipx::get_ports $port -of_objects [ipx::current_core]]] != 1} {
+        error "top module aurora_flow_${instance} is missing required port $port"
+    }
+}
 
 # inference clock and reset signals
 ipx::infer_bus_interface ap_clk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
@@ -90,6 +105,15 @@ if {$interface_clock_id == 1} {
 foreach busif {rx_axis tx_axis} {
     ipx::associate_bus_interfaces -busif $busif -clock $data_clock \
         [ipx::current_core]
+    # Vivado infers FREQ_HZ=100000000 for these interfaces. Vitis replaces
+    # this metadata from the selected link clock, but only when it is absent
+    # from the packaged IP.
+    set axis_interface [ipx::get_bus_interfaces $busif \
+        -of_objects [ipx::current_core]]
+    if {[llength [ipx::get_bus_parameters FREQ_HZ \
+            -of_objects $axis_interface]] != 0} {
+        ipx::remove_bus_parameter FREQ_HZ $axis_interface
+    }
 }
 ipx::associate_bus_interfaces -clock ap_clk -reset ap_rst_n [ipx::current_core]
 if {$interface_clock_id == 1} {

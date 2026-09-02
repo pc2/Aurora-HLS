@@ -293,8 +293,14 @@ With Vitis 2023.2, request the two scalable platform clocks at link time, for ex
 ```
 
 By default, all external interfaces remain associated with the primary `ap_clk`, and the secondary clock is internal to AuroraFlow.
-An integration whose data path already uses scalable clock ID 1 can set `HW_EMU_INTERFACE_CLOCK_ID=1`
+An integration whose data path already uses scalable clock ID 1 can set `HW_EMU_INTERFACE_CLOCK_ID=1`.
 AuroraFlow then associates its AXI-Stream interfaces, data path, and GT stub with `ap_clk_2`. AXI-Lite control remains on `ap_clk` because the Vitis platform control interconnect uses clock ID 0.
+
+The test application also has a router-boundary variant with 512-bit HLS
+kernels at 300 MHz, an RTL CDC/width-conversion bridge, and the 256-bit
+AuroraFlow data path at 400 MHz. AuroraFlow and the GT stub use scalable clock
+1 in this variant. See the [test application documentation](./test/README.md#router-boundary-300400-mhz-variant)
+for its `hw_emu` and hardware builds and CI coverage.
 
 XRT 2.14 does not work with the two clocks.
 For this `HW_EMU_CLOCKS=1` can be used to run everything on one clock.

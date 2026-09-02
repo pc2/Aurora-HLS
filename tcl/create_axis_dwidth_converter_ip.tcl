@@ -21,14 +21,20 @@ set width [lindex $argv 2]
 set has_tkeep [lindex $argv 3]
 set has_tlast [lindex $argv 4]
 
-if {$instance == "rx"} {
+# Optional explicit widths let integration tests reuse the same IP generator
+# with unique module names. Existing AuroraFlow invocations keep the original
+# rx/tx behavior.
+if {[llength $argv] >= 7} {
+     set s_width [lindex $argv 5]
+     set m_width [lindex $argv 6]
+} elseif {$instance == "rx"} {
      set m_width $width
      set s_width 32
 } elseif {$instance == "tx"} {
      set m_width 32
      set s_width $width
 } else {
-     puts "instance has to be rx or tx"
+     puts "instance has to be rx or tx unless explicit source and destination widths are provided"
      exit 1
 }
 

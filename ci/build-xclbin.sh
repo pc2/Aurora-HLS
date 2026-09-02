@@ -25,7 +25,12 @@ if [[ "$BUILD_SYS" == "make" ]]; then
     USE_FRAMING="$FRAMING"
   )
   if [[ "$TARGET" != "sw_emu" ]]; then
-    make_args+=(AXI_CLOCK_HZ="$AXI_CLOCK_HZ")
+    make_args+=(
+      HLS_WIDTH="${HLS_WIDTH:-$WIDTH}"
+      HLS_CLOCK_HZ="${HLS_CLOCK_HZ:-300000000}"
+      AXI_CLOCK_HZ="$AXI_CLOCK_HZ"
+      CLOCK_BRIDGE="${CLOCK_BRIDGE:-0}"
+    )
   fi
   if [[ "$TARGET" == "hw" ]]; then
     make_args+=(HW_INTERFACE_CLOCK_ID="${HW_INTERFACE_CLOCK_ID:-0}")
@@ -63,8 +68,17 @@ fi
 cp "$build_dir/aurora_flow_test_${TARGET}.xclbin" "$artifact"
 cp "$build_dir/emconfig.json" emconfig.json
 
+if [[ "$TARGET" != "sw_emu" && "${CLOCK_BRIDGE:-0}" == "1" ]]; then
+  "$CI_PROJECT_DIR/test/scripts/check_clock_bridge_link.sh" "$build_dir" "$TARGET"
+fi
+
 if [[ "$TARGET" == "hw" ]]; then
-  cp "$build_dir/aurora_flow_axi_clock_${AXI_CLOCK_HZ}_data_clock_${HW_INTERFACE_CLOCK_ID:-0}.cfg" clock.cfg
+  if [[ "$BUILD_SYS" == "make" ]]; then
+    clock_config="$build_dir/aurora_flow_axi_clock_${AXI_CLOCK_HZ}_data_clock_${HW_INTERFACE_CLOCK_ID:-0}_bridge_${CLOCK_BRIDGE:-0}.cfg"
+  else
+    clock_config="$build_dir/aurora_flow_axi_clock_${AXI_CLOCK_HZ}_data_clock_${HW_INTERFACE_CLOCK_ID:-0}.cfg"
+  fi
+  cp "$clock_config" clock.cfg
   mkdir -p timing-reports
   report_count=0
   while IFS= read -r report; do

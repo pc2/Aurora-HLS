@@ -30,7 +30,7 @@ module aurora_flow_gt_stub #(
     // TX AXI-Stream (from FIFO/datawidth converter)
     input  wire [255:0] s_axi_tx_tdata,
     input  wire         s_axi_tx_tvalid,
-    output reg          s_axi_tx_tready,
+    output wire         s_axi_tx_tready,
 `ifdef USE_FRAMING
     input  wire [31:0]  s_axi_tx_tkeep,
     input  wire         s_axi_tx_tlast,
@@ -38,6 +38,7 @@ module aurora_flow_gt_stub #(
     // RX AXI-Stream (to FIFO/datawidth converter)
     output reg  [255:0] m_axi_rx_tdata,
     output reg          m_axi_rx_tvalid,
+    input  wire         m_axi_rx_tready,
 `ifdef USE_FRAMING
     output reg  [31:0]  m_axi_rx_tkeep,
     output reg          m_axi_rx_tlast,
@@ -115,23 +116,46 @@ module aurora_flow_gt_stub #(
         end
     end
 
-    // Pipe lifecycle: instance 0 opens all pipes, close on reset
+    // Pipe lifecycle. Fixed-clock hw_emu may start with reset deasserted, then
+    // assert it while XRT configures the device, so handle both the initial
+    // reset level and every subsequent reset cycle.
     reg pipes_open = 0;
 
     initial begin
-        @(negedge reset);
-        if (INSTANCE == 0) begin
-            aurora_dpi_open_all();
+        forever begin
+            wait (reset === 1'b0);
+            if (INSTANCE == 0) begin
+                aurora_dpi_open_all();
+            end
+            pipes_open = 1;
+
+            @(posedge reset);
+            if (pipes_open) begin
+                aurora_dpi_close(INSTANCE);
+                pipes_open = 0;
+            end
         end
-        pipes_open = 1;
     end
 
-    // TX: write to pipe when valid and pipe accepts
+    // TX: accept an AXI beat into a one-entry buffer, then retry the
+    // nonblocking pipe write until it succeeds.  TREADY describes buffer
+    // availability; it must not report the result of a write attempted at the
+    // same clock edge, because the AXI source samples the old TREADY value.
     bit [255:0] tx_data;
     bit [31:0] tx_keep;
     bit tx_last;
+    reg tx_pending = 0;
+
+    assign s_axi_tx_tready = pipes_open && !reset && !tx_pending;
+
     always @(posedge ap_clk) begin
-        if (!reset && pipes_open && s_axi_tx_tvalid) begin
+        if (reset || !pipes_open) begin
+            tx_pending <= 0;
+        end else if (tx_pending) begin
+            if (aurora_dpi_write(INSTANCE, tx_data, tx_keep, tx_last)) begin
+                tx_pending <= 0;
+            end
+        end else if (s_axi_tx_tvalid) begin
             tx_data = s_axi_tx_tdata;
 `ifdef USE_FRAMING
             tx_keep = s_axi_tx_tkeep;
@@ -140,26 +164,19 @@ module aurora_flow_gt_stub #(
             tx_keep = 32'hffffffff;
             tx_last = 1'b0;
 `endif
-            s_axi_tx_tready <= aurora_dpi_write(
-                INSTANCE, tx_data, tx_keep, tx_last
-            );
-        end else begin
-            s_axi_tx_tready <= 1'b1;
+            tx_pending <= 1;
         end
     end
 
-    // RX: read from pipe when NFC allows and pipes are open
+    // RX: keep a record stable until the downstream AXI slave accepts it.
+    // A new pipe record may replace one consumed on the same edge.
     bit [255:0] rx_data;
     bit [31:0] rx_keep;
     bit rx_last;
     always @(posedge ap_clk) begin
         if (reset || !pipes_open) begin
             m_axi_rx_tvalid <= 1'b0;
-            if (reset && pipes_open) begin
-                aurora_dpi_close(INSTANCE);
-                pipes_open <= 0;
-            end
-        end else if (!nfc_stop) begin
+        end else if (!nfc_stop && (!m_axi_rx_tvalid || m_axi_rx_tready)) begin
             if (aurora_dpi_read(INSTANCE, rx_data, rx_keep, rx_last)) begin
                 m_axi_rx_tdata <= rx_data;
                 m_axi_rx_tvalid <= 1'b1;
@@ -170,7 +187,7 @@ module aurora_flow_gt_stub #(
             end else begin
                 m_axi_rx_tvalid <= 1'b0;
             end
-        end else begin
+        end else if (nfc_stop && m_axi_rx_tvalid && m_axi_rx_tready) begin
             m_axi_rx_tvalid <= 1'b0;
         end
     end

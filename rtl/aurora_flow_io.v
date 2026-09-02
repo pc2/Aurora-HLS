@@ -16,7 +16,26 @@
 `default_nettype none
 `include "aurora_flow_define.v"
 
-module aurora_flow_io (
+// Allow another packaged RTL kernel to reuse this complete CDC/data-width
+// conversion block without colliding with AuroraFlow's module and IP names in
+// the linked Vivado project.
+`ifndef AURORA_FLOW_IO_MODULE
+`define AURORA_FLOW_IO_MODULE aurora_flow_io
+`endif
+`ifndef AURORA_FLOW_AXIS_DATA_FIFO_RX_MODULE
+`define AURORA_FLOW_AXIS_DATA_FIFO_RX_MODULE axis_data_fifo_rx
+`endif
+`ifndef AURORA_FLOW_AXIS_DATA_FIFO_TX_MODULE
+`define AURORA_FLOW_AXIS_DATA_FIFO_TX_MODULE axis_data_fifo_tx
+`endif
+`ifndef AURORA_FLOW_AXIS_DWIDTH_CONVERTER_RX_MODULE
+`define AURORA_FLOW_AXIS_DWIDTH_CONVERTER_RX_MODULE axis_dwidth_converter_rx
+`endif
+`ifndef AURORA_FLOW_AXIS_DWIDTH_CONVERTER_TX_MODULE
+`define AURORA_FLOW_AXIS_DWIDTH_CONVERTER_TX_MODULE axis_dwidth_converter_tx
+`endif
+
+module `AURORA_FLOW_IO_MODULE (
     input wire          ap_clk,
     input wire          ap_rst_n,
     input wire          user_clk,
@@ -32,6 +51,7 @@ module aurora_flow_io (
 
     input wire[255:0]    m_axi_rx_tdata_u,
     input wire           m_axi_rx_tvalid_u,
+    output wire          m_axi_rx_tready_u,
 `ifdef USE_FRAMING
     input wire           m_axi_rx_tlast_u,
     input wire[31:0]     m_axi_rx_tkeep_u,
@@ -66,7 +86,7 @@ module aurora_flow_io (
 
 `ifdef SKIP_DATAWIDTH_CONVERTER
 
-axis_data_fifo_rx axis_data_fifo_rx_0 (
+`AURORA_FLOW_AXIS_DATA_FIFO_RX_MODULE axis_data_fifo_rx_0 (
   .s_axis_aresetn   (ap_rst_n_u),           // input wire s_axis_aresetn
   .s_axis_aclk      (user_clk),             // input wire s_axis_aclk
   .s_axis_tdata     (m_axi_rx_tdata_u),     // input wire [255 : 0] s_axis_tdata
@@ -74,7 +94,7 @@ axis_data_fifo_rx axis_data_fifo_rx_0 (
   .s_axis_tkeep     (m_axi_rx_tkeep_u),
   .s_axis_tlast     (m_axi_rx_tlast_u),
 `endif
-  .s_axis_tready    (),                     // output unused
+  .s_axis_tready    (m_axi_rx_tready_u),    // output wire s_axis_tready
   .s_axis_tvalid    (m_axi_rx_tvalid_u),    // input wire s_axis_tvalid
   .m_axis_aclk      (ap_clk),               // input wire m_axis_aclk
   .m_axis_tdata     (rx_axis_tdata),        // output reg [255 : 0] m_axis_tdata
@@ -90,7 +110,7 @@ axis_data_fifo_rx axis_data_fifo_rx_0 (
   .prog_empty       (fifo_rx_prog_empty)
 );
 
-axis_data_fifo_tx axis_data_fifo_tx_0 (
+`AURORA_FLOW_AXIS_DATA_FIFO_TX_MODULE axis_data_fifo_tx_0 (
   .s_axis_aresetn   (ap_rst_n),             // input wire s_axis_aresetn
   .s_axis_aclk      (ap_clk),               // input wire s_axis_aclk
   .s_axis_tdata     (tx_axis_tdata),        // input wire [255 : 0] s_axis_tdata
@@ -131,7 +151,7 @@ wire            dwidth_rx_m_axis_tlast_u;
 wire [63:0]     dwidth_rx_m_axis_tkeep_u;
 `endif
 
-axis_data_fifo_rx axis_data_fifo_rx_0 (
+`AURORA_FLOW_AXIS_DATA_FIFO_RX_MODULE axis_data_fifo_rx_0 (
   .s_axis_aresetn   (ap_rst_n_u),           // input wire s_axis_aresetn
   .s_axis_aclk      (user_clk),             // input wire s_axis_aclk
   .s_axis_tdata     (dwidth_rx_m_axis_tdata_u),     // input wire [255 : 0] s_axis_tdata
@@ -155,9 +175,9 @@ axis_data_fifo_rx axis_data_fifo_rx_0 (
   .prog_empty       (fifo_rx_prog_empty)
 );
 
-axis_dwidth_converter_rx axis_dwidth_converter_rx_0 (
+`AURORA_FLOW_AXIS_DWIDTH_CONVERTER_RX_MODULE axis_dwidth_converter_rx_0 (
     .s_axis_tvalid      (m_axi_rx_tvalid_u),
-    .s_axis_tready      (),
+    .s_axis_tready      (m_axi_rx_tready_u),
     .s_axis_tdata       (m_axi_rx_tdata_u),
 `ifdef USE_FRAMING
     .s_axis_tkeep       (m_axi_rx_tkeep_u),
@@ -174,7 +194,7 @@ axis_dwidth_converter_rx axis_dwidth_converter_rx_0 (
     .aclk               (user_clk)
 );
 
-axis_data_fifo_tx axis_data_fifo_tx_0 (
+`AURORA_FLOW_AXIS_DATA_FIFO_TX_MODULE axis_data_fifo_tx_0 (
   .s_axis_aresetn   (ap_rst_n),             // input wire s_axis_aresetn
   .s_axis_aclk      (ap_clk),               // input wire s_axis_aclk
   .s_axis_tdata     (tx_axis_tdata),        // input wire [255 : 0] s_axis_tdata
@@ -198,7 +218,7 @@ axis_data_fifo_tx axis_data_fifo_tx_0 (
   .prog_empty       (fifo_tx_prog_empty_u)
 );
 
-axis_dwidth_converter_tx axis_dwidth_converter_tx_0 (
+`AURORA_FLOW_AXIS_DWIDTH_CONVERTER_TX_MODULE axis_dwidth_converter_tx_0 (
     .s_axis_tvalid      (dwidth_tx_s_axis_tvalid_u),
     .s_axis_tready      (dwidth_tx_s_axis_tready_u),
     .s_axis_tdata       (dwidth_tx_s_axis_tdata_u),

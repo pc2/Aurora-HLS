@@ -77,10 +77,10 @@ module aurora_flow_@@@instance@@@ (
 `endif
 );
 
-// The router integration keeps AXI-Lite control on clock ID 0 and places the
-// AuroraFlow AXI-Stream data path on scalable clock ID 1. The default hw_emu
-// two-clock mode is unchanged: all external interfaces use ap_clk while only
-// the GT stub uses ap_clk_2.
+// AXI-Lite control remains on clock ID 0 when the AuroraFlow AXI-Stream data
+// path uses scalable clock ID 1. The default hw_emu two-clock mode is
+// unchanged: all external interfaces use ap_clk while only the GT stub uses
+// ap_clk_2.
 wire control_clk = ap_clk;
 wire control_rst_n = ap_rst_n;
 wire emu_clk;
@@ -110,6 +110,7 @@ wire [31:0]     s_axi_tx_tkeep_u;
 
 wire [255:0]    m_axi_rx_tdata_u;
 wire            m_axi_rx_tvalid_u;
+wire            m_axi_rx_tready_u;
 `ifdef USE_FRAMING
 wire            m_axi_rx_tlast_u;
 wire [31:0]     m_axi_rx_tkeep_u;
@@ -495,7 +496,13 @@ aurora_flow_gt_stub #(
 `else
     .ap_clk                       (ap_clk),
 `endif
-`ifdef HW_EMU_TWO_CLOCKS
+`ifdef AURORA_FLOW_DATA_CLOCK_2
+    // The stub and ap_rst_n_core are both in the selected data-clock domain.
+    // Avoid routing the stub reset through the user-clock synchronizer: in
+    // hw_emu that extra stage can initialize deasserted, assert later, and
+    // never resolve cleanly after XRT configures the device.
+    .reset                        (!ap_rst_n_core),
+`elsif HW_EMU_TWO_CLOCKS
     .reset                        (!ap_rst_n_u),
 `else
     // Preserve the legacy hw_emu reset sequence. In Vitis 2022.2 the
@@ -528,6 +535,7 @@ aurora_flow_gt_stub #(
     .m_axi_rx_tlast               (m_axi_rx_tlast_u),
 `endif
     .m_axi_rx_tvalid              (m_axi_rx_tvalid_u),
+    .m_axi_rx_tready              (m_axi_rx_tready_u),
     .mmcm_not_locked_out          (mmcm_not_locked_out_u),
     .user_clk_out                 (user_clk),
     .gt_powergood                 (gt_powergood_u)
@@ -548,6 +556,9 @@ aurora_flow_io aurora_flow_io_0 (
 `endif
     .m_axi_rx_tdata_u       (m_axi_rx_tdata_u),
     .m_axi_rx_tvalid_u      (m_axi_rx_tvalid_u),
+    // The real Aurora RX interface has no ready input, but the hw_emu stub
+    // uses this FIFO/DWC readiness to provide a strict AXI handshake.
+    .m_axi_rx_tready_u      (m_axi_rx_tready_u),
 `ifdef USE_FRAMING
     .m_axi_rx_tlast_u       (m_axi_rx_tlast_u),
     .m_axi_rx_tkeep_u       (m_axi_rx_tkeep_u),
