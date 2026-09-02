@@ -29,9 +29,7 @@ The rest of this README focuses on how to use the library in your own project.
 
 ```
 AuroraFlow/
-├── rtl/                         RTL sources (Aurora wrapper, NFC, monitor, config,
-│   │                            reset, and aurora_flow_gt_stub.sv + aurora_flow_dpi.c
-│   │                            for hw_emu)
+├── rtl/                         RTL sources and hw_emu DPI GT replacement
 │   └── tb/                      Verilog unit testbenches (NFC, monitor, configuration, AXI-Lite control)
 ├── tcl/                         IP creation and kernel packaging scripts
 ├── xdc/                         QSFP pinout constraints
@@ -64,9 +62,9 @@ You can override it with `make BUILD_DIR=/somewhere/else aurora_hw` to keep buil
 
 ```bash
 make aurora_hw USE_FRAMING=1       # enable tlast/tkeep + Aurora CRC
-make aurora_hw FIFO_WIDTH=32       # narrower input, saving the datawidth conversion 
-make aurora_hw HW_INTERFACE_CLOCK_ID=1 # AXI-Lite on ID 0, AXI-Stream data on ID 1
-make aurora_hw_emu HW_EMU_CLOCKS=1 # legacy single-clock hw_emu kernel
+make aurora_hw FIFO_WIDTH=32            # narrower input, saving the data-width conversion
+make aurora_hw HW_INTERFACE_CLOCK_ID=1  # AXI-Lite on ID 0, AXI-Stream data on ID 1
+make aurora_hw_emu HW_EMU_CLOCKS=1      # legacy single-clock hw_emu kernel
 make aurora_hw_emu HW_EMU_CLOCKS=2 HW_EMU_INTERFACE_CLOCK_ID=1 # data path on clock ID 1
 ```
 
@@ -82,10 +80,10 @@ All parameters are also forwarded automatically when the library is built throug
 | `TX_FIFO_SIZE`        | `8192`  | TX FIFO size in bytes |
 | `PART`                | `xcu280-fsvh2892-2L-e` | Target device part |
 | `PLATFORM`            | `xilinx_u280_gen3x16_xdma_1_202211_1` | Target platform |
-| `VERSION`             | `12.0`  | Aurora IP Core Version |
-| `HW_INTERFACE_CLOCK_ID` | `0`   | Hardware AXI-Stream/data-path clock ID (`0` or `1`); AXI-Lite control remains on ID 0 |
+| `AURORA_VERSION`      | `12.0`  | Aurora IP core version |
+| `HW_INTERFACE_CLOCK_ID` | `0`   | Hardware ata-path clock ID (`0` or `1`) |
 | `HW_EMU_CLOCKS`       | `2`     | `hw_emu` topology: legacy single clock (`1`) or expose scalable clock ID 1 as `ap_clk_2` (`2`) |
-| `HW_EMU_INTERFACE_CLOCK_ID` | `0` | `hw_emu` AXI-Stream/data-path clock ID (`0` or `1`; ID 1 requires `HW_EMU_CLOCKS=2`); AXI-Lite remains on ID 0 |
+| `HW_EMU_INTERFACE_CLOCK_ID` | `0` | `hw_emu` data-path clock ID (`0` or `1`) (ID 1 requires `HW_EMU_CLOCKS=2`) |
 
 ### FIFO configuration
 
@@ -190,7 +188,14 @@ target_link_libraries(my_host PRIVATE AuroraFlow::host)
 - `AURORA_FLOW_DPI_SRC`: DPI-C source path (use with `--vivado.prop` for hw_emu)
 - `aurora_flow_build_hw()` / `aurora_flow_build_hw_emu()` / `aurora_flow_build_sw_emu()`: functions that add custom targets which delegate kernel packaging to the library Makefile.
 
-User-settable variables are namespaced to avoid collisions. Set any of `AURORA_FLOW_PLATFORM`, `AURORA_FLOW_PART`, `AURORA_FLOW_FIFO_WIDTH`, `AURORA_FLOW_USE_FRAMING`, `AURORA_FLOW_HW_INTERFACE_CLOCK_ID`, `AURORA_FLOW_HW_EMU_CLOCKS`, or `AURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID` before `find_package(AuroraFlow)`.
+User-settable variables are namespaced to avoid collisions. Set any of
+`AURORA_FLOW_PLATFORM`, `AURORA_FLOW_PART`, `AURORA_FLOW_FIFO_WIDTH`,
+`AURORA_FLOW_USE_FRAMING`, `AURORA_FLOW_INS_LOSS_NYQ`,
+`AURORA_FLOW_RX_EQ_MODE`, `AURORA_FLOW_RX_FIFO_SIZE`,
+`AURORA_FLOW_TX_FIFO_SIZE`, `AURORA_FLOW_VERSION`,
+`AURORA_FLOW_HW_INTERFACE_CLOCK_ID`,
+`AURORA_FLOW_HW_EMU_CLOCKS`, or `AURORA_FLOW_HW_EMU_INTERFACE_CLOCK_ID` before
+`find_package(AuroraFlow)`.
 
 For a complete working example (host binary, HLS kernel compile, xclbin link for all three target modes), see [`test/CMakeLists.txt`](./test/CMakeLists.txt).
 
@@ -232,7 +237,6 @@ if (aurora.get_fifo_rx_overflow_count() > 0) {
 aurora.reset_counter();   // zero out for the next measurement window
 ```
 
-
 Status signals surfaced by `core_status_ok()`:
 
 | Name | Expected | Meaning |
@@ -266,12 +270,12 @@ ${AURORA_PIPE_DIR}/rank{rank}/link_i{instance}_rx    (FIFO, the instance reads f
 
 Both `aurora_flow_sw_emu` (sw_emu, `hls/aurora_flow_sw_emu.cpp`) and `aurora_flow_gt_stub` (hw_emu, `rtl/aurora_flow_dpi.c`) open the same paths. The topology (which rank's `_tx` feeds which rank's `_rx`) is expressed by the symlink structure created before launch. AuroraFlow's example launchers generate that layout with the companion [topomux](https://github.com/papeg/topomux) tool, invoked reproducibly through `uv tool run`. Applications can use the same layout for arbitrary topologies.
 
-The emulation requires that the runtimes for each emulated FPGA are isolated, this is achieved with MPI in the examples.
+The examples use MPI to isolate the runtime for each emulated FPGA.
 
 ### sw_emu
 
 The Aurora kernel is replaced by an HLS kernel (`hls/aurora_flow_sw_emu.cpp`) that opens the pipes on startup and forwards AXI-Stream data through them.
-This is useful for a first and quick test, but does not guarantee full semantics of the link behavior, especially becase AXI-Streams have infinited depth in software emulation.
+This is useful for a quick first test, but does not guarantee the full link semantics because AXI streams have effectively unbounded depth in software emulation.
 
 ### hw_emu
 
@@ -279,11 +283,11 @@ Same RTL as hw but with the GT transceiver replaced by `rtl/aurora_flow_gt_stub.
 That module uses DPI-C functions (`rtl/aurora_flow_dpi.c`) to read/write the named pipes.
 This gives you cycle-accurate FIFO, functional flow control (XOFF/XON triggering on programmable thresholds), and all available configuration/status registers are readable from the host.
 The pipe-based link does not model the exact physical transceiver timing, but gets close.
-The NFC inflight window is approximated with a fixed 256-cycle delay.
+The NFC in-flight window is approximated with a fixed 256-cycle delay.
 
 By default, the `hw_emu` RTL kernel has two independent clocks.
 `ap_clk` clocks AXI-Lite and all external AXI-Stream interfaces.
-`ap_clk_2` is then used to model the IP generated `user_clk`.
+`ap_clk_2` is then used to model the IP-generated `user_clk`.
 
 The asynchronous FIFOs between those domains are the same FIFOs used in hardware.
 With Vitis 2023.2, request the two scalable platform clocks at link time, for example:
@@ -294,16 +298,11 @@ With Vitis 2023.2, request the two scalable platform clocks at link time, for ex
 
 By default, all external interfaces remain associated with the primary `ap_clk`, and the secondary clock is internal to AuroraFlow.
 An integration whose data path already uses scalable clock ID 1 can set `HW_EMU_INTERFACE_CLOCK_ID=1`.
-AuroraFlow then associates its AXI-Stream interfaces, data path, and GT stub with `ap_clk_2`. AXI-Lite control remains on `ap_clk` because the Vitis platform control interconnect uses clock ID 0.
+AuroraFlow then associates its AXI-Stream interfaces, data path, and GT stub with `ap_clk_2`.
+AXI-Lite control remains on `ap_clk` because the Vitis platform control interconnect uses clock ID 0.
 
-The test application also has a router-boundary variant with 512-bit HLS
-kernels at 300 MHz, an RTL CDC/width-conversion bridge, and the 256-bit
-AuroraFlow data path at 400 MHz. AuroraFlow and the GT stub use scalable clock
-1 in this variant. See the [test application documentation](./test/README.md#router-boundary-300400-mhz-variant)
-for its `hw_emu` and hardware builds and CI coverage.
-
-XRT 2.14 does not work with the two clocks.
-For this `HW_EMU_CLOCKS=1` can be used to run everything on one clock.
+XRT 2.14 does not support this two-clock configuration
+Use `HW_EMU_CLOCKS=1` to run everything on one clock.
 
 To link an `hw_emu` xclbin the DPI-C source must be compiled into xsim:
 

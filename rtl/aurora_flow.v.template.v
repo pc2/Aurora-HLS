@@ -235,13 +235,8 @@ assign ap_rst_n_user_source = ap_rst_n_core && ap_rst_n_2;
 assign ap_rst_n_user_source = ap_rst_n_core;
 `endif
 
-// optionally drain tx data source during sw_reset
 wire            tx_axis_tready_raw;
-`ifdef DRAIN_AXI_ON_RESET
-    assign tx_axis_tready = tx_axis_tready_raw || sw_reset;
-`else
-    assign tx_axis_tready = tx_axis_tready_raw;
-`endif
+assign tx_axis_tready = tx_axis_tready_raw;
 
 `ifndef HW_EMU
 aurora_flow_reset aurora_flow_reset_0 (

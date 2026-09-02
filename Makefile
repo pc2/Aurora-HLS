@@ -41,7 +41,6 @@ PLATFORM ?= xilinx_u280_gen3x16_xdma_1_202211_1
 INS_LOSS_NYQ := 8
 RX_EQ_MODE := LPM
 USE_FRAMING := 0
-DRAIN_AXI_ON_RESET := 0
 
 # Supported: 32 and 64
 FIFO_WIDTH := 64
@@ -166,7 +165,6 @@ $(BUILD_DIR)/rtl/aurora_flow_define.v: $(AURORA_FLOW_DIR)/Makefile
 		"\`undef FIFO_WIDTH" \
 		"\`undef USE_FRAMING" \
 		"\`undef SKIP_DATAWIDTH_CONVERTER" \
-		"\`undef DRAIN_AXI_ON_RESET" \
 		"\`undef HAS_TKEEP" \
 		"\`undef HAS_TLAST" \
 		"\`undef RX_FIFO_DEPTH" \
@@ -176,9 +174,6 @@ $(BUILD_DIR)/rtl/aurora_flow_define.v: $(AURORA_FLOW_DIR)/Makefile
 		"\`undef INS_LOSS_NYQ" > $@
 	if [ $(USE_FRAMING) = 1 ]; then \
 		echo "\`define USE_FRAMING" >> $@; \
-	fi
-	if [ $(DRAIN_AXI_ON_RESET) = 1 ]; then \
-		echo "\`define DRAIN_AXI_ON_RESET" >> $@; \
 	fi
 	echo "\`define HAS_TKEEP $(HAS_TKEEP)" >> $@
 	echo "\`define HAS_TLAST $(HAS_TKEEP)" >> $@

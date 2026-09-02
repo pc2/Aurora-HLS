@@ -84,7 +84,7 @@ foreach port $required_clock_ports {
     }
 }
 
-# inference clock and reset signals
+# Infer clock and reset interfaces.
 ipx::infer_bus_interface ap_clk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
 ipx::infer_bus_interface ap_rst_n xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]
 if {$interface_clock_id == 1} {

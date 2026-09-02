@@ -1,6 +1,6 @@
 #
 # Copyright 2022 Xilinx, Inc.
-#           2023-2024 Gerrit Pape (gerrit.pape@uni-paderborn.de)
+#           2023-2026 Gerrit Pape (gerrit.pape@uni-paderborn.de)
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-# set the device part from command line argvs
+# Set the device part from the command-line arguments.
 set_part [lindex $argv 0]
 
 set instance [lindex $argv 1]
@@ -35,7 +35,7 @@ if {$use_framing == "1"} {
 
 
 # ----------------------------------------------------------------------------
-# generate Aurora IP
+# Generate the Aurora IP.
 # ----------------------------------------------------------------------------
 create_ip -name aurora_64b66b \
           -vendor xilinx.com \
