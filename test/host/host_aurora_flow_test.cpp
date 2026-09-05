@@ -25,6 +25,7 @@
 #include <iostream>
 #include <filesystem>
 #include <mpi.h>
+#include <sysexits.h>
 
 #include "Configuration.hpp"
 #include "Results.hpp"
@@ -131,10 +132,13 @@ int main(int argc, char *argv[])
             std::cout << "problem with core " << i % 2
                 << " on device " << device_bdfs[i / 2]
                 << " with id " << device_ids[i / 2] << std::endl;
+            if (!emulation) auroras[i].print_core_status();
         }
     }
     for (bool ok: statuses) {
-        if (!ok) exit(EXIT_FAILURE);
+        if (!ok) {
+            exit(emulation ? EXIT_FAILURE : EX_TEMPFAIL);
+        }
     }
 
     std::cout << "All links are ready" << std::endl;
