@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$root/build-analysis/tmp"
+export TMPDIR="$root/build-analysis/tmp" TMP="$root/build-analysis/tmp" TEMP="$root/build-analysis/tmp"
+export UV_CACHE_DIR="$root/build-analysis/uv-cache"
+export UV_PYTHON_INSTALL_DIR="$root/build-analysis/python"
+: "${AURORA_VITIS_REPORT_SPEC:=report-parser-vitis @ git+https://git.uni-paderborn.de/papeg/report-parser-vitis.git@071d4e4186c6bb5f8581c11b479df987812862b7}"
+exec uv tool run --python 3.12 --from "$AURORA_VITIS_REPORT_SPEC" parse-vitis-report "$@"

@@ -1,3 +1,9 @@
 build*
 *.log
 !ci/build-xclbin.sh
+/public/
+/analysis/.quarto/
+/analysis/figures/
+/analysis/data/
+/analysis/index_files/
+/analysis/_site/

@@ -1,0 +1,29 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+  resources:
+    - data/
+
+website:
+  title: AuroraFlow CI analysis
+  navbar:
+    left:
+      - href: index.qmd
+        text: Results
+
+engines: [julia]
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    fig-format: svg
+
+execute:
+  echo: false
+  warning: false
+  error: false
+  cache: false
+  daemon: false

@@ -10,6 +10,7 @@ stages:
   - hw-run
   - benchmark
   - collect
+  - analysis
 
 workflow:
   rules:
@@ -194,7 +195,7 @@ include:
     inputs:
       base_job_name: ".aurora-flow-results"
       index_glob: "hw-build-index.json hw-run-index.json benchmark-index.json"
-      mode: "extracts"
+      mode: "both"
       staging_dir: "collected"
 
 .hw-only:
@@ -311,6 +312,10 @@ results:collect:
     - .hw-after-partial-build
   stage: collect
   tags: [$LOCAL_RUNNER_TAG]
+  before_script:
+    - mkdir -p "$CI_PROJECT_DIR/build-analysis/tmp"
+    - export TMPDIR="$CI_PROJECT_DIR/build-analysis/tmp" TMP="$CI_PROJECT_DIR/build-analysis/tmp" TEMP="$CI_PROJECT_DIR/build-analysis/tmp"
+    - !reference [.aurora-flow-results, before_script]
   needs:
     - job: hw-build-precheck
       artifacts: true
@@ -326,8 +331,49 @@ results:collect:
       artifacts: false
   script:
     - test -s "$HPC_CI_RESULTS_FILE"
+    - ml fpga xilinx/xrt/2.16
+    - python3 ci/collect-resources.py "$HPC_CI_RESULTS_FILE"
   artifacts:
     paths:
       - collected/**/*
+    exclude:
+      - collected/**/*.xclbin
     when: always
     expire_in: 1 month
+
+analysis:render:
+  extends: .hw-after-partial-build
+  stage: analysis
+  tags: [$LOCAL_RUNNER_TAG]
+  timeout: 1h
+  needs:
+    - job: results:collect
+      artifacts: true
+  script:
+    - bash ci/render-analysis.sh
+  artifacts:
+    paths:
+      - analysis/_site/
+    expire_in: 1 month
+
+pages:
+  stage: analysis
+  tags: [$LOCAL_RUNNER_TAG]
+  needs:
+    - job: analysis:render
+      artifacts: true
+  rules:
+    - if: '$SKIP_HW == "true"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /\[skip hw\]/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: always
+  resource_group: pages
+  script:
+    - test -s analysis/_site/index.html
+  pages:
+    publish: analysis/_site
+  artifacts:
+    paths:
+      - analysis/_site/

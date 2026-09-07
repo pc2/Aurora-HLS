@@ -3,6 +3,8 @@
 Ready-to-link Aurora 64b66b IP for Xilinx Alveo cards, with flow control, monitoring, and full software/hardware emulation support.
 Usable as a library in any Vitis project via Make or CMake.
 
+The [CI analysis](https://pc2-ci.pages.git.uni-paderborn.de/fpga/AuroraFlow) plots benchmark latency, throughput, and AuroraFlow core utilization for the tested variants.
+
 A detailed analysis was published at HEART'25:
 
 > Gerrit Pape, Bjarne Wintermann, Linus Jungemann, Michael Lass, Marius Meyer, Heinrich Riebler, and Christian Plessl. 2025. AuroraFlow, an Easy-to-Use, Low-Latency FPGA Communication Solution Demonstrated on Multi-FPGA Neural Network Inference. In *Proceedings of the 15th International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART '25)*. https://doi.org/10.1145/3728179.3728190

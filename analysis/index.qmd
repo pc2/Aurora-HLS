@@ -1,0 +1,41 @@
+---
+title: "AuroraFlow CI analysis"
+---
+
+```{julia}
+#| output: false
+include("results.jl")
+include("plots.jl")
+result = load_results(ENV["AURORA_RESULTS_FILE"])
+mkpath("data")
+for (name, data) in [("benchmarks", result.benchmarks), ("resources", result.resources), ("sources", result.sources)]
+    CSV.write("data/$name.csv", data)
+end
+```
+
+[Pipeline {{< env CI_PIPELINE_ID history >}}]({{< env CI_PIPELINE_URL https://git.uni-paderborn.de/pc2-ci/fpga/AuroraFlow/-/pipelines >}})
+
+## Latency and throughput
+
+```{julia}
+#| fig-alt: "Latency and throughput over message size."
+if !isempty(result.benchmarks)
+    for data in groupby(result.benchmarks, :variant, sort=true)
+        display(plot_latencies(data))
+        display(plot_throughput(data))
+    end
+end
+```
+
+## AuroraFlow core utilization
+
+```{julia}
+#| fig-alt: "AuroraFlow core utilization."
+if !isempty(result.resources)
+    for data in groupby(result.resources, :variant, sort=true)
+        display(plot_resources(data))
+    end
+end
+```
+
+[Benchmarks CSV](data/benchmarks.csv) · [Resources CSV](data/resources.csv) · [Sources CSV](data/sources.csv)
