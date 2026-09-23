@@ -3,7 +3,7 @@ BUILD_SYS=make
 WIDTH=64
 FRAMING=0
 XRT=2.14,2.15,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -12,7 +12,7 @@ BUILD_SYS=cmake
 WIDTH=32
 FRAMING=0
 XRT=2.14,2.15,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -21,7 +21,7 @@ BUILD_SYS=make
 WIDTH=32
 FRAMING=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 RUN_RANKS=3
 
@@ -30,6 +30,6 @@ BUILD_SYS=cmake
 WIDTH=64
 FRAMING=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 RUN_RANKS=3

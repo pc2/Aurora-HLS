@@ -50,7 +50,7 @@ public:
             ("i,iterations", "Iterations in one repetition. Scaled up when used with -l", cxxopts::value<uint32_t>()->default_value("1"))
             ("f,frame_size", "Maximum frame size in multiples of the input width", cxxopts::value<uint32_t>()->default_value("128"))
             ("b,num_bytes", "Maximum number of bytes transferred per iteration. Must be a multiple of the input width unless the xclbin supports framing", cxxopts::value<uint32_t>()->default_value("1048576"))
-            ("m,test_mode", "Topology. 0 for loopback, 1 for pair and 2 for ring", cxxopts::value<uint32_t>()->default_value("0"))
+            ("m,test_mode", "0 for loopback, 1 for pair, 2 for ring, 3 for concurrent traffic without payload verification", cxxopts::value<uint32_t>()->default_value("0"))
             ("c,check_status", "Check if the link is up and exit", cxxopts::value<bool>()->default_value("false"))
             ("n,nfc_test", "NFC test. Start the receive kernel 3 seconds after the send kernel", cxxopts::value<bool>()->default_value("false"))
             ("l,latency_test", "Creates one repetition for every message size, up to the maximum", cxxopts::value<bool>()->default_value("false"))
@@ -90,6 +90,12 @@ public:
         semaphore = result["semaphore"].as<bool>();
         timeout_ms = result["timeout_ms"].as<uint32_t>();
         wait = result["wait"].as<bool>();
+
+        if (test_mode > 3 || (test_mode == 3 &&
+            (nfc_test || timeout_ms == 0 || repetitions == 0 || iterations == 0 || max_num_bytes == 0))) {
+            std::cerr << "Test modes are 0 through 3, mode 3 requires nonzero counts and timeout and excludes the NFC delay test" << std::endl;
+            exit(EXIT_FAILURE);
+        }
 
         if (xclbin_path == "") {
             std::cerr << "Error: no bitstream file passed" << std::endl;
@@ -187,7 +193,7 @@ public:
         } else if (test_mode == 2) {
             std::cout << "Ring mode without ack" << std::endl; 
         } else {
-            std::cout << "Unsupported mode without verification" << std::endl; 
+            std::cout << "Concurrent traffic without acknowledgements or payload verification" << std::endl;
         }
         if (max_frame_size > 0) {
             std::cout << "Max. frame size: " << max_frame_size << std::endl;

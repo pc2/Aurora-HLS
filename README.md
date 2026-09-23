@@ -25,7 +25,6 @@ Tested on the Alveo U280 with XRT 2.14, 2.15 and 2.16.
 ![Block Diagram](./images/block_diagram.drawio.png)
 
 A working example application can be found in [`test/`](./test).
-The rest of this README focuses on how to use the library in your own project.
 
 ## Repository layout
 

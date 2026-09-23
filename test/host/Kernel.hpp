@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdint>
+#include <chrono>
 
 static constexpr size_t MAX_STREAM_WORD_BYTES = 64;
 

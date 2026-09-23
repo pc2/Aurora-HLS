@@ -5,14 +5,16 @@ A benchmark/verification application that uses the AuroraFlow library across all
 ## What it does
 
 Two simple HLS kernels (`hls/send.cpp`, `hls/recv.cpp`) send and receive data over the Aurora link.
-The host program (`host/host_aurora_flow_test.cpp`) is MPI-based and uses up to three FPGAs per node, in one of three topologies:
+The host program (`host/host_aurora_flow_test.cpp`) uses MPI and up to three FPGAs per node with four traffic modes.
 
-- **Loopback** (`-m 0`): each Aurora core loops back to itself
-- **Pair** (`-m 1`): ch0 and ch1 of the same FPGA talk to each other
-- **Ring** (`-m 2`): every FPGA's ch1 talks to the next FPGA's ch0
+- **Loopback** (`-m 0`), each Aurora core loops back to itself.
+- **Pair** (`-m 1`), ch0 and ch1 of the same FPGA talk to each other.
+- **Ring** (`-m 2`), every FPGA's ch1 talks to the next FPGA's ch0.
+- **Any** (`-m 3`), all ports transfer concurrently without acknowledgements or payload verification.
 
 For each (topology × message size × frame size) combination, the host measures latency and throughput, reads back the AuroraFlow status counters via the library's C++ API, and writes one line per repetition to `results.csv`.
-With the known topology, the data can be verified on the host. This can be disabled to test arbitrary topologies using `-m 3`.
+Modes 0 through 2 verify payload data on the host.
+Mode 3 supports arbitrary connected topologies.
 
 The host binary is identical across all three execution modes. It picks up `XCL_EMULATION_MODE` at runtime and the library code in `AuroraFlow.hpp` routes accordingly.
 
@@ -112,6 +114,7 @@ Override with `BUILD_DIR=...` if you built somewhere else.
 ./scripts/run_loopback_emu.sh sw_emu 3 -r 2 -i 10       # sw_emu, loopback, 3 ranks
 ./scripts/run_pair_emu.sh     hw_emu 3 -r 2 -i 2 -b 256 # hw_emu, pair, 3 ranks
 ./scripts/run_ring_emu.sh     sw_emu 2 -r 1 -i 100      # sw_emu, ring, 2 ranks
+./scripts/run_any_emu.sh      sw_emu 3 -r 2 -i 10
 
 make xclbin TARGET=sw_emu FIFO_WIDTH=32 USE_FRAMING=1
 ./scripts/run_ring_emu.sh     sw_emu 2 -r 2 -i 10 -b 257 -f 2
@@ -130,6 +133,7 @@ Each `run_*_emu.sh` script does three things:
 ./scripts/run_loopback_hw.sh -p aurora_flow_test_hw.xclbin
 ./scripts/run_pair_hw.sh     -p aurora_flow_test_hw.xclbin -l -i 10
 ./scripts/run_ring_hw.sh     -p aurora_flow_test_hw.xclbin
+./scripts/run_any_hw.sh      -p aurora_flow_test_hw.xclbin
 ```
 
 These scripts source `env.sh` (Noctua 2 module loads), reset the FPGAs, configure QSFP links for the requested topology, and run the host with the correct `-m` flag. Additional arguments are passed through to the host binary.
@@ -176,8 +180,7 @@ Usage:
   -b, --num_bytes arg    Maximum number of bytes transferred per iteration.
                          Must be a multiple of the input width unless
                          the xclbin supports framing (default: 1048576)
-  -m, --test_mode arg    Topology. 0 for loopback, 1 for pair and 2 for
-                         ring (default: 0)
+  -m, --test_mode arg    0 for loopback, 1 for pair, 2 for ring, 3 for concurrent traffic without payload verification (default: 0)
   -c, --check_status     Check if the link is up and exit
   -n, --nfc_test         NFC test. Start the receive kernel 3 seconds after
                          the send kernel

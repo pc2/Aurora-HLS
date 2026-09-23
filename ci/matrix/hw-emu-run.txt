@@ -7,7 +7,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.14,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -20,7 +20,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.14,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 RUN_RANKS=3
 
@@ -33,7 +33,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.15
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -46,7 +46,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.15
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 RUN_RANKS=3
 
@@ -59,7 +59,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -72,7 +72,7 @@ HW_EMU_GT_CLOCK_HZ=300000000
 HW_EMU_CLOCKS=1
 HW_EMU_INTERFACE_CLOCK_ID=0
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 RUN_RANKS=3
 
@@ -103,7 +103,7 @@ HW_EMU_CLOCKS=2
 HW_EMU_INTERFACE_CLOCK_ID=1
 CLOCK_BRIDGE=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 RUN_RANKS=3
 
@@ -120,7 +120,7 @@ HW_EMU_CLOCKS=2
 HW_EMU_INTERFACE_CLOCK_ID=1
 CLOCK_BRIDGE=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short-keep
 RUN_RANKS=3
 

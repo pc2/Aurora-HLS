@@ -5,7 +5,7 @@ FRAMING=0
 AXI_CLOCK_HZ=300000000
 HW_INTERFACE_CLOCK_ID=0
 XRT=2.14,2.15,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 
 TARGET=hw
@@ -15,7 +15,7 @@ FRAMING=1
 AXI_CLOCK_HZ=300000000
 HW_INTERFACE_CLOCK_ID=0
 XRT=2.14,2.15,2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 
 TARGET=hw
@@ -25,7 +25,7 @@ FRAMING=0
 AXI_CLOCK_HZ=300000000
 HW_INTERFACE_CLOCK_ID=0
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 
 TARGET=hw
@@ -35,7 +35,7 @@ FRAMING=1
 AXI_CLOCK_HZ=300000000
 HW_INTERFACE_CLOCK_ID=0
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 
 TARGET=hw
@@ -70,7 +70,7 @@ AXI_CLOCK_HZ=400000000
 HW_INTERFACE_CLOCK_ID=1
 CLOCK_BRIDGE=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short
 
 TARGET=hw
@@ -83,7 +83,7 @@ AXI_CLOCK_HZ=400000000
 HW_INTERFACE_CLOCK_ID=1
 CLOCK_BRIDGE=1
 XRT=2.16
-TOPOLOGY=loopback,pair,ring
+TOPOLOGY=loopback,pair,ring,any
 RUN_KIND=short,short-keep
 
 TARGET=hw

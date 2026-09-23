@@ -32,4 +32,4 @@ if [[ -n "${AURORA_DPI_DEBUG:-}" ]]; then
 fi
 
 mpirun "${MPI_EXPORTS[@]}" -n $NUM_RANKS \
-    "${SCRIPT_DIR}/rank_wrapper.sh" "$PIPE_DIR" "$EMU_MODE" -m 1 "$@"
+    "${SCRIPT_DIR}/rank_wrapper.sh" "$PIPE_DIR" "$EMU_MODE" -m "${TEST_MODE:-1}" "$@"

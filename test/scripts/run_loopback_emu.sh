@@ -27,4 +27,4 @@ trap cleanup_pipe_dir EXIT
 "${SCRIPT_DIR}/configure_emu.sh" loopback "$NUM_RANKS" "$PIPE_DIR"
 
 mpirun -x XCL_EMULATION_MODE -n $NUM_RANKS \
-    "${SCRIPT_DIR}/rank_wrapper.sh" "$PIPE_DIR" "$EMU_MODE" -m 0 "$@"
+    "${SCRIPT_DIR}/rank_wrapper.sh" "$PIPE_DIR" "$EMU_MODE" -m "${TEST_MODE:-0}" "$@"

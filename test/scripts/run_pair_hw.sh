@@ -28,4 +28,4 @@ if ! "${SCRIPT_DIR}/configure_pair_hw.sh"; then
     exit 75
 fi
 
-exec ./host_aurora_flow_test -m 1 "$@"
+exec ./host_aurora_flow_test -m "${TEST_MODE:-1}" "$@"
