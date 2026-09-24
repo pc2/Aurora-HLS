@@ -22,6 +22,7 @@ workflow:
 
 variables:
   ACCOUNT: "pc2-mitarbeiter"
+  EXCLUDE_NODES: "n2fpga08,n2fpga09,n2fpga12"
   LOCAL_RUNNER_TAG: "noctua2-shell"
   SLURM_RUNNER_TAG: "noctua2-slurm"
   HPC_CI_PACKAGE_NAME: "aurora-flow"
@@ -164,6 +165,7 @@ include:
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-
         -A $ACCOUNT -p fpga -t 00:15:00 -N 1 -n 6
+        -x $EXCLUDE_NODES
         --constraint=xilinx_u280_xrt{XRT}
       publish_paths: "results.csv hw-run.log"
       extract_paths: "results.csv hw-run.log"
@@ -186,6 +188,7 @@ include:
       slurm_runner_tag: "$SLURM_RUNNER_TAG"
       slurm_parameters: >-
         -A $ACCOUNT -p fpga -t 01:30:00 -N 1 -n 6
+        -x $EXCLUDE_NODES
         --constraint=xilinx_u280_xrt{XRT}
       publish_paths: "benchmark.csv benchmark.log"
       extract_paths: "benchmark.csv benchmark.log"
