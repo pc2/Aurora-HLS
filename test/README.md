@@ -61,6 +61,10 @@ test/
 
 ## Building with Make
 
+CI publishes a single `auroraflow-linktest` artifact from the `linktest:publish` job.
+It contains hosts for XRT 2.14, 2.15, and 2.16 with framed and unframed 512 bit hardware bitstreams and the hardware launchers.
+The included README describes the required environment and link test commands.
+
 ```bash
 make host                        # host_aurora_flow_test
 make xclbin TARGET=sw_emu        # aurora_flow_test_sw_emu.xclbin

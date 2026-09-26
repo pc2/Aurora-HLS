@@ -11,6 +11,7 @@ stages:
   - benchmark
   - collect
   - analysis
+  - package
 
 workflow:
   rules:
@@ -202,6 +203,13 @@ include:
       mode: "both"
       staging_dir: "collected"
 
+  - component: $CI_SERVER_FQDN/pc2-ci/hpc-ci-component/collect@main
+    inputs:
+      base_job_name: ".aurora-flow-linktest"
+      index_glob: "hw-build-index.json"
+      mode: "payloads"
+      staging_dir: "build-linktest-inputs"
+
 .hw-only:
   rules:
     - if: '$SKIP_HW == "true"'
@@ -263,6 +271,12 @@ check:host:
         cmake -S test -B build-host
         cmake --build build-host --parallel 8 --target host_aurora_flow_test
       fi
+    - mkdir -p "build-host-artifacts/$BUILD_SYS/xrt$XRT"
+    - cp build-host/host_aurora_flow_test "build-host-artifacts/$BUILD_SYS/xrt$XRT/"
+  artifacts:
+    paths:
+      - "build-host-artifacts/$BUILD_SYS/xrt$XRT/host_aurora_flow_test"
+    expire_in: 1 month
 
 sw-emu-build-precheck:
   needs: ["check:rtl", "check:host"]
@@ -358,6 +372,46 @@ analysis:render:
   artifacts:
     paths:
       - analysis/_site/
+    expire_in: 1 month
+
+linktest:publish:
+  extends:
+    - .aurora-flow-linktest
+    - .hw-after-partial-build
+  stage: package
+  tags: [$LOCAL_RUNNER_TAG]
+  timeout: 1h
+  before_script:
+    - mkdir -p "$CI_PROJECT_DIR/build-linktest-inputs/tmp"
+    - export TMPDIR="$CI_PROJECT_DIR/build-linktest-inputs/tmp" TMP="$CI_PROJECT_DIR/build-linktest-inputs/tmp" TEMP="$CI_PROJECT_DIR/build-linktest-inputs/tmp"
+    - !reference [.aurora-flow-linktest, before_script]
+  needs:
+    - job: check:host
+      artifacts: true
+    - job: hw-build-precheck
+      artifacts: true
+    - job: hw-build
+      artifacts: false
+  script:
+    - |
+      mkdir -p linktest/test/scripts
+      cp env.sh linktest/
+      cp ci/linktest-README.md linktest/README.md
+      cp "$HPC_CI_RESULTS_FILE" linktest/
+      cp test/scripts/{run_*_hw,configure_*_hw,reset}.sh linktest/test/scripts/
+      sed -i 's|\./host_aurora_flow_test|./linktest|g' linktest/test/scripts/run_*_hw.sh
+      printf '%s\n' "$CI_COMMIT_SHA" > linktest/host-commit.txt
+      for version in 2.14 2.15 2.16; do
+        mkdir -p "linktest/$version"
+        cp "build-host-artifacts/make/xrt$version/host_aurora_flow_test" "linktest/$version/linktest"
+        cp "$HPC_CI_DATA_DIR"/hw-build/*/aurora_flow_test_hw_make_f1_w64_a300000000_xrt"$version".xclbin "linktest/$version/aurora_flow_test_hw.xclbin"
+        cp "$HPC_CI_DATA_DIR"/hw-build/*/aurora_flow_test_hw_make_f0_w64_a300000000_xrt"$version".xclbin "linktest/$version/aurora_flow_test_hw_streaming.xclbin"
+      done
+  artifacts:
+    name: "auroraflow-linktest-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - linktest/
+    when: on_success
     expire_in: 1 month
 
 pages:
